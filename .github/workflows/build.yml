@@ -17,6 +17,28 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      - name: Generate placeholder icons
+        run: |
+          mkdir -p src-tauri/icons
+          npm install -g @tauri-apps/cli
+          npx tauri icon src-tauri/icons/icon.png || true
+        shell: bash
+        continue-on-error: true
+
+      - name: Create icons with Node
+        run: |
+          New-Item -ItemType Directory -Force -Path src-tauri\icons
+          Add-Type -AssemblyName System.Drawing
+          $bmp = New-Object System.Drawing.Bitmap(32, 32)
+          $g = [System.Drawing.Graphics]::FromImage($bmp)
+          $g.Clear([System.Drawing.Color]::FromArgb(255, 100, 0, 200))
+          $bmp.Save("src-tauri\icons\icon.png", [System.Drawing.Imaging.ImageFormat]::Png)
+          Copy-Item "src-tauri\icons\icon.png" "src-tauri\icons\32x32.png"
+          Copy-Item "src-tauri\icons\icon.png" "src-tauri\icons\128x128.png"
+          Copy-Item "src-tauri\icons\icon.png" "src-tauri\icons\128x128@2x.png"
+          $bmp.Save("src-tauri\icons\icon.ico", [System.Drawing.Imaging.ImageFormat]::Icon)
+        shell: pwsh
+
       - name: Build Tauri
         run: npm run tauri build
 
