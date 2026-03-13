@@ -65,8 +65,8 @@ function flushQueue(pseudo) {
   const client = clients.get(pseudo);
   if (!client || client.busy) return;
 
-  const queue = getQueue(pseudo);
-  if (queue.length === 0) return;
+  const queue = client.queue;
+  if (!queue || queue.length === 0) return;
 
   const item = queue.shift();
   client.busy = true;
@@ -81,10 +81,20 @@ function flushQueue(pseudo) {
  */
 function enqueue(target, item) {
   if (target === 'all') {
-    for (const pseudo of clients.keys()) {
-      getQueue(pseudo).push(item);
-      flushQueue(pseudo);
+    const idleSocketIds = [];
+    for (const client of clients.values()) {
+      const queue = client.queue;
+      if (client.busy || (queue && queue.length > 0)) {
+        queue.push(item);
+      } else {
+        client.busy = true;
+        idleSocketIds.push(client.socketId);
+      }
     }
+    if (idleSocketIds.length > 0) {
+      io.to(idleSocketIds).emit('show', item);
+    }
+    console.log(`[Queue] Broadcast 'all' : type=${item.type} (${clients.size} clients)`);
   } else {
     if (!clients.has(target)) {
       return { error: `Client "${target}" non connecté.` };
@@ -109,8 +119,8 @@ io.on('connection', (socket) => {
     myPseudo = pseudo.trim().toLowerCase();
 
     // Si reconnexion : remplace l'ancienne socket
-    clients.set(myPseudo, { socketId: socket.id, busy: false });
-    if (!queues.has(myPseudo)) queues.set(myPseudo, []);
+    const queue = getQueue(myPseudo);
+    clients.set(myPseudo, { socketId: socket.id, busy: false, queue });
 
     console.log(`[+] ${myPseudo} connecté (${socket.id})`);
     socket.emit('identified', { pseudo: myPseudo });
