@@ -142,6 +142,19 @@ pub fn run() {
                 });
             }
 
+            // ── Empêcher la destruction de la fenêtre Options ───────
+            if let Some(opts) = app.get_webview_window("options") {
+                let opts_clone = opts.clone();
+                opts.on_window_event(move |event| {
+                    if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                        // Annule la fermeture native (destruction)
+                        api.prevent_close();
+                        // Cache simplement la fenêtre
+                        let _ = opts_clone.hide();
+                    }
+                });
+            }
+
             Ok(())
         })
         .run(tauri::generate_context!())
