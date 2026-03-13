@@ -28,6 +28,13 @@
 
     <!-- Actions -->
     <section class="actions">
+      <!-- Onglets (Send / Queue) -->
+      <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab('send')">Envoi</button>
+        <button class="tab-btn" onclick="switchTab('queue')">Queue / Attente</button>
+      </div>
+
+      <div id="tab-send" class="tab-content active">
 
       <!-- Sélecteur de cible -->
       <div class="card" id="target-card">
@@ -79,6 +86,28 @@
       <div class="card log-card">
         <h3>📟 Log</h3>
         <ul id="log-list"></ul>
+      </div>
+      </div> <!-- fin tab-send -->
+
+      <div id="tab-queue" class="tab-content" style="display: none;">
+        <div class="card queue-card">
+          <h3>⏳ Éléments en attente</h3>
+          <table class="queue-table">
+            <thead>
+              <tr>
+                <th>Position</th>
+                <th>Client</th>
+                <th>Date</th>
+                <th>Expéditeur</th>
+                <th>Type</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="queue-tbody">
+              <!-- Rempli en JS -->
+            </tbody>
+          </table>
+        </div>
       </div>
 
     </section>

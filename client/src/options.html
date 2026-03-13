@@ -150,9 +150,24 @@
     </div>
   </div>
 
+  <div class="field" style="display: flex; gap: 12px;">
+    <div style="flex: 1;">
+      <label>Position X (%) — <span id="posXLabel">50</span></label>
+      <div class="slider-row">
+        <input type="range" id="posX" min="0" max="100" step="1" value="50">
+      </div>
+    </div>
+    <div style="flex: 1;">
+      <label>Position Y (%) — <span id="posYLabel">50</span></label>
+      <div class="slider-row">
+        <input type="range" id="posY" min="0" max="100" step="1" value="50">
+      </div>
+    </div>
+  </div>
+
   <div class="field">
     <label>Raccourci clavier — Toggle overlay</label>
-    <div class="shortcut-box">Ctrl + Shift + D</div>
+    <input type="text" id="shortcut" value="Ctrl+Shift+D" placeholder="Ex: Ctrl+Shift+D">
   </div>
 
   <div class="btn-row">

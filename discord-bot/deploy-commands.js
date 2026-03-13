@@ -35,8 +35,16 @@ const commands = [
        .setDescription('Pseudo du PC ciblé (laisser vide = tout le monde)')
        .setRequired(false))
     .addStringOption(o =>
-      o.setName('caption')
+      o.setName('text')
        .setDescription('Texte affiché sous la vidéo')
+       .setRequired(false))
+    .addStringOption(o =>
+      o.setName('caption')
+       .setDescription('Ancien nom pour "text" (gardé par rétro-compatibilité)')
+       .setRequired(false))
+    .addStringOption(o =>
+      o.setName('tts')
+       .setDescription('Nom de la voix TTS (ex: "mario", "robot"). Laissez vide pour aucun.')
        .setRequired(false)),
 
   new SlashCommandBuilder()
@@ -51,8 +59,16 @@ const commands = [
        .setDescription('Pseudo du PC ciblé (laisser vide = tout le monde)')
        .setRequired(false))
     .addStringOption(o =>
-      o.setName('caption')
+      o.setName('text')
        .setDescription('Texte affiché sous l\'image')
+       .setRequired(false))
+    .addStringOption(o =>
+      o.setName('caption')
+       .setDescription('Ancien nom pour "text" (gardé par rétro-compatibilité)')
+       .setRequired(false))
+    .addStringOption(o =>
+      o.setName('tts')
+       .setDescription('Nom de la voix TTS (ex: "mario", "robot"). Laissez vide pour aucun.')
        .setRequired(false)),
 
   new SlashCommandBuilder()
@@ -66,6 +82,10 @@ const commands = [
     .addStringOption(o =>
       o.setName('cible')
        .setDescription('Pseudo du PC ciblé (laisser vide = tout le monde)')
+       .setRequired(false))
+    .addStringOption(o =>
+      o.setName('tts')
+       .setDescription('Nom de la voix TTS (ex: "mario", "robot"). Laissez vide pour aucun.')
        .setRequired(false)),
 
   new SlashCommandBuilder()

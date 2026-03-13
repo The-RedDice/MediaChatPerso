@@ -16,7 +16,12 @@
 
     /* ─── Média (vidéo / image) ─── */
     #media-container {
-      position: fixed; inset: 0;
+      position: fixed;
+      /* On centre le block en fixant la base au point X/Y choisi, et on translate de 50% pour un centrage parfait */
+      left: var(--pos-x, 50%);
+      top: var(--pos-y, 50%);
+      transform: translate(-50%, -50%);
+
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -85,7 +90,11 @@
 
     /* ─── Message texte ─── */
     #message-container {
-      position: fixed; inset: 0;
+      position: fixed;
+      left: var(--pos-x, 50%);
+      top: var(--pos-y, 50%);
+      transform: translate(-50%, -50%);
+
       display: flex;
       align-items: center;
       justify-content: center;
@@ -140,11 +149,12 @@
 </head>
 <body>
 
+  <div id="sender-info">
+    <img id="sender-avatar" alt="">
+    <span id="sender-name"></span>
+  </div>
+
   <div id="media-container">
-    <div id="sender-info">
-      <img id="sender-avatar" alt="">
-      <span id="sender-name"></span>
-    </div>
     <video id="media-video" autoplay playsinline></video>
     <img   id="media-image" alt="">
     <div id="media-caption"></div>

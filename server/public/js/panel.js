@@ -5,6 +5,23 @@ const socket = io({ path: '/socket.io' });
 
 // ─── État ────────────────────────────────────────────────
 let connectedClients = [];
+let queueData = {};
+
+// ─── Tabs ────────────────────────────────────────────────
+window.switchTab = function(tab) {
+  const btns = document.querySelectorAll('.tab-btn');
+  btns.forEach(btn => btn.classList.remove('active'));
+  document.querySelector(`.tab-btn[onclick="switchTab('${tab}')"]`).classList.add('active');
+
+  if (tab === 'send') {
+    document.getElementById('tab-send').style.display = 'block';
+    document.getElementById('tab-queue').style.display = 'none';
+  } else {
+    document.getElementById('tab-send').style.display = 'none';
+    document.getElementById('tab-queue').style.display = 'block';
+    fetchQueue();
+  }
+};
 
 // ─── Connexion Socket ────────────────────────────────────
 socket.on('connect', () => {
@@ -18,6 +35,10 @@ socket.on('disconnect', () => {
 socket.on('clients_update', (list) => {
   connectedClients = list;
   renderClients(list);
+});
+socket.on('queue_update', (qData) => {
+  queueData = qData;
+  renderQueue();
 });
 
 function setConn(ok) {
@@ -122,6 +143,58 @@ async function api(method, endpoint, body) {
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || res.statusText);
   return data;
+}
+
+// ─── Queue ───────────────────────────────────────────────
+async function fetchQueue() {
+  try {
+    const data = await api('GET', '/api/queue');
+    queueData = data;
+    renderQueue();
+  } catch(e) { console.error('Erreur fetchQueue', e); }
+}
+
+function renderQueue() {
+  const tbody = document.getElementById('queue-tbody');
+  tbody.innerHTML = '';
+
+  let count = 0;
+  for (const [pseudo, q] of Object.entries(queueData)) {
+    q.forEach((item, index) => {
+      count++;
+      const tr = document.createElement('tr');
+
+      const dateStr = item.enqueuedAt ? new Date(item.enqueuedAt).toLocaleTimeString('fr-FR') : 'N/A';
+      const sender = item.payload?.senderName || 'Système';
+      let typeDesc = item.type;
+      if (item.type === 'file') typeDesc = `Fichier (${item.payload.fileType})`;
+
+      tr.innerHTML = `
+        <td>#${index + 1}</td>
+        <td><strong>${pseudo}</strong></td>
+        <td>${dateStr}</td>
+        <td>${sender}</td>
+        <td>${typeDesc}</td>
+        <td>
+          <button class="btn btn-secondary" style="padding: 4px 8px; font-size: 0.7rem;" onclick="removeFromQueue('${pseudo}', ${index})">Suppr.</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  if (count === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding: 20px; color: var(--muted);">Aucun élément en attente</td></tr>';
+  }
+}
+
+window.removeFromQueue = async function(pseudo, index) {
+  try {
+    await api('DELETE', `/api/queue/${pseudo}/${index}`);
+    log(`Supprimé pos #${index+1} pour ${pseudo}`, 'ok');
+  } catch(e) {
+    log(`Erreur suppr queue: ${e.message}`, 'err');
+  }
 }
 
 // ─── Log ─────────────────────────────────────────────────

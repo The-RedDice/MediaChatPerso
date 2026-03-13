@@ -15,6 +15,7 @@ const fs             = require('fs');
 const { execFile }   = require('child_process');
 const basicAuth      = require('express-basic-auth');
 const multer         = require('multer');
+const { getAvailableModels, generateTTS } = require('./tts');
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 
@@ -72,6 +73,10 @@ function flushQueue(pseudo) {
   client.busy = true;
   io.to(client.socketId).emit('show', item);
   console.log(`[Queue] → ${pseudo} : type=${item.type}`);
+  // Notify queue update if function is available
+  if (typeof module.exports.getQueueDataForEmitters === 'function') {
+    io.emit('queue_update', module.exports.getQueueDataForEmitters());
+  }
 }
 
 /**
@@ -80,17 +85,22 @@ function flushQueue(pseudo) {
  * @param {object}       item    QueueItem
  */
 function enqueue(target, item) {
+  const enrichedItem = { ...item, enqueuedAt: Date.now() };
   if (target === 'all') {
     for (const pseudo of clients.keys()) {
-      getQueue(pseudo).push(item);
+      getQueue(pseudo).push(enrichedItem);
       flushQueue(pseudo);
     }
   } else {
     if (!clients.has(target)) {
       return { error: `Client "${target}" non connecté.` };
     }
-    getQueue(target).push(item);
+    getQueue(target).push(enrichedItem);
     flushQueue(target);
+  }
+
+  if (typeof module.exports.getQueueDataForEmitters === 'function') {
+    io.emit('queue_update', module.exports.getQueueDataForEmitters());
   }
   return { ok: true };
 }
@@ -117,6 +127,13 @@ io.on('connection', (socket) => {
     }
 
     myPseudo = newPseudo;
+
+    // Supprime les anciens enregistrements qui pourraient pointer vers le même socket
+    for (const [p, clientData] of clients.entries()) {
+      if (clientData.socketId === socket.id && p !== myPseudo) {
+        clients.delete(p);
+      }
+    }
 
     // Met à jour la socket et crée la file si nécessaire
     clients.set(myPseudo, { socketId: socket.id, busy: false });
@@ -187,19 +204,63 @@ router.get('/clients', (_req, res) => {
   res.json({ clients: getClientList() });
 });
 
+// GET /api/tts/models — liste des modèles TTS
+router.get('/tts/models', (_req, res) => {
+  res.json({ models: getAvailableModels() });
+});
+
+function getQueueDataForEmitters() {
+  const result = {};
+  for (const [pseudo, q] of queues.entries()) {
+    result[pseudo] = q;
+  }
+  return result;
+}
+module.exports.getQueueDataForEmitters = getQueueDataForEmitters;
+
+// GET /api/queue — Récupérer toutes les queues
+router.get('/queue', (_req, res) => {
+  res.json(getQueueDataForEmitters());
+});
+
+// DELETE /api/queue/:pseudo/:index — Supprimer un élément précis de la queue
+router.delete('/queue/:pseudo/:index', (req, res) => {
+  const { pseudo, index } = req.params;
+  const q = queues.get(pseudo);
+  if (!q) return res.status(404).json({ error: 'Queue introuvable' });
+
+  const idx = parseInt(index, 10);
+  if (isNaN(idx) || idx < 0 || idx >= q.length) {
+    return res.status(400).json({ error: 'Index invalide' });
+  }
+
+  q.splice(idx, 1);
+  io.emit('queue_update', getQueueDataForEmitters());
+  res.json({ ok: true });
+});
+
 // POST /api/sendurl
 router.post('/sendurl', async (req, res) => {
-  const { url, target = 'all', caption, senderName, avatarUrl } = req.body;
+  const { url, target = 'all', caption, senderName, avatarUrl, ttsVoice } = req.body;
   if (!url) return res.status(400).json({ error: 'url requis' });
 
   try {
     const media = await downloadMedia(url);
+
+    let ttsUrl = '';
+    if (ttsVoice && caption) {
+      const ttsFilename = `tts_${Date.now()}.wav`;
+      const ttsOutPath = path.join(MEDIA_DIR, ttsFilename);
+      const generated = await generateTTS(caption, ttsVoice, ttsOutPath);
+      if (generated) ttsUrl = `${SERVER_URL}/media/${ttsFilename}`;
+    }
+
     const result = enqueue(target, {
       type: 'media',
-      payload: { ...media, caption: caption || '', senderName: senderName || '', avatarUrl: avatarUrl || '' },
+      payload: { ...media, caption: caption || '', senderName: senderName || '', avatarUrl: avatarUrl || '', ttsUrl },
     });
     if (result?.error) return res.status(404).json(result);
-    res.json({ ok: true, ...media });
+    res.json({ ok: true, ...media, ttsUrl });
   } catch (err) {
     console.error('[yt-dlp]', err.message);
     res.status(500).json({ error: 'Échec du téléchargement.', details: err.message });
@@ -207,29 +268,45 @@ router.post('/sendurl', async (req, res) => {
 });
 
 // POST /api/sendfile  (URL CDN Discord ou autre URL directe)
-router.post('/sendfile', (req, res) => {
-  const { fileUrl, target = 'all', fileType = 'image', caption, senderName, avatarUrl } = req.body;
+router.post('/sendfile', async (req, res) => {
+  const { fileUrl, target = 'all', fileType = 'image', caption, senderName, avatarUrl, ttsVoice } = req.body;
   if (!fileUrl) return res.status(400).json({ error: 'fileUrl requis' });
+
+  let ttsUrl = '';
+  if (ttsVoice && caption) {
+    const ttsFilename = `tts_${Date.now()}.wav`;
+    const ttsOutPath = path.join(MEDIA_DIR, ttsFilename);
+    const generated = await generateTTS(caption, ttsVoice, ttsOutPath);
+    if (generated) ttsUrl = `${SERVER_URL}/media/${ttsFilename}`;
+  }
 
   const result = enqueue(target, {
     type: 'file',
-    payload: { url: fileUrl, fileType, caption: caption || '', senderName: senderName || '', avatarUrl: avatarUrl || '' },
+    payload: { url: fileUrl, fileType, caption: caption || '', senderName: senderName || '', avatarUrl: avatarUrl || '', ttsUrl },
   });
   if (result?.error) return res.status(404).json(result);
-  res.json({ ok: true });
+  res.json({ ok: true, ttsUrl });
 });
 
 // POST /api/message
-router.post('/message', (req, res) => {
-  const { text, target = 'all', senderName, avatarUrl } = req.body;
+router.post('/message', async (req, res) => {
+  const { text, target = 'all', senderName, avatarUrl, ttsVoice } = req.body;
   if (!text) return res.status(400).json({ error: 'text requis' });
+
+  let ttsUrl = '';
+  if (ttsVoice && text) {
+    const ttsFilename = `tts_${Date.now()}.wav`;
+    const ttsOutPath = path.join(MEDIA_DIR, ttsFilename);
+    const generated = await generateTTS(text, ttsVoice, ttsOutPath);
+    if (generated) ttsUrl = `${SERVER_URL}/media/${ttsFilename}`;
+  }
 
   const result = enqueue(target, {
     type: 'message',
-    payload: { text, senderName: senderName || '', avatarUrl: avatarUrl || '' },
+    payload: { text, senderName: senderName || '', avatarUrl: avatarUrl || '', ttsUrl },
   });
   if (result?.error) return res.status(404).json(result);
-  res.json({ ok: true });
+  res.json({ ok: true, ttsUrl });
 });
 
 app.use('/api', router);
