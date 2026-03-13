@@ -195,10 +195,19 @@ async function setupTauriEvents() {
 
     // Mise à jour config depuis la fenêtre options
     await listen('config_updated', ({ payload }) => {
+      const oldUrl = CONFIG.serverUrl;
+      const oldPseudo = CONFIG.pseudo;
       applyConfig(payload);
-      // Reconnecter si serverUrl ou pseudo a changé
-      if (socket) socket.disconnect();
-      connectSocket();
+
+      // Si le serveur a changé, on se reconnecte vraiment
+      if (CONFIG.serverUrl !== oldUrl) {
+        if (socket) socket.disconnect();
+        connectSocket();
+      }
+      // Sinon, si seul le pseudo a changé, on se ré-identifie sur le même socket
+      else if (socket && socket.connected && CONFIG.pseudo !== oldPseudo) {
+        socket.emit('identify', { pseudo: CONFIG.pseudo });
+      }
     });
 
     // Raccourci clavier : Ctrl+Shift+D → toggle overlay

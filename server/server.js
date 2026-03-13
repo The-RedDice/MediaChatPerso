@@ -100,19 +100,28 @@ function enqueue(target, item) {
 io.on('connection', (socket) => {
   let myPseudo = null;
 
-  // Le client s'identifie dès la connexion
+  // Le client s'identifie dès la connexion ou change de pseudo
   socket.on('identify', ({ pseudo }) => {
     if (!pseudo || typeof pseudo !== 'string') {
       socket.disconnect();
       return;
     }
-    myPseudo = pseudo.trim().toLowerCase();
+    const newPseudo = pseudo.trim().toLowerCase();
 
-    // Si reconnexion : remplace l'ancienne socket
+    // S'il change de pseudo sur le même socket, on supprime l'ancien
+    if (myPseudo && myPseudo !== newPseudo) {
+      clients.delete(myPseudo);
+      console.log(`[~] ${myPseudo} a changé son pseudo en ${newPseudo}`);
+    } else {
+      console.log(`[+] ${newPseudo} connecté (${socket.id})`);
+    }
+
+    myPseudo = newPseudo;
+
+    // Met à jour la socket et crée la file si nécessaire
     clients.set(myPseudo, { socketId: socket.id, busy: false });
     if (!queues.has(myPseudo)) queues.set(myPseudo, []);
 
-    console.log(`[+] ${myPseudo} connecté (${socket.id})`);
     socket.emit('identified', { pseudo: myPseudo });
 
     // Émet la liste mise à jour à tous (utile pour le panel)
