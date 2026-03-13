@@ -11,25 +11,33 @@
       {
         "label": "overlay",
         "title": "Cacabox Overlay",
-
         "width": 1920,
         "height": 1080,
         "x": 0,
         "y": 0,
-
         "resizable": false,
         "fullscreen": false,
         "decorations": false,
-
         "transparent": true,
         "alwaysOnTop": true,
-
         "skipTaskbar": true,
         "visible": true,
-
         "focus": false,
-
         "contentProtected": false
+      },
+      {
+        "label": "options",
+        "title": "Cacabox — Options",
+        "url": "options.html",
+        "width": 440,
+        "height": 520,
+        "resizable": false,
+        "decorations": true,
+        "transparent": false,
+        "alwaysOnTop": true,
+        "skipTaskbar": true,
+        "visible": false,
+        "center": true
       }
     ],
     "security": {
