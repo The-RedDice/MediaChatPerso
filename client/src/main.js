@@ -199,14 +199,16 @@ async function setupTauriEvents() {
       const oldPseudo = CONFIG.pseudo;
       applyConfig(payload);
 
-      // Si le serveur a changé, on se reconnecte vraiment
-      if (CONFIG.serverUrl !== oldUrl) {
-        if (socket) socket.disconnect();
-        connectSocket();
-      }
-      // Sinon, si seul le pseudo a changé, on se ré-identifie sur le même socket
-      else if (socket && socket.connected && CONFIG.pseudo !== oldPseudo) {
-        socket.emit('identify', { pseudo: CONFIG.pseudo });
+      if (CONFIG.serverUrl !== oldUrl || CONFIG.pseudo !== oldPseudo) {
+        if (socket) {
+          socket.disconnect();
+          // Attendre un peu que le serveur Node gère le 'disconnect'
+          setTimeout(() => {
+            connectSocket();
+          }, 100);
+        } else {
+          connectSocket();
+        }
       }
     });
 
