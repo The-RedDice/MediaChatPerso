@@ -53,6 +53,18 @@ function applyConfig(cfg) {
   muteBadge.classList.toggle('visible', !!CONFIG.muted);
 }
 
+function updateOverlayBadge() {
+  const badge = document.getElementById('overlay-badge');
+  if (badge) {
+    if (!overlayEnabled) {
+      badge.classList.add('visible');
+      badge.textContent = '👁 OVERLAY OFF';
+    } else {
+      badge.classList.remove('visible');
+    }
+  }
+}
+
 // ─── Chargement config (Tauri ou fetch fallback) ──────────────────────────────
 
 async function loadConfig() {
@@ -99,6 +111,7 @@ function showItem(item) {
     // cacher l'image/vidéo/texte précédent.
     mediaContainer.classList.remove('visible');
     messageContainer.classList.remove('visible');
+    senderInfo.classList.remove('visible');
     mediaCaption.classList.remove('visible');
     mediaCaption.textContent = '';
     mediaVideo.src = ''; mediaVideo.pause();
@@ -124,6 +137,9 @@ function showItem(item) {
   switch (type) {
 
     case 'media': {
+      senderInfo.style.marginTop = '';
+      senderInfo.style.marginLeft = '';
+
       const src = `${CONFIG.serverUrl}/media/${payload.filename}`;
       mediaVideo.style.display = 'block';
       mediaImage.style.display = 'none';
@@ -149,6 +165,9 @@ function showItem(item) {
     }
 
     case 'file': {
+      senderInfo.style.marginTop = '';
+      senderInfo.style.marginLeft = '';
+
       const { url, fileType } = payload;
 
       if (fileType === 'audio') {
@@ -195,6 +214,10 @@ function showItem(item) {
       messageText.style.animation = '';
       messageContainer.classList.add('visible');
 
+      // Pour un texte pur, le sender info se place un peu différemment
+      senderInfo.style.marginTop = '-100px';
+      senderInfo.style.marginLeft = '0px';
+
       let duration = Math.min(8000, Math.max(3000, payload.text.length * 60));
       let endedEmitted = false;
 
@@ -202,6 +225,7 @@ function showItem(item) {
         if (endedEmitted) return;
         endedEmitted = true;
         messageContainer.classList.remove('visible');
+        senderInfo.classList.remove('visible');
         setTimeout(() => socket.emit('media_ended'), 400);
       };
 
@@ -219,7 +243,7 @@ function showItem(item) {
   }
 }
 
-function hideAll() {
+window.hideAll = function hideAll() {
   mediaContainer.classList.remove('visible');
   messageContainer.classList.remove('visible');
   senderInfo.classList.remove('visible');
@@ -228,6 +252,18 @@ function hideAll() {
   mediaVideo.src = ''; mediaVideo.pause();
   mediaImage.src = '';
   audioPlayer.src = ''; audioPlayer.pause();
+}
+
+window.updateOverlayBadge = function updateOverlayBadge() {
+  const badge = document.getElementById('overlay-badge');
+  if (badge) {
+    if (!overlayEnabled) {
+      badge.classList.add('visible');
+      badge.textContent = '👁 OVERLAY OFF';
+    } else {
+      badge.classList.remove('visible');
+    }
+  }
 }
 
 // ─── Tauri events (tray) ─────────────────────────────────────────────────────
@@ -250,6 +286,7 @@ async function setupTauriEvents() {
     await listen('toggle_overlay', () => {
       overlayEnabled = !overlayEnabled;
       if (!overlayEnabled) hideAll();
+      updateOverlayBadge();
     });
 
     // Mise à jour config depuis la fenêtre options
@@ -266,6 +303,7 @@ async function setupTauriEvents() {
           await register(CONFIG.shortcut, () => {
             overlayEnabled = !overlayEnabled;
             if (!overlayEnabled) hideAll();
+            updateOverlayBadge();
           });
         } catch (e) {
           console.error("Erreur mise à jour raccourci", e);
@@ -296,6 +334,7 @@ async function setupTauriEvents() {
       await register(CONFIG.shortcut, () => {
         overlayEnabled = !overlayEnabled;
         if (!overlayEnabled) hideAll();
+        updateOverlayBadge();
       });
     }
 

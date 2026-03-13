@@ -166,15 +166,31 @@ function renderQueue() {
 
       const dateStr = item.enqueuedAt ? new Date(item.enqueuedAt).toLocaleTimeString('fr-FR') : 'N/A';
       const sender = item.payload?.senderName || 'Système';
-      let typeDesc = item.type;
-      if (item.type === 'file') typeDesc = `Fichier (${item.payload.fileType})`;
+      let previewHtml = '';
+      if (item.type === 'message') {
+        // Aperçu du texte brut avec troncature
+        let txt = item.payload.text || '';
+        if (txt.length > 30) txt = txt.substring(0, 30) + '…';
+        previewHtml = `<span style="color:var(--text);font-size:0.8rem;">[TXT] ${txt}</span>`;
+      } else if (item.type === 'media') {
+        previewHtml = `<a href="${item.payload.url}" target="_blank" style="color:var(--accent);text-decoration:none;">[VID] Voir la vidéo</a>`;
+        if (item.payload.caption) previewHtml += `<br><span style="font-size:0.75rem;color:var(--muted)">"${item.payload.caption}"</span>`;
+      } else if (item.type === 'file') {
+        const url = item.payload.url;
+        if (item.payload.fileType === 'audio') {
+           previewHtml = `<a href="${url}" target="_blank" style="color:var(--green);text-decoration:none;">[AUD] Écouter</a>`;
+        } else {
+           previewHtml = `<a href="${url}" target="_blank" style="color:var(--green);text-decoration:none;">[IMG] <img src="${url}" style="height:24px; vertical-align:middle; border-radius:3px; margin-left:4px;"></a>`;
+        }
+        if (item.payload.caption) previewHtml += `<br><span style="font-size:0.75rem;color:var(--muted)">"${item.payload.caption}"</span>`;
+      }
 
       tr.innerHTML = `
         <td>#${index + 1}</td>
         <td><strong>${pseudo}</strong></td>
         <td>${dateStr}</td>
         <td>${sender}</td>
-        <td>${typeDesc}</td>
+        <td>${previewHtml}</td>
         <td>
           <button class="btn btn-secondary" style="padding: 4px 8px; font-size: 0.7rem;" onclick="removeFromQueue('${pseudo}', ${index})">Suppr.</button>
         </td>

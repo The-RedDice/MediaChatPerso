@@ -62,7 +62,10 @@
     /* ─── Infos expéditeur (avatar + pseudo Discord) ─── */
     #sender-info {
       position: fixed;
-      top: 24px; right: 28px;
+      left: var(--pos-x, 50%);
+      top: var(--pos-y, 50%);
+      transform: translate(-50%, -50%);
+
       display: flex;
       align-items: center;
       gap: 10px;
@@ -74,6 +77,10 @@
       opacity: 0;
       transition: opacity 0.3s;
       z-index: 30;
+
+      /* Placement en haut à gauche par rapport au centre du conteneur (qui représente l'objet affiché) */
+      margin-top: calc( (var(--media-size, 80) * -0.5vh) - 30px );
+      margin-left: calc( (var(--media-size, 80) * -0.5vw) + 20px );
     }
     #sender-info.visible { opacity: 1; }
     #sender-avatar {
@@ -149,11 +156,6 @@
 </head>
 <body>
 
-  <div id="sender-info">
-    <img id="sender-avatar" alt="">
-    <span id="sender-name"></span>
-  </div>
-
   <div id="media-container">
     <video id="media-video" autoplay playsinline></video>
     <img   id="media-image" alt="">
@@ -164,8 +166,14 @@
     <div id="message-text"></div>
   </div>
 
+  <div id="sender-info">
+    <img id="sender-avatar" alt="">
+    <span id="sender-name"></span>
+  </div>
+
   <audio id="audio-player" autoplay></audio>
   <div id="mute-badge">🔇 MUTE</div>
+  <div id="overlay-badge"></div>
 
   <script type="module" src="./main.js"></script>
 </body>
