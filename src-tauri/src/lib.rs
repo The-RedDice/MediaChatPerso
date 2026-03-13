@@ -1,8 +1,6 @@
 // Cacabox — Tauri backend
 // Tray + Click-through + Options + Raccourcis clavier
 
-#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-
 use tauri::{
     menu::{Menu, MenuItem},
     tray::TrayIconBuilder,
