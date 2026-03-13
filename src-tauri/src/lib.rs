@@ -78,11 +78,13 @@ fn load_config() -> String {
 }
 
 fn config_path() -> Result<std::path::PathBuf, String> {
-    std::env::current_exe()
-        .map_err(|e| e.to_string())?
-        .parent()
-        .ok_or_else(|| "Pas de dossier parent".to_string())
-        .map(|p| p.join("config.json"))
+    // Utilise %APPDATA%\Cacabox\config.json sur Windows
+    // (~/.config/Cacabox/config.json sur Linux/Mac)
+    let base = dirs::config_dir()
+        .ok_or_else(|| "Impossible de trouver le dossier config".to_string())?;
+    let dir = base.join("Cacabox");
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    Ok(dir.join("config.json"))
 }
 
 // ─── Point d'entrée ─────────────────────────────────────────────────────────
