@@ -3,35 +3,38 @@
  * Fenêtre de configuration : lecture/sauvegarde via commandes Tauri
  */
 
-let invoke, emit, getCurrentWindow;
-
 async function init() {
   try {
-    ({ invoke }           = await import('@tauri-apps/api/core'));
-    ({ getCurrentWindow } = await import('@tauri-apps/api/window'));
+    const { invoke }          = window.__TAURI__.core;
+    const { getCurrentWindow } = window.__TAURI__.window;
+
+    // Stocker pour réutilisation
+    window._tauriInvoke = invoke;
+    window._tauriWindow = getCurrentWindow;
 
     // Charger la config actuelle
     const raw    = await invoke('load_config');
     const config = JSON.parse(raw);
 
-    document.getElementById('pseudo').value     = config.pseudo     || '';
-    document.getElementById('serverUrl').value  = config.serverUrl  || 'http://localhost:3000';
+    document.getElementById('pseudo').value    = config.pseudo    || '';
+    document.getElementById('serverUrl').value = config.serverUrl || 'http://localhost:3000';
 
     const ts = config.textSize  ?? 8;
     const ms = config.mediaSize ?? 80;
 
-    document.getElementById('textSize').value   = ts;
-    document.getElementById('mediaSize').value  = ms;
+    document.getElementById('textSize').value  = ts;
+    document.getElementById('mediaSize').value = ms;
     updateLabels(ts, ms);
 
   } catch (e) {
     console.error('[Options] Erreur init :', e);
+    document.getElementById('status').textContent = '❌ Erreur init : ' + e;
   }
 }
 
 function updateLabels(ts, ms) {
-  document.getElementById('textSizeVal').textContent   = ts + 'vw';
-  document.getElementById('mediaSizeVal').textContent  = ms + '%';
+  document.getElementById('textSizeVal').textContent    = ts + 'vw';
+  document.getElementById('mediaSizeVal').textContent   = ms + '%';
   document.getElementById('textSizeLabel').textContent  = ts;
   document.getElementById('mediaSizeLabel').textContent = ms;
 }
@@ -63,7 +66,7 @@ window.saveOptions = async function () {
   }
 
   try {
-    await invoke('save_and_notify', { configJson: JSON.stringify(config) });
+    await window._tauriInvoke('save_and_notify', { configJson: JSON.stringify(config) });
     document.getElementById('status').textContent = '✅ Sauvegardé !';
     setTimeout(() => {
       document.getElementById('status').textContent = '';
@@ -75,7 +78,7 @@ window.saveOptions = async function () {
 
 window.closeWindow = async function () {
   try {
-    const win = getCurrentWindow();
+    const win = window._tauriWindow();
     await win.hide();
   } catch {}
 };
