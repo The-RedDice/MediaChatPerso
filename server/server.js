@@ -153,6 +153,11 @@ function getClientList() {
  */
 function downloadMedia(url) {
   return new Promise((resolve, reject) => {
+    // Validation basique de l'URL
+    if (!url || typeof url !== 'string' || !url.startsWith('http')) {
+      return reject(new Error('URL invalide.'));
+    }
+
     const filename = `media_${Date.now()}.mp4`;
     const outPath  = path.join(MEDIA_DIR, filename);
 
@@ -161,6 +166,7 @@ function downloadMedia(url) {
       '-f', 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
       '--merge-output-format', 'mp4',
       '-o', outPath,
+      '--',
       url,
     ], { timeout: 120_000 }, (err) => {
       if (err) return reject(err);
