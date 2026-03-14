@@ -279,6 +279,19 @@ async function setupTauriEvents() {
       updateOverlayBadge();
     });
 
+    // Système de debounce pour le raccourci global afin d'éviter le double-trigger
+    // propre à certaines configurations (ex. Tauri v2 / Windows)
+    let lastToggleTime = 0;
+    const toggleOverlaySafely = () => {
+      const now = Date.now();
+      if (now - lastToggleTime < 300) return; // Debounce de 300ms
+      lastToggleTime = now;
+
+      overlayEnabled = !overlayEnabled;
+      if (!overlayEnabled) hideAll();
+      updateOverlayBadge();
+    };
+
     // Mise à jour config depuis la fenêtre options
     await listen('config_updated', async ({ payload }) => {
       const oldUrl = CONFIG.serverUrl;
@@ -290,10 +303,9 @@ async function setupTauriEvents() {
       if (CONFIG.shortcut !== oldShortcut && CONFIG.shortcut) {
         try {
           await unregister(oldShortcut).catch(() => {});
-          await register(CONFIG.shortcut, () => {
-            overlayEnabled = !overlayEnabled;
-            if (!overlayEnabled) hideAll();
-            updateOverlayBadge();
+          await register(CONFIG.shortcut, (shortcut) => {
+            if (shortcut && shortcut.state === "Released") return; // Si la propriété state existe, ignorer le relâchement
+            toggleOverlaySafely();
           });
         } catch (e) {
           console.error("Erreur mise à jour raccourci", e);
