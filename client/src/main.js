@@ -59,9 +59,6 @@ function applyConfig(cfg) {
   if (typeof cfg === 'string') cfg = JSON.parse(cfg);
   CONFIG = { ...CONFIG, ...cfg };
 
-  // Force mute au cas où il a été injecté par la configuration
-  CONFIG.muted = true;
-
   // Rétrocompatibilité
   if (CONFIG.textSize && !CONFIG.messageSize) {
     CONFIG.messageSize = CONFIG.textSize;
@@ -535,7 +532,12 @@ async function setupTauriEvents() {
       const oldPseudo = CONFIG.pseudo;
       const oldShortcut = CONFIG.shortcut;
 
-      applyConfig(payload);
+      const newConfig = typeof payload === 'string' ? JSON.parse(payload) : payload;
+      // Ne pas écraser l'état mute actuel avec ce qui vient des options,
+      // puisque le bouton mute est dans le tray et indépendant des options.
+      newConfig.muted = CONFIG.muted;
+
+      applyConfig(newConfig);
 
       if (CONFIG.shortcut !== oldShortcut && CONFIG.shortcut) {
         try {

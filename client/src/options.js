@@ -125,7 +125,6 @@ window.saveOptions = async function () {
     posX:        parseInt(document.getElementById('posX').value, 10),
     posY:        parseInt(document.getElementById('posY').value, 10),
     shortcut:    document.getElementById('shortcut').value.trim(),
-    muted:       false,
   };
 
   if (!config.pseudo) {
