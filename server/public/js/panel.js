@@ -50,6 +50,11 @@ socket.on('history_update', (hData) => {
   historyData = hData;
   renderHistory();
 });
+socket.on('panel_log', (data) => {
+  if (data && data.msg) {
+    log(data.msg, data.type || 'info');
+  }
+});
 
 function setConn(ok) {
   const dot   = document.getElementById('conn-dot');
