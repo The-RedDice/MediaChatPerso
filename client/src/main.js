@@ -59,6 +59,9 @@ function applyConfig(cfg) {
   if (typeof cfg === 'string') cfg = JSON.parse(cfg);
   CONFIG = { ...CONFIG, ...cfg };
 
+  // Force mute au cas où il a été injecté par la configuration
+  CONFIG.muted = true;
+
   // Rétrocompatibilité
   if (CONFIG.textSize && !CONFIG.messageSize) {
     CONFIG.messageSize = CONFIG.textSize;
@@ -101,12 +104,16 @@ function updateOverlayBadge() {
 async function loadConfig() {
   try {
     const raw = await window.__TAURI__.core.invoke('load_config');
-    applyConfig(raw);
+    const parsedConfig = JSON.parse(raw);
+    parsedConfig.muted = true; // Force mute au lancement
+    applyConfig(parsedConfig);
   } catch {
     // Fallback navigateur (mode dev)
     try {
       const res = await fetch('./config.json');
-      applyConfig(await res.json());
+      const parsedConfig = await res.json();
+      parsedConfig.muted = true; // Force mute au lancement
+      applyConfig(parsedConfig);
     } catch {}
   }
 }
