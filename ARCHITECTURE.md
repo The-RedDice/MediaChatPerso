@@ -1,7 +1,7 @@
-# 🗂️ Arborescence Cacabox
+# 🗂️ Arborescence BordelBox
 
 ```
-cacabox/
+bordelbox/
 │
 ├── .env.example                    ← Variables d'env à copier en .env
 ├── .gitignore

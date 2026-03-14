@@ -1,5 +1,5 @@
 /**
- * Cacabox — options.js
+ * BordelBox — options.js
  * Fenêtre de configuration : lecture/sauvegarde via commandes Tauri
  */
 

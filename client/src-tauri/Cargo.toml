@@ -1,10 +1,10 @@
 [package]
-name    = "cacabox-client"
+name    = "bordelbox-client"
 version = "1.0.0"
 edition = "2021"
 
 [lib]
-name        = "cacabox_client_lib"
+name        = "bordelbox_client_lib"
 crate-type  = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]

@@ -1,5 +1,5 @@
 /**
- * Cacabox Server
+ * BordelBox Server
  * Express + Socket.io + système de file d'attente par utilisateur
  */
 
@@ -453,7 +453,7 @@ app.get('/panel/*path', (_req, res) => {
 // ─── Démarrage ───────────────────────────────────────────────────────────────
 
 server.listen(PORT, () => {
-  console.log(`\n🚀 Cacabox Server démarré sur ${SERVER_URL}`);
+  console.log(`\n🚀 BordelBox Server démarré sur ${SERVER_URL}`);
   console.log(`📺 Panel Web : ${SERVER_URL}/panel`);
   console.log(`🔌 Socket.io prêt\n`);
 });

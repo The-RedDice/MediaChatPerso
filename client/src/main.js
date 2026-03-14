@@ -1,5 +1,5 @@
 /**
- * Cacabox Client — main.js
+ * BordelBox Client — main.js
  * Socket.io + affichage + mute/disable + config dynamique + raccourcis
  */
 
@@ -583,7 +583,7 @@ async function setupTauriEvents() {
           }
         });
       } catch (e) {
-        console.error("[Cacabox] Impossible d'enregistrer le raccourci initial:", e);
+        console.error("[BordelBox] Impossible d'enregistrer le raccourci initial:", e);
       }
     }
 
@@ -591,7 +591,7 @@ async function setupTauriEvents() {
     await invoke('set_clickthrough', { enabled: true });
 
   } catch (err) {
-    console.info('[Cacabox] Erreur/Hors contexte Tauri:', err);
+    console.info('[BordelBox] Erreur/Hors contexte Tauri:', err);
   }
 }
 
@@ -607,7 +607,7 @@ function connectSocket() {
   });
 
   socket.on('connect', () => {
-    console.log('[Cacabox] Connecté :', CONFIG.pseudo);
+    console.log('[BordelBox] Connecté :', CONFIG.pseudo);
     socket.emit('identify', { pseudo: CONFIG.pseudo });
   });
 
@@ -619,7 +619,7 @@ function connectSocket() {
   });
 
   socket.on('disconnect', () => {
-    console.warn('[Cacabox] Déconnecté — reconnexion…');
+    console.warn('[BordelBox] Déconnecté — reconnexion…');
   });
 }
 
@@ -634,7 +634,7 @@ function connectSocket() {
   }
 
   await loadSocketIO().catch(() => {
-    console.error('[Cacabox] Socket.io introuvable. Serveur démarré ?');
+    console.error('[BordelBox] Socket.io introuvable. Serveur démarré ?');
   });
 
   await setupTauriEvents();

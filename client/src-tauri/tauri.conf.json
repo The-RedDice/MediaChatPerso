@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Cacabox",
+  "productName": "BordelBox",
   "version": "1.0.0",
-  "identifier": "com.cacabox.overlay",
+  "identifier": "com.bordelbox.overlay",
   "build": {
     "frontendDist": "../src"
   },
@@ -10,7 +10,7 @@
     "windows": [
       {
         "label": "overlay",
-        "title": "Cacabox Overlay",
+        "title": "BordelBox Overlay",
         "maximized": true,
         "resizable": false,
         "fullscreen": false,
@@ -24,7 +24,7 @@
       },
       {
         "label": "options",
-        "title": "Cacabox — Options",
+        "title": "BordelBox — Options",
         "url": "options.html",
         "width": 440,
         "height": 580,

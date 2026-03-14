@@ -1,5 +1,5 @@
 /**
- * Cacabox Discord Bot
+ * BordelBox Discord Bot
  * Discord.js v14 — Slash Commands + Rich Presence dynamique
  */
 
@@ -227,7 +227,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
     }
   } catch (err) {
     console.error(`[Bot Error] ${commandName}:`, err.message);
-    const msg = `❌ Impossible de contacter le serveur Cacabox.\n\`${err.message}\``;
+    const msg = `❌ Impossible de contacter le serveur BordelBox.\n\`${err.message}\``;
     if (interaction.deferred) {
       await interaction.editReply(msg).catch(() => {});
     } else {

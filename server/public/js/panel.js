@@ -1,4 +1,4 @@
-/* ─── Cacabox Panel JS ──────────────────────────────────── */
+/* ─── BordelBox Panel JS ──────────────────────────────────── */
 'use strict';
 
 const socket = io({ path: '/socket.io' });

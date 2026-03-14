@@ -1,4 +1,4 @@
-// Cacabox — Tauri backend
+// BordelBox — Tauri backend
 // Tray + Click-through + Options + Raccourcis clavier
 
 use tauri::{
@@ -100,11 +100,11 @@ fn load_config() -> String {
 }
 
 fn config_path() -> Result<std::path::PathBuf, String> {
-    // Utilise %APPDATA%\Cacabox\config.json sur Windows
-    // (~/.config/Cacabox/config.json sur Linux/Mac)
+    // Utilise %APPDATA%\BordelBox\config.json sur Windows
+    // (~/.config/BordelBox/config.json sur Linux/Mac)
     let base = dirs::config_dir()
         .ok_or_else(|| "Impossible de trouver le dossier config".to_string())?;
-    let dir = base.join("Cacabox");
+    let dir = base.join("BordelBox");
     std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
     Ok(dir.join("config.json"))
 }
@@ -127,7 +127,7 @@ pub fn run() {
             let i_options = MenuItem::with_id(app, "options", "⚙️  Options",              true, None::<&str>)?;
             let i_mute    = MenuItem::with_id(app, "mute",    "🔇 Désactiver le son",     true, None::<&str>)?;
             let i_disable = MenuItem::with_id(app, "disable", "👁  Désactiver l'overlay", true, None::<&str>)?;
-            let i_quit    = MenuItem::with_id(app, "quit",    "❌ Quitter Cacabox",         true, None::<&str>)?;
+            let i_quit    = MenuItem::with_id(app, "quit",    "❌ Quitter BordelBox",         true, None::<&str>)?;
             let menu = Menu::with_items(app, &[&i_options, &i_mute, &i_disable, &i_quit])?;
 
             let state = app.state::<TrayMenuState>();
@@ -136,7 +136,7 @@ pub fn run() {
             TrayIconBuilder::with_id("main_tray")
                 .icon(app.default_window_icon().unwrap().clone())
                 .menu(&menu)
-                .tooltip("Cacabox Overlay")
+                .tooltip("BordelBox Overlay")
                 .on_menu_event(|app, event| match event.id.as_ref() {
                     "quit" => app.exit(0),
                     "mute" => {
@@ -186,5 +186,5 @@ pub fn run() {
             Ok(())
         })
         .run(tauri::generate_context!())
-        .expect("Erreur lors du lancement de Cacabox");
+        .expect("Erreur lors du lancement de BordelBox");
 }
