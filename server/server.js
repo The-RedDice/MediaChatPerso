@@ -244,6 +244,7 @@ function downloadMedia(url) {
       '-f', 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
       '--merge-output-format', 'mp4',
       '--extractor-args', 'youtube:player_client=android,web',
+      '--max-filesize', '250M',
       '-o', outPath,
       '--',
       url,
@@ -316,22 +317,56 @@ router.post('/sendurl', async (req, res) => {
     if (generated) ttsUrl = `${SERVER_URL}/media/${ttsFilename}`;
   }
 
-  // Vérifier si l'URL est un fichier direct
-  const lowerUrl = url.toLowerCase();
-  const isDirectImage = lowerUrl.match(/\.(jpeg|jpg|gif|png|webp|bmp|svg)(\?.*)?$/);
-  const isDirectAudio = lowerUrl.match(/\.(mp3|wav|ogg|m4a|flac)(\?.*)?$/);
-  const isDirectVideo = lowerUrl.match(/\.(mp4|webm|mov|avi|mkv)(\?.*)?$/);
+  // Vérifier la taille et le type via une requête HEAD
+  let isDirectFile = false;
+  let fileType = 'image';
 
-  if (isDirectImage || isDirectAudio || isDirectVideo) {
-    let fileType = 'image';
-    if (isDirectAudio) fileType = 'audio';
-    if (isDirectVideo) fileType = 'video';
+  try {
+    const headRes = await fetch(url, { method: 'HEAD' });
+    if (headRes.ok) {
+      const contentLength = headRes.headers.get('content-length');
+      if (contentLength && parseInt(contentLength, 10) > 250 * 1024 * 1024) {
+        return res.status(413).json({ error: 'Le fichier dépasse la limite de 250 Mo.' });
+      }
 
+      const contentType = headRes.headers.get('content-type') || '';
+      if (contentType.startsWith('image/')) {
+        isDirectFile = true;
+        fileType = 'image';
+      } else if (contentType.startsWith('audio/')) {
+        isDirectFile = true;
+        fileType = 'audio';
+      } else if (contentType.startsWith('video/')) {
+        isDirectFile = true;
+        fileType = 'video';
+      }
+    }
+  } catch (err) {
+    // Ignorer l'erreur HEAD
+  }
+
+  // Fallback sur l'extension si le HEAD n'a pas pu déterminer le type (ex: application/octet-stream ou erreur réseau)
+  if (!isDirectFile) {
+    const lowerUrl = url.toLowerCase();
+    if (lowerUrl.match(/\.(jpeg|jpg|gif|png|webp|bmp|svg)(\?.*)?$/)) {
+      isDirectFile = true;
+      fileType = 'image';
+    } else if (lowerUrl.match(/\.(mp3|wav|ogg|m4a|flac)(\?.*)?$/)) {
+      isDirectFile = true;
+      fileType = 'audio';
+    } else if (lowerUrl.match(/\.(mp4|webm|mov|avi|mkv)(\?.*)?$/)) {
+      isDirectFile = true;
+      fileType = 'video';
+    }
+  }
+
+  if (isDirectFile) {
     const result = enqueue(target, {
       type: 'file',
       payload: { url, fileType, caption: caption || '', senderName: senderName || '', avatarUrl: avatarUrl || '', ttsUrl, greenscreen: !!greenscreen },
     });
     if (result?.error) return res.status(404).json(result);
+    io.emit('panel_log', { msg: `${senderName || 'Discord'} a envoyé un lien direct (${fileType}) → ${target}`, type: 'ok' });
     return res.json({ ok: true, ttsUrl, directUrl: true });
   }
 
@@ -343,9 +378,11 @@ router.post('/sendurl', async (req, res) => {
       payload: { ...media, caption: caption || '', senderName: senderName || '', avatarUrl: avatarUrl || '', ttsUrl, greenscreen: !!greenscreen },
     });
     if (result?.error) return res.status(404).json(result);
+    io.emit('panel_log', { msg: `${senderName || 'Discord'} a envoyé un lien via yt-dlp → ${target}`, type: 'ok' });
     res.json({ ok: true, ...media, ttsUrl });
   } catch (err) {
     console.error('[yt-dlp]', err.message);
+    io.emit('panel_log', { msg: `Erreur yt-dlp pour l'URL ${url}: ${err.message}`, type: 'err' });
     res.status(500).json({ error: 'Échec du téléchargement.', details: err.message });
   }
 });
@@ -354,6 +391,18 @@ router.post('/sendurl', async (req, res) => {
 router.post('/sendfile', async (req, res) => {
   const { fileUrl, target = 'all', fileType = 'image', caption, senderName, avatarUrl, ttsVoice, greenscreen } = req.body;
   if (!fileUrl) return res.status(400).json({ error: 'fileUrl requis' });
+
+  try {
+    const headRes = await fetch(fileUrl, { method: 'HEAD' });
+    if (headRes.ok) {
+      const contentLength = headRes.headers.get('content-length');
+      if (contentLength && parseInt(contentLength, 10) > 250 * 1024 * 1024) {
+        return res.status(413).json({ error: 'Le fichier dépasse la limite de 250 Mo.' });
+      }
+    }
+  } catch (err) {
+    // Si la requête HEAD échoue, on continue quand même.
+  }
 
   let ttsUrl = '';
   if (ttsVoice && caption) {
@@ -368,6 +417,7 @@ router.post('/sendfile', async (req, res) => {
     payload: { url: fileUrl, fileType, caption: caption || '', senderName: senderName || '', avatarUrl: avatarUrl || '', ttsUrl, greenscreen: !!greenscreen },
   });
   if (result?.error) return res.status(404).json(result);
+  io.emit('panel_log', { msg: `${senderName || 'Discord'} a envoyé un fichier (${fileType}) → ${target}`, type: 'ok' });
   res.json({ ok: true, ttsUrl });
 });
 
@@ -401,6 +451,7 @@ router.post('/voteskip', (req, res) => {
     // Déclenchement du SKIP !
     console.log(`[VoteSkip] Seuil atteint (${currentVotes}/${requiredVotes}). Skiping current media...`);
     io.emit('force_skip');
+    io.emit('panel_log', { msg: `VoteSkip validé ! (${currentVotes}/${requiredVotes}) Media passé.`, type: 'ok' });
 
     // On réinitialise l'état
     voteSkipState.active = false;
@@ -412,6 +463,7 @@ router.post('/voteskip', (req, res) => {
 
   // Émettre l'état des votes à tous les clients
   io.emit('voteskip_update', { currentVotes, requiredVotes });
+  io.emit('panel_log', { msg: `VoteSkip en cours... (${currentVotes}/${requiredVotes})`, type: 'info' });
 
   res.json({ skipped: false, currentVotes, requiredVotes });
 });
@@ -434,6 +486,7 @@ router.post('/message', async (req, res) => {
     payload: { text, senderName: senderName || '', avatarUrl: avatarUrl || '', ttsUrl, greenscreen: !!greenscreen },
   });
   if (result?.error) return res.status(404).json(result);
+  io.emit('panel_log', { msg: `${senderName || 'Discord'} a envoyé un message texte → ${target}`, type: 'ok' });
   res.json({ ok: true, ttsUrl });
 });
 
