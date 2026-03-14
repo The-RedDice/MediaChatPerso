@@ -296,6 +296,11 @@ function showItem(item) {
 }
 
 window.hideAll = function hideAll() {
+  mediaVideo.onended = null;
+  mediaVideo.onerror = null;
+  audioPlayer.onended = null;
+  audioPlayer.onerror = null;
+
   mediaContainer.classList.remove('visible');
   messageContainer.classList.remove('visible');
   senderInfo.classList.remove('visible');
