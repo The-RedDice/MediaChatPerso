@@ -227,9 +227,17 @@ function showItem(item) {
     senderInfo.classList.remove('visible');
   }
 
+  // Fonction utilitaire pour proxifier les URLs externes et contourner le blocage Web Audio CORS
+  const getPlayableUrl = (url) => {
+    if (!url) return '';
+    if (url.startsWith(CONFIG.serverUrl)) return url; // Déjà sur notre serveur local
+    if (url.startsWith('data:')) return url; // Base64
+    return `${CONFIG.serverUrl}/api/proxy?url=${encodeURIComponent(url)}`;
+  };
+
   // Si un son TTS est fourni, on le met en route via audioPlayer (seulement si non mute)
   if (payload.ttsUrl && !CONFIG.muted) {
-    audioPlayer.src = payload.ttsUrl;
+    audioPlayer.src = getPlayableUrl(payload.ttsUrl);
     audioPlayer.play().then(() => startVisualizer()).catch(() => {});
   }
 
@@ -275,7 +283,7 @@ function showItem(item) {
 
       if (fileType === 'audio') {
         if (CONFIG.muted) { socket.emit('media_ended'); return; }
-        audioPlayer.src = url;
+        audioPlayer.src = getPlayableUrl(url);
         audioPlayer.play()
           .then(() => startVisualizer())
           .catch((err) => {

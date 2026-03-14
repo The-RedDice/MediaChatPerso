@@ -52,6 +52,28 @@ app.use(express.urlencoded({ extended: false }));
 // Servir les médias uploadés
 app.use('/media', express.static(MEDIA_DIR));
 
+// ─── Proxy Audio ─────────────────────────────────────────────────────────────
+// Requis pour l'API Web Audio (AudioContext) du client Tauri. Les CDN comme Discord
+// peuvent bloquer l'analyse de fréquence (cors). Ce proxy fetch l'audio et
+// le renvoie avec Access-Control-Allow-Origin: *
+const https = require('https');
+const http_mod = require('http');
+app.get('/api/proxy', (req, res) => {
+  const fileUrl = req.query.url;
+  if (!fileUrl) return res.status(400).send('Missing url param');
+
+  const client = fileUrl.startsWith('https') ? https : http_mod;
+
+  client.get(fileUrl, (proxyRes) => {
+    // Transmettre le content-type
+    res.setHeader('Content-Type', proxyRes.headers['content-type'] || 'application/octet-stream');
+    proxyRes.pipe(res);
+  }).on('error', (err) => {
+    console.error('[Proxy Error]', err.message);
+    res.status(500).send('Failed to proxy media');
+  });
+});
+
 // ─── État global ─────────────────────────────────────────────────────────────
 
 /**
