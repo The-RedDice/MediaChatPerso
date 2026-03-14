@@ -189,6 +189,34 @@ function showItem(item) {
         audioPlayer.src = url;
         audioPlayer.play().catch(() => {});
         audioPlayer.onended = () => socket.emit('media_ended');
+      } else if (fileType === 'video') {
+        mediaVideo.style.display = 'block';
+        mediaImage.style.display = 'none';
+        mediaVideo.src = url;
+        mediaVideo.muted = !!CONFIG.muted;
+        mediaVideo.volume = 1;
+
+        if (payload.greenscreen) {
+          mediaVideo.classList.add('greenscreen');
+        } else {
+          mediaVideo.classList.remove('greenscreen');
+        }
+
+        mediaContainer.classList.add('visible');
+
+        if (payload.ttsUrl && !CONFIG.muted) {
+          mediaVideo.volume = 0.2;
+        }
+
+        if (payload.caption) {
+          mediaCaption.textContent = payload.caption;
+          mediaCaption.classList.add('visible');
+        }
+
+        mediaVideo.play().catch(e => console.error("Erreur lecture vidéo :", e));
+
+        mediaVideo.onended = () => { hideAll(); socket.emit('media_ended'); };
+        mediaVideo.onerror = () => { hideAll(); socket.emit('media_ended'); };
       } else {
         mediaImage.style.display = 'block';
         mediaVideo.style.display = 'none';
