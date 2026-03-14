@@ -52,6 +52,13 @@ app.use('/media', express.static(MEDIA_DIR));
 const clients = new Map();
 const queues  = new Map();
 
+// Historique des 100 derniers éléments joués/envoyés
+const historyLog = [];
+function addHistory(item, targetPseudo) {
+  historyLog.unshift({ ...item, playedAt: Date.now(), targetPseudo });
+  if (historyLog.length > 100) historyLog.pop();
+}
+
 // ─── Helpers Queue ───────────────────────────────────────────────────────────
 
 function getQueue(pseudo) {
@@ -72,8 +79,10 @@ function flushQueue(pseudo) {
   const item = queue.shift();
   client.busy = true;
   io.to(client.socketId).emit('show', item);
+  addHistory(item, pseudo);
   console.log(`[Queue] → ${pseudo} : type=${item.type}`);
   io.emit('queue_update', getQueueDataForEmitters());
+  io.emit('history_update', historyLog);
 }
 
 /**
@@ -216,6 +225,11 @@ router.get('/tts/models', (_req, res) => {
 // GET /api/queue — Récupérer toutes les queues
 router.get('/queue', (_req, res) => {
   res.json(getQueueDataForEmitters());
+});
+
+// GET /api/history — Récupérer l'historique
+router.get('/history', (_req, res) => {
+  res.json(historyLog);
 });
 
 // DELETE /api/queue/:pseudo/:index — Supprimer un élément précis de la queue

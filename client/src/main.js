@@ -137,9 +137,6 @@ function showItem(item) {
   switch (type) {
 
     case 'media': {
-      senderInfo.style.marginTop = '';
-      senderInfo.style.marginLeft = '';
-
       const src = `${CONFIG.serverUrl}/media/${payload.filename}`;
       mediaVideo.style.display = 'block';
       mediaImage.style.display = 'none';
@@ -165,9 +162,6 @@ function showItem(item) {
     }
 
     case 'file': {
-      senderInfo.style.marginTop = '';
-      senderInfo.style.marginLeft = '';
-
       const { url, fileType } = payload;
 
       if (fileType === 'audio') {
@@ -213,10 +207,6 @@ function showItem(item) {
       messageText.offsetHeight;
       messageText.style.animation = '';
       messageContainer.classList.add('visible');
-
-      // Pour un texte pur, le sender info se place un peu différemment
-      senderInfo.style.marginTop = '-100px';
-      senderInfo.style.marginLeft = '0px';
 
       let duration = Math.min(8000, Math.max(3000, payload.text.length * 60));
       let endedEmitted = false;
@@ -331,11 +321,18 @@ async function setupTauriEvents() {
 
     // Raccourci clavier → toggle overlay
     if (CONFIG.shortcut) {
-      await register(CONFIG.shortcut, () => {
-        overlayEnabled = !overlayEnabled;
-        if (!overlayEnabled) hideAll();
-        updateOverlayBadge();
-      });
+      try {
+        await unregister(CONFIG.shortcut).catch(() => {});
+        await register(CONFIG.shortcut, (e) => {
+          if (e.state === "Pressed") {
+            overlayEnabled = !overlayEnabled;
+            if (!overlayEnabled) hideAll();
+            updateOverlayBadge();
+          }
+        });
+      } catch (e) {
+        console.error("[Cacabox] Impossible d'enregistrer le raccourci initial:", e);
+      }
     }
 
     // Click-through

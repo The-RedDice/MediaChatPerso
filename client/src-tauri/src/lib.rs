@@ -124,6 +124,7 @@ pub fn run() {
                     }
                     "options" => {
                         if let Some(w) = app.get_webview_window("options") {
+                            let _ = w.unminimize();
                             let _ = w.show();
                             let _ = w.set_focus();
                         }

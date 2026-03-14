@@ -6,6 +6,7 @@ const socket = io({ path: '/socket.io' });
 // ─── État ────────────────────────────────────────────────
 let connectedClients = [];
 let queueData = {};
+let historyData = [];
 
 // ─── Tabs ────────────────────────────────────────────────
 window.switchTab = function(tab) {
@@ -13,13 +14,18 @@ window.switchTab = function(tab) {
   btns.forEach(btn => btn.classList.remove('active'));
   document.querySelector(`.tab-btn[onclick="switchTab('${tab}')"]`).classList.add('active');
 
+  document.getElementById('tab-send').style.display = 'none';
+  document.getElementById('tab-queue').style.display = 'none';
+  document.getElementById('tab-history').style.display = 'none';
+
   if (tab === 'send') {
     document.getElementById('tab-send').style.display = 'block';
-    document.getElementById('tab-queue').style.display = 'none';
-  } else {
-    document.getElementById('tab-send').style.display = 'none';
+  } else if (tab === 'queue') {
     document.getElementById('tab-queue').style.display = 'block';
     fetchQueue();
+  } else if (tab === 'history') {
+    document.getElementById('tab-history').style.display = 'block';
+    fetchHistory();
   }
 };
 
@@ -39,6 +45,10 @@ socket.on('clients_update', (list) => {
 socket.on('queue_update', (qData) => {
   queueData = qData;
   renderQueue();
+});
+socket.on('history_update', (hData) => {
+  historyData = hData;
+  renderHistory();
 });
 
 function setConn(ok) {
@@ -211,6 +221,58 @@ window.removeFromQueue = async function(pseudo, index) {
   } catch(e) {
     log(`Erreur suppr queue: ${e.message}`, 'err');
   }
+}
+
+// ─── History ─────────────────────────────────────────────
+async function fetchHistory() {
+  try {
+    historyData = await api('GET', '/api/history');
+    renderHistory();
+  } catch(e) { console.error('Erreur fetchHistory', e); }
+}
+
+function renderHistory() {
+  const tbody = document.getElementById('history-tbody');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+
+  if (!historyData || historyData.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 20px; color: var(--muted);">Aucun historique</td></tr>';
+    return;
+  }
+
+  historyData.forEach(item => {
+    const tr = document.createElement('tr');
+
+    const dateStr = item.playedAt ? new Date(item.playedAt).toLocaleTimeString('fr-FR') : 'N/A';
+    const sender = item.payload?.senderName || 'Système';
+    let previewHtml = '';
+
+    if (item.type === 'message') {
+      let txt = item.payload.text || '';
+      if (txt.length > 50) txt = txt.substring(0, 50) + '…';
+      previewHtml = `<span style="color:var(--text);font-size:0.8rem;">[TXT] ${txt}</span>`;
+    } else if (item.type === 'media') {
+      previewHtml = `<a href="${item.payload.url}" target="_blank" style="color:var(--accent);text-decoration:none;">[VID] Voir la vidéo</a>`;
+      if (item.payload.caption) previewHtml += `<br><span style="font-size:0.75rem;color:var(--muted)">"${item.payload.caption}"</span>`;
+    } else if (item.type === 'file') {
+      const url = item.payload.url;
+      if (item.payload.fileType === 'audio') {
+         previewHtml = `<a href="${url}" target="_blank" style="color:var(--green);text-decoration:none;">[AUD] Écouter</a>`;
+      } else {
+         previewHtml = `<a href="${url}" target="_blank" style="color:var(--green);text-decoration:none;">[IMG] <img src="${url}" style="height:24px; vertical-align:middle; border-radius:3px; margin-left:4px;"></a>`;
+      }
+      if (item.payload.caption) previewHtml += `<br><span style="font-size:0.75rem;color:var(--muted)">"${item.payload.caption}"</span>`;
+    }
+
+    tr.innerHTML = `
+      <td>${dateStr}</td>
+      <td><strong>${item.targetPseudo}</strong></td>
+      <td>${sender}</td>
+      <td>${previewHtml}</td>
+    `;
+    tbody.appendChild(tr);
+  });
 }
 
 // ─── Log ─────────────────────────────────────────────────

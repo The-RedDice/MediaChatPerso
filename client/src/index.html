@@ -62,9 +62,9 @@
     /* ─── Infos expéditeur (avatar + pseudo Discord) ─── */
     #sender-info {
       position: fixed;
-      left: var(--pos-x, 50%);
-      top: var(--pos-y, 50%);
-      transform: translate(-50%, -50%);
+      /* Position fixe garantie en haut à gauche de l'écran, indifférente de la taille/ratio du média */
+      top: 30px;
+      left: 30px;
 
       display: flex;
       align-items: center;
@@ -77,10 +77,6 @@
       opacity: 0;
       transition: opacity 0.3s;
       z-index: 30;
-
-      /* Placement en haut à gauche par rapport au centre du conteneur (qui représente l'objet affiché) */
-      margin-top: calc( (var(--media-size, 80) * -0.5vh) - 30px );
-      margin-left: calc( (var(--media-size, 80) * -0.5vw) + 20px );
     }
     #sender-info.visible { opacity: 1; }
     #sender-avatar {
