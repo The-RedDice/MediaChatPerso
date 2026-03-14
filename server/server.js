@@ -250,7 +250,7 @@ router.delete('/queue/:pseudo/:index', (req, res) => {
 
 // POST /api/sendurl
 router.post('/sendurl', async (req, res) => {
-  const { url, target = 'all', caption, senderName, avatarUrl, ttsVoice } = req.body;
+  const { url, target = 'all', caption, senderName, avatarUrl, ttsVoice, greenscreen } = req.body;
   if (!url) return res.status(400).json({ error: 'url requis' });
 
   try {
@@ -266,7 +266,7 @@ router.post('/sendurl', async (req, res) => {
 
     const result = enqueue(target, {
       type: 'media',
-      payload: { ...media, caption: caption || '', senderName: senderName || '', avatarUrl: avatarUrl || '', ttsUrl },
+      payload: { ...media, caption: caption || '', senderName: senderName || '', avatarUrl: avatarUrl || '', ttsUrl, greenscreen: !!greenscreen },
     });
     if (result?.error) return res.status(404).json(result);
     res.json({ ok: true, ...media, ttsUrl });
@@ -278,7 +278,7 @@ router.post('/sendurl', async (req, res) => {
 
 // POST /api/sendfile  (URL CDN Discord ou autre URL directe)
 router.post('/sendfile', async (req, res) => {
-  const { fileUrl, target = 'all', fileType = 'image', caption, senderName, avatarUrl, ttsVoice } = req.body;
+  const { fileUrl, target = 'all', fileType = 'image', caption, senderName, avatarUrl, ttsVoice, greenscreen } = req.body;
   if (!fileUrl) return res.status(400).json({ error: 'fileUrl requis' });
 
   let ttsUrl = '';
@@ -291,7 +291,7 @@ router.post('/sendfile', async (req, res) => {
 
   const result = enqueue(target, {
     type: 'file',
-    payload: { url: fileUrl, fileType, caption: caption || '', senderName: senderName || '', avatarUrl: avatarUrl || '', ttsUrl },
+    payload: { url: fileUrl, fileType, caption: caption || '', senderName: senderName || '', avatarUrl: avatarUrl || '', ttsUrl, greenscreen: !!greenscreen },
   });
   if (result?.error) return res.status(404).json(result);
   res.json({ ok: true, ttsUrl });
@@ -299,7 +299,7 @@ router.post('/sendfile', async (req, res) => {
 
 // POST /api/message
 router.post('/message', async (req, res) => {
-  const { text, target = 'all', senderName, avatarUrl, ttsVoice } = req.body;
+  const { text, target = 'all', senderName, avatarUrl, ttsVoice, greenscreen } = req.body;
   if (!text) return res.status(400).json({ error: 'text requis' });
 
   let ttsUrl = '';
@@ -312,7 +312,7 @@ router.post('/message', async (req, res) => {
 
   const result = enqueue(target, {
     type: 'message',
-    payload: { text, senderName: senderName || '', avatarUrl: avatarUrl || '', ttsUrl },
+    payload: { text, senderName: senderName || '', avatarUrl: avatarUrl || '', ttsUrl, greenscreen: !!greenscreen },
   });
   if (result?.error) return res.status(404).json(result);
   res.json({ ok: true, ttsUrl });
