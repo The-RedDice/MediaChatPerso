@@ -100,6 +100,10 @@ const commands = [
     .setName('voteskip')
     .setDescription('Voter pour passer le média en cours (la moitié des PC doit dire oui)'),
 
+  new SlashCommandBuilder()
+    .setName('tuto')
+    .setDescription('Affiche un tutoriel sur le fonctionnement du bot et ses commandes'),
+
 ].map(cmd => cmd.toJSON());
 
 // ─── Déploiement ─────────────────────────────────────────

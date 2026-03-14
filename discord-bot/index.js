@@ -83,8 +83,10 @@ client.on(Events.InteractionCreate, async (interaction) => {
   const { commandName } = interaction;
 
   // Réponse différée pour les commandes longues
-  if (commandName === 'sendurl') {
+  if (commandName === 'sendurl' || commandName === 'sendfile' || commandName === 'message' || commandName === 'online' || commandName === 'voteskip') {
     await interaction.deferReply();
+  } else if (commandName === 'tuto') {
+    await interaction.deferReply({ ephemeral: true });
   } else {
     await interaction.deferReply({ ephemeral: true });
   }
@@ -219,6 +221,35 @@ client.on(Events.InteractionCreate, async (interaction) => {
         await interaction.editReply(
           `👁️ **${data.clients.length} client(s) en ligne :**\n${list}`
         );
+        break;
+      }
+
+      // ── /tuto ──────────────────────────────────────────
+      case 'tuto': {
+        const tutoMessage = `
+**Bienvenue sur BordelBox ! 🗃️**
+
+BordelBox est un système permettant d'afficher des médias et des messages en direct sur les écrans des ordinateurs connectés via l'overlay client.
+
+**💻 Commandes disponibles :**
+\` /sendurl \` : Envoie une vidéo YouTube, TikTok ou un lien direct (mp4, mp3, image) sur les PC.
+\` /sendfile \` : Permet d'uploader directement un fichier (image, vidéo, audio) depuis Discord.
+\` /message \` : Affiche un gros texte animé sur les écrans.
+\` /online \` : Affiche la liste des PC actuellement connectés à BordelBox.
+\` /voteskip \` : Lance un vote pour passer le média en cours. Si la moitié des connectés vote oui, le média est zappé.
+\` /tuto \` : Affiche ce message d'aide.
+
+**✨ Options des commandes d'envoi (\`/sendurl\`, \`/sendfile\`, \`/message\`) :**
+- **cible** : Permet de choisir un PC spécifique (par son pseudo). Si vide, l'envoi se fait sur tous les PC connectés.
+- **text** / **texte** : Un texte d'accompagnement affiché sous le média.
+- **tts** : Génère une voix (Text-to-Speech) qui lit votre texte en même temps. Il faut indiquer le nom du modèle (ex: "mario").
+- **greenscreen** : Active un filtre d'incrustation (fond vert) pour rendre le fond du média transparent sur l'overlay.
+
+**🎙️ Comment fonctionne le TTS (Text-to-Speech) ?**
+Dans l'option \`tts\`, vous devez entrer le nom exact d'un modèle vocal (ex: "robot"). Si le modèle existe sur le serveur, il va générer l'audio et le jouer en même temps que votre média ou texte. De nouveaux modèles peuvent être ajoutés par l'administrateur directement sur le serveur Ubuntu !
+        `.trim();
+
+        await interaction.editReply({ content: tutoMessage });
         break;
       }
 
