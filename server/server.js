@@ -35,6 +35,17 @@ const io     = new Server(server, {
   maxHttpBufferSize: 50 * 1024 * 1024, // 50 MB
 });
 
+// Middleware CORS pour les requêtes HTTP et Media (nécessaire pour l'API Web Audio 'crossorigin="anonymous"')
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, DELETE');
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+  next();
+});
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 

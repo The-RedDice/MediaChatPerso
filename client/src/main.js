@@ -276,8 +276,23 @@ function showItem(item) {
       if (fileType === 'audio') {
         if (CONFIG.muted) { socket.emit('media_ended'); return; }
         audioPlayer.src = url;
-        audioPlayer.play().then(() => startVisualizer()).catch(() => {});
-        audioPlayer.onended = () => socket.emit('media_ended');
+        audioPlayer.play()
+          .then(() => startVisualizer())
+          .catch((err) => {
+            console.error("Audio play failed:", err);
+            hideAll();
+            socket.emit('media_ended');
+          });
+
+        audioPlayer.onended = () => {
+          hideAll();
+          socket.emit('media_ended');
+        };
+        audioPlayer.onerror = () => {
+          console.error("Audio load failed");
+          hideAll();
+          socket.emit('media_ended');
+        };
       } else if (fileType === 'video') {
         mediaVideo.style.display = 'block';
         mediaImage.style.display = 'none';
