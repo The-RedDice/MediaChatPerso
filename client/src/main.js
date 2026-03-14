@@ -6,12 +6,13 @@
 // ─── Config par défaut ────────────────────────────────────────────────────────
 
 let CONFIG = {
-  pseudo:    'unknown',
-  serverUrl: 'http://localhost:3000',
-  textSize:  8,    // vw
-  mediaSize: 80,   // % écran
-  muted:     false,
-  shortcut:  'Ctrl+O',
+  pseudo:      'unknown',
+  serverUrl:   'http://localhost:3000',
+  messageSize: 8,    // vw
+  captionSize: 2.5,  // vw
+  mediaSize:   80,   // % écran
+  muted:       false,
+  shortcut:    'Ctrl+O',
 };
 
 let overlayEnabled = true;
@@ -37,8 +38,17 @@ function applyConfig(cfg) {
   if (typeof cfg === 'string') cfg = JSON.parse(cfg);
   CONFIG = { ...CONFIG, ...cfg };
 
+  // Rétrocompatibilité
+  if (CONFIG.textSize && !CONFIG.messageSize) {
+    CONFIG.messageSize = CONFIG.textSize;
+  }
+  if (!CONFIG.captionSize) {
+    CONFIG.captionSize = 2.5;
+  }
+
   // Variables CSS pour les tailles
-  document.documentElement.style.setProperty('--text-size',  `${CONFIG.textSize}vw`);
+  document.documentElement.style.setProperty('--message-size', `${CONFIG.messageSize}vw`);
+  document.documentElement.style.setProperty('--caption-size', `${CONFIG.captionSize}vw`);
   document.documentElement.style.setProperty('--media-size', CONFIG.mediaSize);
 
   // Application des positions
@@ -56,9 +66,9 @@ function applyConfig(cfg) {
 function updateOverlayBadge() {
   const badge = document.getElementById('overlay-badge');
   if (badge) {
-    if (!overlayEnabled) {
+    if (overlayEnabled) {
       badge.classList.add('visible');
-      badge.textContent = '👁 OVERLAY OFF';
+      badge.textContent = '👁️';
     } else {
       badge.classList.remove('visible');
     }
@@ -143,6 +153,13 @@ function showItem(item) {
       mediaVideo.src    = src;
       mediaVideo.muted  = !!CONFIG.muted;
       mediaVideo.volume = 1;
+
+      if (payload.greenscreen) {
+        mediaVideo.classList.add('greenscreen');
+      } else {
+        mediaVideo.classList.remove('greenscreen');
+      }
+
       mediaContainer.classList.add('visible');
 
       // Si TTS est joué, baisser le volume de la vidéo
@@ -173,6 +190,13 @@ function showItem(item) {
         mediaImage.style.display = 'block';
         mediaVideo.style.display = 'none';
         mediaImage.src = url;
+
+        if (payload.greenscreen) {
+          mediaImage.classList.add('greenscreen');
+        } else {
+          mediaImage.classList.remove('greenscreen');
+        }
+
         mediaContainer.classList.add('visible');
 
         if (payload.caption) {
@@ -206,6 +230,13 @@ function showItem(item) {
       messageText.style.animation = 'none';
       messageText.offsetHeight;
       messageText.style.animation = '';
+
+      if (payload.greenscreen) {
+        messageText.classList.add('greenscreen');
+      } else {
+        messageText.classList.remove('greenscreen');
+      }
+
       messageContainer.classList.add('visible');
 
       let duration = Math.min(8000, Math.max(3000, payload.text.length * 60));
@@ -247,9 +278,9 @@ window.hideAll = function hideAll() {
 window.updateOverlayBadge = function updateOverlayBadge() {
   const badge = document.getElementById('overlay-badge');
   if (badge) {
-    if (!overlayEnabled) {
+    if (overlayEnabled) {
       badge.classList.add('visible');
-      badge.textContent = '👁 OVERLAY OFF';
+      badge.textContent = '👁️';
     } else {
       badge.classList.remove('visible');
     }

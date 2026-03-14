@@ -39,12 +39,12 @@ const commands = [
        .setDescription('Texte affiché sous la vidéo')
        .setRequired(false))
     .addStringOption(o =>
-      o.setName('caption')
-       .setDescription('Ancien nom pour "text" (gardé par rétro-compatibilité)')
-       .setRequired(false))
-    .addStringOption(o =>
       o.setName('tts')
        .setDescription('Nom de la voix TTS (ex: "mario", "robot"). Laissez vide pour aucun.')
+       .setRequired(false))
+    .addBooleanOption(o =>
+      o.setName('greenscreen')
+       .setDescription('Applique un filtre green screen pour enlever le fond vert')
        .setRequired(false)),
 
   new SlashCommandBuilder()
@@ -63,12 +63,12 @@ const commands = [
        .setDescription('Texte affiché sous l\'image')
        .setRequired(false))
     .addStringOption(o =>
-      o.setName('caption')
-       .setDescription('Ancien nom pour "text" (gardé par rétro-compatibilité)')
-       .setRequired(false))
-    .addStringOption(o =>
       o.setName('tts')
        .setDescription('Nom de la voix TTS (ex: "mario", "robot"). Laissez vide pour aucun.')
+       .setRequired(false))
+    .addBooleanOption(o =>
+      o.setName('greenscreen')
+       .setDescription('Applique un filtre green screen pour enlever le fond vert')
        .setRequired(false)),
 
   new SlashCommandBuilder()
@@ -86,6 +86,10 @@ const commands = [
     .addStringOption(o =>
       o.setName('tts')
        .setDescription('Nom de la voix TTS (ex: "mario", "robot"). Laissez vide pour aucun.')
+       .setRequired(false))
+    .addBooleanOption(o =>
+      o.setName('greenscreen')
+       .setDescription('Applique un filtre green screen pour enlever le fond vert')
        .setRequired(false)),
 
   new SlashCommandBuilder()

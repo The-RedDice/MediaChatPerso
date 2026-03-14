@@ -19,18 +19,20 @@ async function init() {
     document.getElementById('pseudo').value    = config.pseudo    || '';
     document.getElementById('serverUrl').value = config.serverUrl || 'http://localhost:3000';
 
-    const ts = config.textSize  ?? 8;
+    const msgSize = config.messageSize ?? config.textSize ?? 8;
+    const capSize = config.captionSize ?? 2.5;
     const ms = config.mediaSize ?? 80;
     const px = config.posX ?? 50;
     const py = config.posY ?? 50;
     const sc = config.shortcut || 'Ctrl+O';
 
-    document.getElementById('textSize').value  = ts;
+    document.getElementById('messageSize').value  = msgSize;
+    document.getElementById('captionSize').value  = capSize;
     document.getElementById('mediaSize').value = ms;
     document.getElementById('posX').value = px;
     document.getElementById('posY').value = py;
     document.getElementById('shortcut').value = sc;
-    updateLabels(ts, ms, px, py);
+    updateLabels(msgSize, capSize, ms, px, py);
 
   } catch (e) {
     console.error('[Options] Erreur init :', e);
@@ -38,11 +40,13 @@ async function init() {
   }
 }
 
-function updateLabels(ts, ms, px, py) {
-  document.getElementById('textSizeVal').textContent    = ts + 'vw';
-  document.getElementById('mediaSizeVal').textContent   = ms + '%';
-  document.getElementById('textSizeLabel').textContent  = ts;
-  document.getElementById('mediaSizeLabel').textContent = ms;
+function updateLabels(msgSize, capSize, ms, px, py) {
+  document.getElementById('messageSizeVal').textContent   = msgSize + 'vw';
+  document.getElementById('captionSizeVal').textContent   = capSize + 'vw';
+  document.getElementById('mediaSizeVal').textContent     = ms + '%';
+  document.getElementById('messageSizeLabel').textContent = msgSize;
+  document.getElementById('captionSizeLabel').textContent = capSize;
+  document.getElementById('mediaSizeLabel').textContent   = ms;
   if(px !== undefined) document.getElementById('posXLabel').textContent = px;
   if(py !== undefined) document.getElementById('posYLabel').textContent = py;
 }
@@ -55,10 +59,16 @@ document.getElementById('posY').addEventListener('input', (e) => {
   document.getElementById('posYLabel').textContent = e.target.value;
 });
 
-document.getElementById('textSize').addEventListener('input', (e) => {
+document.getElementById('messageSize').addEventListener('input', (e) => {
   const v = e.target.value;
-  document.getElementById('textSizeVal').textContent   = v + 'vw';
-  document.getElementById('textSizeLabel').textContent = v;
+  document.getElementById('messageSizeVal').textContent   = v + 'vw';
+  document.getElementById('messageSizeLabel').textContent = v;
+});
+
+document.getElementById('captionSize').addEventListener('input', (e) => {
+  const v = e.target.value;
+  document.getElementById('captionSizeVal').textContent   = v + 'vw';
+  document.getElementById('captionSizeLabel').textContent = v;
 });
 
 document.getElementById('mediaSize').addEventListener('input', (e) => {
@@ -68,11 +78,12 @@ document.getElementById('mediaSize').addEventListener('input', (e) => {
 });
 
 window.resetOverlayOptions = function () {
-  document.getElementById('textSize').value  = 8;
+  document.getElementById('messageSize').value = 8;
+  document.getElementById('captionSize').value = 2.5;
   document.getElementById('mediaSize').value = 80;
   document.getElementById('posX').value = 50;
   document.getElementById('posY').value = 50;
-  updateLabels(8, 80, 50, 50);
+  updateLabels(8, 2.5, 80, 50, 50);
 };
 
 // Enregistrement du raccourci clavier
@@ -106,14 +117,15 @@ document.getElementById('shortcut').addEventListener('keydown', (e) => {
 
 window.saveOptions = async function () {
   const config = {
-    pseudo:    document.getElementById('pseudo').value.trim().toLowerCase(),
-    serverUrl: document.getElementById('serverUrl').value.trim().replace(/\/$/, ''),
-    textSize:  parseFloat(document.getElementById('textSize').value),
-    mediaSize: parseInt(document.getElementById('mediaSize').value, 10),
-    posX:      parseInt(document.getElementById('posX').value, 10),
-    posY:      parseInt(document.getElementById('posY').value, 10),
-    shortcut:  document.getElementById('shortcut').value.trim(),
-    muted:     false,
+    pseudo:      document.getElementById('pseudo').value.trim().toLowerCase(),
+    serverUrl:   document.getElementById('serverUrl').value.trim().replace(/\/$/, ''),
+    messageSize: parseFloat(document.getElementById('messageSize').value),
+    captionSize: parseFloat(document.getElementById('captionSize').value),
+    mediaSize:   parseInt(document.getElementById('mediaSize').value, 10),
+    posX:        parseInt(document.getElementById('posX').value, 10),
+    posY:        parseInt(document.getElementById('posY').value, 10),
+    shortcut:    document.getElementById('shortcut').value.trim(),
+    muted:       false,
   };
 
   if (!config.pseudo) {

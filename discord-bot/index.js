@@ -96,8 +96,9 @@ client.on(Events.InteractionCreate, async (interaction) => {
       case 'sendurl': {
         const url     = interaction.options.getString('lien', true);
         const target  = interaction.options.getString('cible')   || 'all';
-        const caption = interaction.options.getString('caption') || interaction.options.getString('text') || '';
+        const caption = interaction.options.getString('text') || '';
         const ttsVoice = interaction.options.getString('tts') || '';
+        const greenscreen = interaction.options.getBoolean('greenscreen') || false;
 
         const senderName = interaction.user.displayName || interaction.user.username;
         const avatarUrl  = interaction.user.displayAvatarURL({ size: 64, extension: 'png' });
@@ -106,7 +107,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
           content: `⏳ Téléchargement de \`${url}\` en cours…`,
         });
 
-        const data = await apiPost('/sendurl', { url, target, caption, senderName, avatarUrl, ttsVoice });
+        const data = await apiPost('/sendurl', { url, target, caption, senderName, avatarUrl, ttsVoice, greenscreen });
 
         if (data.error) {
           await interaction.editReply(`❌ Erreur : ${data.error}`);
@@ -126,8 +127,9 @@ client.on(Events.InteractionCreate, async (interaction) => {
       case 'sendfile': {
         const attachment = interaction.options.getAttachment('fichier', true);
         const target     = interaction.options.getString('cible')   || 'all';
-        const caption    = interaction.options.getString('caption') || interaction.options.getString('text') || '';
+        const caption    = interaction.options.getString('text') || '';
         const ttsVoice = interaction.options.getString('tts') || '';
+        const greenscreen = interaction.options.getBoolean('greenscreen') || false;
 
         const senderName = interaction.user.displayName || interaction.user.username;
         const avatarUrl  = interaction.user.displayAvatarURL({ size: 64, extension: 'png' });
@@ -135,7 +137,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
         const fileUrl  = attachment.url;
         const fileType = attachment.contentType?.startsWith('audio') ? 'audio' : 'image';
 
-        const data = await apiPost('/sendfile', { fileUrl, fileType, target, caption, senderName, avatarUrl, ttsVoice });
+        const data = await apiPost('/sendfile', { fileUrl, fileType, target, caption, senderName, avatarUrl, ttsVoice, greenscreen });
 
         if (data.error) {
           await interaction.editReply(`❌ Erreur : ${data.error}`);
@@ -154,11 +156,12 @@ client.on(Events.InteractionCreate, async (interaction) => {
         const text   = interaction.options.getString('texte', true);
         const target = interaction.options.getString('cible') || 'all';
         const ttsVoice = interaction.options.getString('tts') || '';
+        const greenscreen = interaction.options.getBoolean('greenscreen') || false;
 
         const senderName = interaction.user.displayName || interaction.user.username;
         const avatarUrl  = interaction.user.displayAvatarURL({ size: 64, extension: 'png' });
 
-        const data = await apiPost('/message', { text, target, senderName, avatarUrl, ttsVoice });
+        const data = await apiPost('/message', { text, target, senderName, avatarUrl, ttsVoice, greenscreen });
 
         if (data.error) {
           await interaction.editReply(`❌ Erreur : ${data.error}`);
