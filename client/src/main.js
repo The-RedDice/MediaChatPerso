@@ -104,8 +104,15 @@ function setupAudioVisualizer() {
   audioContext = new AudioContext();
   analyser = audioContext.createAnalyser();
   analyser.fftSize = 64; // Petit buffer pour dessiner quelques barres (32 bins)
+
+  // Connecte le lecteur audio (pour /sendfile audio et TTS)
   source = audioContext.createMediaElementSource(audioPlayer);
   source.connect(analyser);
+
+  // Connecte le lecteur vidéo (pour /sendurl, yt-dlp, et fichiers vidéos directs)
+  const videoSource = audioContext.createMediaElementSource(mediaVideo);
+  videoSource.connect(analyser);
+
   analyser.connect(audioContext.destination);
 
   const bufferLength = analyser.frequencyBinCount;
@@ -271,7 +278,7 @@ function showItem(item) {
       }
 
       // Lancer la lecture explicitement après avoir configuré la source
-      mediaVideo.play().catch(e => console.error("Erreur lecture vidéo :", e));
+      mediaVideo.play().then(() => startVisualizer()).catch(e => console.error("Erreur lecture vidéo :", e));
 
       mediaVideo.onended = () => { hideAll(); socket.emit('media_ended'); };
       mediaVideo.onerror = () => { hideAll(); socket.emit('media_ended'); };
@@ -325,7 +332,7 @@ function showItem(item) {
           mediaCaption.classList.add('visible');
         }
 
-        mediaVideo.play().catch(e => console.error("Erreur lecture vidéo :", e));
+        mediaVideo.play().then(() => startVisualizer()).catch(e => console.error("Erreur lecture vidéo :", e));
 
         mediaVideo.onended = () => { hideAll(); socket.emit('media_ended'); };
         mediaVideo.onerror = () => { hideAll(); socket.emit('media_ended'); };
