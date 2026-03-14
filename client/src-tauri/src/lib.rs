@@ -95,7 +95,7 @@ fn load_config() -> String {
         .ok()
         .and_then(|p| std::fs::read_to_string(p).ok())
         .unwrap_or_else(|| {
-            r#"{"pseudo":"CHANGE_MOI","serverUrl":"http://localhost:3000","textSize":100,"mediaSize":80,"muted":true}"#.to_string()
+            r#"{"pseudo":"CHANGE_MOI","serverUrl":"http://141.145.200.136:8123","textSize":100,"mediaSize":80,"muted":true}"#.to_string()
         })
 }
 

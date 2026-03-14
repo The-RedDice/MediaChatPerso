@@ -17,7 +17,7 @@ async function init() {
     const config = JSON.parse(raw);
 
     document.getElementById('pseudo').value    = config.pseudo    || '';
-    document.getElementById('serverUrl').value = config.serverUrl || 'http://localhost:3000';
+    document.getElementById('serverUrl').value = config.serverUrl || 'http://141.145.200.136:8123';
 
     const msgSize = config.messageSize ?? config.textSize ?? 8;
     const capSize = config.captionSize ?? 2.5;

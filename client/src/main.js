@@ -7,7 +7,7 @@
 
 let CONFIG = {
   pseudo:      'unknown',
-  serverUrl:   'http://localhost:3000',
+  serverUrl:   'http://141.145.200.136:8123',
   messageSize: 8,    // vw
   captionSize: 2.5,  // vw
   mediaSize:   80,   // % écran
