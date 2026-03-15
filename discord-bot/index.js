@@ -286,7 +286,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
   const { commandName } = interaction;
 
   // Réponse différée pour les commandes longues
-  if (commandName === 'sendurl' || commandName === 'sendfile' || commandName === 'message' || commandName === 'online' || commandName === 'stats' || commandName === 'leaderboard' || commandName === 'queue' || commandName === 'download') {
+  if (commandName === 'sendurl' || commandName === 'sendfile' || commandName === 'message' || commandName === 'online' || commandName === 'profile' || commandName === 'leaderboard' || commandName === 'queue' || commandName === 'download') {
     await interaction.deferReply();
   } else if (commandName === 'tuto' || commandName === 'style' || commandName === 'upload') {
     await interaction.deferReply({ ephemeral: true });
@@ -402,32 +402,66 @@ client.on(Events.InteractionCreate, async (interaction) => {
         break;
       }
 
-      // ── /stats ─────────────────────────────────────────
-      case 'stats': {
+      // ── /profile ───────────────────────────────────────
+      case 'profile': {
         const userOpt = interaction.options.getUser('utilisateur');
-        const targetUserId = userOpt ? userOpt.id : interaction.user.id;
-        const targetUserName = userOpt ? userOpt.username : interaction.user.username;
+        const targetUser = userOpt || interaction.user;
+        const targetUserId = targetUser.id;
+        const targetUserName = targetUser.displayName || targetUser.username;
 
         const data = await apiGet(`/stats/${targetUserId}`);
 
         if (data.error || !data.totalCount) {
-          await interaction.editReply(`📊 **${targetUserName}** n'a encore rien envoyé sur BordelBox.`);
+          await interaction.editReply(`❌ **${targetUserName}** n'a pas encore de profil actif sur BordelBox (aucun envoi).`);
           return;
         }
 
         const totalMedia = (data.mediaCount || 0) + (data.fileCount || 0);
         const flops = data.skippedCount || 0;
+        const reputation = data.reputation || 0;
+        const profileData = data.profile || {};
 
         const rankMediaStr = data.rankMedia ? ` *(#${data.rankMedia})*` : '';
         const rankFlopStr = data.rankFlop ? ` *(#${data.rankFlop})*` : '';
+        const rankRepStr = data.rankRep ? ` *(#${data.rankRep})*` : '';
 
-        const msg = `📊 **Statistiques de ${data.username}** :\n` +
-          `• Médias envoyés : **${totalMedia}**${rankMediaStr}\n` +
-          `• Médias flop (skip) : **${flops}**${rankFlopStr}\n` +
-          `• Total envoyé : ${data.totalCount} (incl. messages texte)\n` +
-          `• Dernière activité : <t:${Math.floor(data.lastAction / 1000)}:R>`;
+        const embedColor = profileData.color && profileData.color.startsWith('#')
+          ? profileData.color.toUpperCase()
+          : '#3498db';
 
-        await interaction.editReply(msg);
+        const embed = new EmbedBuilder()
+          .setTitle(`👤 Profil de ${data.username || targetUserName}`)
+          .setThumbnail(targetUser.displayAvatarURL({ size: 256, extension: 'png' }))
+          .setColor(embedColor)
+          .addFields(
+            { name: '📊 Statistiques d\'envoi', value: `**Médias :** ${totalMedia}${rankMediaStr}\n**Messages Texte :** ${data.messageCount || 0}\n**Total :** ${data.totalCount}\n**Flops (Skips) :** ${flops}${rankFlopStr}`, inline: true },
+            { name: '⭐ Réputation', value: `**Score :** ${reputation}${rankRepStr}`, inline: true },
+            { name: '\u200B', value: '\u200B' } // Espacement
+          );
+
+        // Dates clés
+        let datesText = '';
+        if (data.firstAction) datesText += `**Premier envoi :** <t:${Math.floor(data.firstAction / 1000)}:F>\n`;
+        if (data.lastAction) datesText += `**Dernière activité :** <t:${Math.floor(data.lastAction / 1000)}:R>`;
+
+        if (datesText) {
+          embed.addFields({ name: '📅 Historique', value: datesText, inline: false });
+        }
+
+        // Style visuel
+        const styleParts = [];
+        if (profileData.color) styleParts.push(`**Couleur :** ${profileData.color}`);
+        if (profileData.font) styleParts.push(`**Police :** ${profileData.font}`);
+        if (profileData.animation) styleParts.push(`**Animation :** ${profileData.animation}`);
+        if (profileData.effect) styleParts.push(`**Effet :** ${profileData.effect}`);
+
+        if (styleParts.length > 0) {
+          embed.addFields({ name: '🎨 Style Visuel Actuel', value: styleParts.join('\n'), inline: false });
+        } else {
+          embed.addFields({ name: '🎨 Style Visuel Actuel', value: '*Aucun style personnalisé défini.*', inline: false });
+        }
+
+        await interaction.editReply({ embeds: [embed] });
         break;
       }
 
@@ -752,7 +786,7 @@ BordelBox est un système permettant d'afficher des médias et des messages en d
 **📊 Utilitaires & Infos :**
 \` /queue \` : Affiche et gère la file d'attente (avec des boutons pour vider/skip).
 \` /style \` : Menu pour personnaliser votre affichage global (couleur, animation, police, effets).
-\` /stats \` : Affiche vos statistiques d'envoi.
+\` /profile \` : Affiche votre profil, vos statistiques et votre style visuel.
 \` /leaderboard \` : Affiche le top des spammeurs de la BordelBox.
 \` /online \` : Liste les PC actuellement connectés.
 \` /upload \` : Obtient le lien de la page web pour envoyer des fichiers lourds hors-discord.

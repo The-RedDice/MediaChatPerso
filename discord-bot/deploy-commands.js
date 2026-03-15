@@ -269,11 +269,11 @@ const commands = [
     .setDescription('Affiche un tutoriel sur le fonctionnement du bot et ses commandes'),
 
   new SlashCommandBuilder()
-    .setName('stats')
-    .setDescription('Affiche les statistiques d\'envoi (médias, messages) d\'un utilisateur')
+    .setName('profile')
+    .setDescription('Affiche les statistiques complètes et le style visuel d\'un utilisateur')
     .addUserOption(o =>
       o.setName('utilisateur')
-       .setDescription('Utilisateur dont on veut voir les stats')
+       .setDescription('Utilisateur dont on veut voir le profil')
        .setRequired(false)),
 
   new SlashCommandBuilder()
