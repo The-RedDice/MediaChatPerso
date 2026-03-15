@@ -336,6 +336,183 @@ function applyStyle(payload, textElement, effectsElement) {
 
 // ─── Affichage ────────────────────────────────────────────────────────────────
 
+// Fonction utilitaire pour proxifier les URLs externes et contourner le blocage Web Audio CORS
+function getPlayableUrl(url) {
+  if (!url) return '';
+  if (url.startsWith(CONFIG.serverUrl)) return url; // Déjà sur notre serveur local
+  if (url.startsWith('data:')) return url; // Base64
+  return `${CONFIG.serverUrl}/api/proxy?url=${encodeURIComponent(url)}`;
+}
+
+function handleFile(payload) {
+  const { url, fileType } = payload;
+
+  if (fileType === 'audio') {
+    if (CONFIG.muted) { socket.emit('media_ended'); return; }
+    audioPlayer.src = getPlayableUrl(url);
+    audioPlayer.play()
+      .then(() => startVisualizer())
+      .catch((err) => {
+        console.error("Audio play failed:", err);
+        hideAll();
+        socket.emit('media_ended');
+      });
+
+    audioPlayer.onended = () => {
+      hideAll();
+      socket.emit('media_ended');
+    };
+    audioPlayer.onerror = () => {
+      console.error("Audio load failed");
+      hideAll();
+      socket.emit('media_ended');
+    };
+    if (audioProgressContainer) {
+      audioProgressContainer.classList.add('visible');
+      audioPlayer.ontimeupdate = () => updateAudioProgress(audioPlayer.currentTime, audioPlayer.duration);
+    }
+  } else if (fileType === 'video') {
+    if (mediaProgressContainer) {
+      mediaProgressContainer.classList.add('visible');
+      mediaVideo.ontimeupdate = () => updateProgress(mediaVideo.currentTime, mediaVideo.duration);
+    }
+    mediaVideo.style.display = 'block';
+    mediaImage.style.display = 'none';
+    mediaVideo.src = url;
+    mediaVideo.muted = !!CONFIG.muted;
+    mediaVideo.volume = 1;
+
+    if (payload.greenscreen) {
+      mediaVideo.classList.add('greenscreen');
+    } else {
+      mediaVideo.classList.remove('greenscreen');
+    }
+
+    mediaContainer.classList.add('visible');
+
+    if (payload.ttsUrl && !CONFIG.muted) {
+      mediaVideo.volume = 0.2;
+    }
+
+    if (payload.caption) {
+      captionText.textContent = payload.caption;
+      applyStyle(payload, captionText, captionEffects);
+      mediaCaption.classList.add('visible');
+    }
+
+    mediaVideo.play().then(() => startVisualizer()).catch(e => console.error("Erreur lecture vidéo :", e));
+
+    mediaVideo.onended = () => { hideAll(); socket.emit('media_ended'); };
+    mediaVideo.onerror = () => { hideAll(); socket.emit('media_ended'); };
+  } else {
+    mediaImage.style.display = 'block';
+    mediaVideo.style.display = 'none';
+    mediaImage.src = url;
+
+    if (payload.greenscreen) {
+      mediaImage.classList.add('greenscreen');
+    } else {
+      mediaImage.classList.remove('greenscreen');
+    }
+
+    mediaContainer.classList.add('visible');
+
+    if (payload.caption) {
+      captionText.textContent = payload.caption;
+      applyStyle(payload, captionText, captionEffects);
+      mediaCaption.classList.add('visible');
+    }
+
+    let waitTime = 5000;
+    let endedEmitted = false;
+
+    const endFile = () => {
+      if (endedEmitted) return;
+      endedEmitted = true;
+      hideAll();
+      socket.emit('media_ended');
+    };
+
+    if (payload.ttsUrl && !CONFIG.muted) {
+      audioPlayer.onended = endFile;
+      // Timeout de secours au cas où l'audio bug
+      setTimeout(endFile, 30000);
+    } else {
+      setTimeout(endFile, waitTime);
+    }
+  }
+}
+
+function handleMessage(payload) {
+  messageText.textContent = payload.text;
+
+  if (payload.greenscreen) {
+    messageText.classList.add('greenscreen');
+  } else {
+    messageText.classList.remove('greenscreen');
+  }
+
+  applyStyle(payload, messageText, messageEffects);
+  messageContainer.classList.add('visible');
+
+  let duration = Math.min(8000, Math.max(3000, payload.text.length * 60));
+  let endedEmitted = false;
+
+  const endMsg = () => {
+    if (endedEmitted) return;
+    endedEmitted = true;
+    messageContainer.classList.remove('visible');
+    senderInfo.classList.remove('visible');
+    setTimeout(() => socket.emit('media_ended'), 400);
+  };
+
+  if (payload.ttsUrl && !CONFIG.muted) {
+    audioPlayer.onended = endMsg;
+    setTimeout(endMsg, 30000);
+  } else {
+    setTimeout(endMsg, duration);
+  }
+}
+
+function handleMedia(payload) {
+  if (mediaProgressContainer) {
+    mediaProgressContainer.classList.add('visible');
+    mediaVideo.ontimeupdate = () => updateProgress(mediaVideo.currentTime, mediaVideo.duration);
+  }
+  const src = `${CONFIG.serverUrl}/media/${payload.filename}`;
+  mediaVideo.style.display = 'block';
+  mediaImage.style.display = 'none';
+  mediaVideo.src    = src;
+  mediaVideo.muted  = !!CONFIG.muted;
+  mediaVideo.volume = 1;
+
+  if (payload.greenscreen) {
+    mediaVideo.classList.add('greenscreen');
+  } else {
+    mediaVideo.classList.remove('greenscreen');
+  }
+
+  mediaContainer.classList.add('visible');
+
+  // Si TTS est joué, baisser le volume de la vidéo
+  if (payload.ttsUrl && !CONFIG.muted) {
+    mediaVideo.volume = 0.2;
+  }
+
+  // Caption optionnelle
+  if (payload.caption) {
+    captionText.textContent = payload.caption;
+    applyStyle(payload, captionText, captionEffects);
+    mediaCaption.classList.add('visible');
+  }
+
+  // Lancer la lecture explicitement après avoir configuré la source
+  mediaVideo.play().then(() => startVisualizer()).catch(e => console.error("Erreur lecture vidéo :", e));
+
+  mediaVideo.onended = () => { hideAll(); socket.emit('media_ended'); };
+  mediaVideo.onerror = () => { hideAll(); socket.emit('media_ended'); };
+}
+
 function showItem(item) {
   // Overlay désactivé → skip immédiat
   if (!overlayEnabled) {
@@ -370,14 +547,6 @@ function showItem(item) {
     senderInfo.classList.remove('visible');
   }
 
-  // Fonction utilitaire pour proxifier les URLs externes et contourner le blocage Web Audio CORS
-  const getPlayableUrl = (url) => {
-    if (!url) return '';
-    if (url.startsWith(CONFIG.serverUrl)) return url; // Déjà sur notre serveur local
-    if (url.startsWith('data:')) return url; // Base64
-    return `${CONFIG.serverUrl}/api/proxy?url=${encodeURIComponent(url)}`;
-  };
-
   // Si un son TTS est fourni, on le met en route via audioPlayer (seulement si non mute)
   if (payload.ttsUrl && !CONFIG.muted) {
     audioPlayer.src = getPlayableUrl(payload.ttsUrl);
@@ -386,177 +555,17 @@ function showItem(item) {
 
   switch (type) {
 
-    case 'media': {
-      if (mediaProgressContainer) {
-        mediaProgressContainer.classList.add('visible');
-        mediaVideo.ontimeupdate = () => updateProgress(mediaVideo.currentTime, mediaVideo.duration);
-      }
-      const src = `${CONFIG.serverUrl}/media/${payload.filename}`;
-      mediaVideo.style.display = 'block';
-      mediaImage.style.display = 'none';
-      mediaVideo.src    = src;
-      mediaVideo.muted  = !!CONFIG.muted;
-      mediaVideo.volume = 1;
-
-      if (payload.greenscreen) {
-        mediaVideo.classList.add('greenscreen');
-      } else {
-        mediaVideo.classList.remove('greenscreen');
-      }
-
-      mediaContainer.classList.add('visible');
-
-      // Si TTS est joué, baisser le volume de la vidéo
-      if (payload.ttsUrl && !CONFIG.muted) {
-        mediaVideo.volume = 0.2;
-      }
-
-      // Caption optionnelle
-      if (payload.caption) {
-        captionText.textContent = payload.caption;
-        applyStyle(payload, captionText, captionEffects);
-        mediaCaption.classList.add('visible');
-      }
-
-      // Lancer la lecture explicitement après avoir configuré la source
-      mediaVideo.play().then(() => startVisualizer()).catch(e => console.error("Erreur lecture vidéo :", e));
-
-      mediaVideo.onended = () => { hideAll(); socket.emit('media_ended'); };
-      mediaVideo.onerror = () => { hideAll(); socket.emit('media_ended'); };
+    case 'media':
+      handleMedia(payload);
       break;
-    }
 
-    case 'file': {
-      const { url, fileType } = payload;
-
-      if (fileType === 'audio') {
-        if (CONFIG.muted) { socket.emit('media_ended'); return; }
-        audioPlayer.src = getPlayableUrl(url);
-        audioPlayer.play()
-          .then(() => startVisualizer())
-          .catch((err) => {
-            console.error("Audio play failed:", err);
-            hideAll();
-            socket.emit('media_ended');
-          });
-
-        audioPlayer.onended = () => {
-          hideAll();
-          socket.emit('media_ended');
-        };
-        audioPlayer.onerror = () => {
-          console.error("Audio load failed");
-          hideAll();
-          socket.emit('media_ended');
-        };
-        if (audioProgressContainer) {
-          audioProgressContainer.classList.add('visible');
-          audioPlayer.ontimeupdate = () => updateAudioProgress(audioPlayer.currentTime, audioPlayer.duration);
-        }
-      } else if (fileType === 'video') {
-        if (mediaProgressContainer) {
-          mediaProgressContainer.classList.add('visible');
-          mediaVideo.ontimeupdate = () => updateProgress(mediaVideo.currentTime, mediaVideo.duration);
-        }
-        mediaVideo.style.display = 'block';
-        mediaImage.style.display = 'none';
-        mediaVideo.src = url;
-        mediaVideo.muted = !!CONFIG.muted;
-        mediaVideo.volume = 1;
-
-        if (payload.greenscreen) {
-          mediaVideo.classList.add('greenscreen');
-        } else {
-          mediaVideo.classList.remove('greenscreen');
-        }
-
-        mediaContainer.classList.add('visible');
-
-        if (payload.ttsUrl && !CONFIG.muted) {
-          mediaVideo.volume = 0.2;
-        }
-
-        if (payload.caption) {
-          captionText.textContent = payload.caption;
-          applyStyle(payload, captionText, captionEffects);
-          mediaCaption.classList.add('visible');
-        }
-
-        mediaVideo.play().then(() => startVisualizer()).catch(e => console.error("Erreur lecture vidéo :", e));
-
-        mediaVideo.onended = () => { hideAll(); socket.emit('media_ended'); };
-        mediaVideo.onerror = () => { hideAll(); socket.emit('media_ended'); };
-      } else {
-        mediaImage.style.display = 'block';
-        mediaVideo.style.display = 'none';
-        mediaImage.src = url;
-
-        if (payload.greenscreen) {
-          mediaImage.classList.add('greenscreen');
-        } else {
-          mediaImage.classList.remove('greenscreen');
-        }
-
-        mediaContainer.classList.add('visible');
-
-        if (payload.caption) {
-          captionText.textContent = payload.caption;
-          applyStyle(payload, captionText, captionEffects);
-          mediaCaption.classList.add('visible');
-        }
-
-        let waitTime = 5000;
-        let endedEmitted = false;
-
-        const endFile = () => {
-          if (endedEmitted) return;
-          endedEmitted = true;
-          hideAll();
-          socket.emit('media_ended');
-        };
-
-        if (payload.ttsUrl && !CONFIG.muted) {
-          audioPlayer.onended = endFile;
-          // Timeout de secours au cas où l'audio bug
-          setTimeout(endFile, 30000);
-        } else {
-          setTimeout(endFile, waitTime);
-        }
-      }
+    case 'file':
+      handleFile(payload);
       break;
-    }
 
-    case 'message': {
-      messageText.textContent = payload.text;
-
-      if (payload.greenscreen) {
-        messageText.classList.add('greenscreen');
-      } else {
-        messageText.classList.remove('greenscreen');
-      }
-
-      applyStyle(payload, messageText, messageEffects);
-      messageContainer.classList.add('visible');
-
-      let duration = Math.min(8000, Math.max(3000, payload.text.length * 60));
-      let endedEmitted = false;
-
-      const endMsg = () => {
-        if (endedEmitted) return;
-        endedEmitted = true;
-        messageContainer.classList.remove('visible');
-        senderInfo.classList.remove('visible');
-        setTimeout(() => socket.emit('media_ended'), 400);
-      };
-
-      if (payload.ttsUrl && !CONFIG.muted) {
-        audioPlayer.onended = endMsg;
-        setTimeout(endMsg, 30000);
-      } else {
-        setTimeout(endMsg, duration);
-      }
+    case 'message':
+      handleMessage(payload);
       break;
-    }
 
     default:
       socket.emit('media_ended');
