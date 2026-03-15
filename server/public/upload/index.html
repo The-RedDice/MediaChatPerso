@@ -64,8 +64,17 @@
 
             <input type="text" id="caption-input" placeholder="Texte d'accompagnement (optionnel)" style="width: 100%;">
 
-            <div style="display: flex; gap: 15px; width: 100%;">
+            <div style="display: flex; gap: 15px; width: 100%; align-items: center;">
               <input type="text" id="tts-input" placeholder="Voix TTS (ex: mario)" style="flex: 1;">
+              <select id="filter-select" style="padding: 10px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; color: #fff; cursor: pointer; height: 100%;">
+                <option value="">Aucun Filtre</option>
+                <option value="grayscale">Noir & Blanc</option>
+                <option value="sepia">Sépia</option>
+                <option value="invert">Négatif</option>
+                <option value="blur">Flou</option>
+                <option value="contrast">Contraste Élevé</option>
+                <option value="saturate">Saturation Max</option>
+              </select>
               <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; color: #ccc;">
                 <input type="checkbox" id="greenscreen-input"> Fond Vert
               </label>

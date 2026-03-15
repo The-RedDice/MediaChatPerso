@@ -265,6 +265,9 @@ function applyStyle(payload, textElement, effectsElement) {
   textElement.style.animation = 'none';
   textElement.offsetHeight; // force reflow
 
+  // Reset typewriter specific class
+  textElement.classList.remove('typewriter-text');
+
   if (style.animation) {
     if (style.animation === 'fade') textElement.style.animation = 'msg-fade 0.5s ease-in-out both';
     else if (style.animation === 'slide') textElement.style.animation = 'msg-slide 0.5s cubic-bezier(0.25, 1, 0.5, 1) both';
@@ -273,6 +276,12 @@ function applyStyle(payload, textElement, effectsElement) {
     else if (style.animation === 'spin') textElement.style.animation = 'msg-spin 0.6s cubic-bezier(0.25, 1, 0.5, 1) both';
     else if (style.animation === 'shake') textElement.style.animation = 'msg-shake 0.5s ease-in-out both';
     else if (style.animation === 'drop') textElement.style.animation = 'msg-drop 0.5s cubic-bezier(0.25, 1, 0.5, 1) both';
+    else if (style.animation === 'glitch') textElement.style.animation = 'msg-glitch 0.4s infinite linear both';
+    else if (style.animation === 'pulse') textElement.style.animation = 'msg-pulse 1s infinite ease-in-out both';
+    else if (style.animation === 'typewriter') {
+      textElement.style.animation = 'none'; // handeled by class
+      textElement.classList.add('typewriter-text');
+    }
   } else {
     // Par défaut
     if (textElement === messageText) textElement.style.animation = 'msg-bounce 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both';
@@ -282,9 +291,13 @@ function applyStyle(payload, textElement, effectsElement) {
   // Appliquer les particules dans le conteneur cible (s'il y en a un)
   if (effectsElement) {
     effectsElement.innerHTML = '';
-    if (style.effect === 'particules' || style.effect === 'etoiles' || style.effect === 'confetti' || style.effect === 'feu') {
+    const effectTypes = ['particules', 'etoiles', 'confetti', 'feu', 'neige', 'coeurs', 'matrix'];
+    if (effectTypes.includes(style.effect)) {
       const effectType = style.effect;
-      const count = (effectType === 'etoiles' || effectType === 'confetti') ? 30 : 50;
+      let count = 50;
+      if (effectType === 'etoiles' || effectType === 'confetti') count = 30;
+      else if (effectType === 'neige' || effectType === 'matrix') count = 80;
+      else if (effectType === 'coeurs') count = 20;
 
       for (let i = 0; i < count; i++) {
         const el = document.createElement('div');
@@ -292,12 +305,20 @@ function applyStyle(payload, textElement, effectsElement) {
         if (effectType === 'etoiles') el.className = 'star';
         else if (effectType === 'confetti') el.className = 'confetti';
         else if (effectType === 'feu') el.className = 'fire';
+        else if (effectType === 'neige') el.className = 'snow';
+        else if (effectType === 'coeurs') el.className = 'heart';
+        else if (effectType === 'matrix') {
+          el.className = 'matrix-char';
+          el.textContent = String.fromCharCode(0x30A0 + Math.random() * 96);
+        }
         else el.className = 'particle';
 
         // Tailles aléatoires
         let size = Math.random() * 10 + 5;
         if (effectType === 'etoiles') size = Math.random() * 15 + 5;
         else if (effectType === 'feu') size = Math.random() * 20 + 10;
+        else if (effectType === 'neige') size = Math.random() * 6 + 2;
+        else if (effectType === 'matrix') size = Math.random() * 16 + 10;
 
         el.style.width = `${size}px`;
         el.style.height = `${size}px`;
@@ -335,6 +356,19 @@ function applyStyle(payload, textElement, effectsElement) {
 }
 
 // ─── Affichage ────────────────────────────────────────────────────────────────
+
+function getCssFilter(filterName) {
+  if (!filterName) return '';
+  switch (filterName) {
+    case 'grayscale': return 'grayscale(100%)';
+    case 'sepia': return 'sepia(100%)';
+    case 'invert': return 'invert(100%)';
+    case 'blur': return 'blur(5px)';
+    case 'contrast': return 'contrast(200%)';
+    case 'saturate': return 'saturate(300%)';
+    default: return '';
+  }
+}
 
 // Fonction utilitaire pour proxifier les URLs externes et contourner le blocage Web Audio CORS
 function getPlayableUrl(url) {
@@ -388,6 +422,12 @@ function handleFile(payload) {
       mediaVideo.classList.remove('greenscreen');
     }
 
+    // Appliquer le filtre s'il existe (si c'est greenscreen, il ne faut pas l'écraser, mais le greenscreen est appliqué en CSS via la classe)
+    mediaVideo.style.filter = '';
+    if (payload.filter && !payload.greenscreen) {
+       mediaVideo.style.filter = getCssFilter(payload.filter);
+    }
+
     mediaContainer.classList.add('visible');
 
     if (payload.ttsUrl && !CONFIG.muted) {
@@ -413,6 +453,12 @@ function handleFile(payload) {
       mediaImage.classList.add('greenscreen');
     } else {
       mediaImage.classList.remove('greenscreen');
+    }
+
+    // Appliquer le filtre
+    mediaImage.style.filter = '';
+    if (payload.filter && !payload.greenscreen) {
+       mediaImage.style.filter = getCssFilter(payload.filter);
     }
 
     mediaContainer.classList.add('visible');
@@ -490,6 +536,11 @@ function handleMedia(payload) {
     mediaVideo.classList.add('greenscreen');
   } else {
     mediaVideo.classList.remove('greenscreen');
+  }
+
+  mediaVideo.style.filter = '';
+  if (payload.filter && !payload.greenscreen) {
+     mediaVideo.style.filter = getCssFilter(payload.filter);
   }
 
   mediaContainer.classList.add('visible');

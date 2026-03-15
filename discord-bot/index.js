@@ -213,6 +213,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
         const caption = interaction.options.getString('text') || '';
         const ttsVoice = interaction.options.getString('tts') || '';
         const greenscreen = interaction.options.getBoolean('greenscreen') || false;
+        const filter = interaction.options.getString('filtre') || '';
 
         const senderName = interaction.user.displayName || interaction.user.username;
         const avatarUrl  = interaction.user.displayAvatarURL({ size: 64, extension: 'png' });
@@ -230,7 +231,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
           content: `⏳ Traitement de \`${url}\` en cours…`,
         });
 
-        const data = await apiPost('/sendurl', { url, target, caption, senderName, avatarUrl, ttsVoice, greenscreen, userId, color, font, animation, effect });
+        const data = await apiPost('/sendurl', { url, target, caption, senderName, avatarUrl, ttsVoice, greenscreen, filter, userId, color, font, animation, effect });
 
         if (data.error) {
           await interaction.editReply(`❌ Erreur : ${data.error}`);
@@ -261,6 +262,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
         const caption    = interaction.options.getString('text') || '';
         const ttsVoice = interaction.options.getString('tts') || '';
         const greenscreen = interaction.options.getBoolean('greenscreen') || false;
+        const filter = interaction.options.getString('filtre') || '';
 
         if (attachment.size > 250 * 1024 * 1024) {
           await interaction.editReply(`❌ Erreur : Le fichier dépasse la limite de 250 Mo.`);
@@ -292,7 +294,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
           return;
         }
 
-        const data = await apiPost('/sendfile', { fileUrl, fileType, target, caption, senderName, avatarUrl, ttsVoice, greenscreen, userId, color, font, animation, effect });
+        const data = await apiPost('/sendfile', { fileUrl, fileType, target, caption, senderName, avatarUrl, ttsVoice, greenscreen, filter, userId, color, font, animation, effect });
 
         if (data.error) {
           await interaction.editReply(`❌ Erreur : ${data.error}`);
@@ -368,6 +370,8 @@ client.on(Events.InteractionCreate, async (interaction) => {
             .setPlaceholder('Choisir une police...')
             .addOptions([
               { label: 'Par défaut', value: 'default' },
+              { label: 'Pixel (Retro)', value: '"Press Start 2P"' },
+              { label: 'Horreur', value: 'Creepster' },
               { label: 'Impact (Meme)', value: 'Impact' },
               { label: 'Comic Sans MS (Troll)', value: '"Comic Sans MS"' },
               { label: 'Courier New (Machine à écrire)', value: '"Courier New"' },
@@ -383,6 +387,9 @@ client.on(Events.InteractionCreate, async (interaction) => {
             .setPlaceholder('Choisir une animation...')
             .addOptions([
               { label: 'Par défaut', value: 'default' },
+              { label: 'Glitch', value: 'glitch' },
+              { label: 'Machine à écrire', value: 'typewriter' },
+              { label: 'Pulse', value: 'pulse' },
               { label: 'Fondu (Fade)', value: 'fade' },
               { label: 'Glissement (Slide)', value: 'slide' },
               { label: 'Rebond (Bounce)', value: 'bounce' },
@@ -399,6 +406,9 @@ client.on(Events.InteractionCreate, async (interaction) => {
             .setPlaceholder('Choisir un effet visuel...')
             .addOptions([
               { label: 'Aucun', value: 'aucun' },
+              { label: 'Neige', value: 'neige' },
+              { label: 'Cœurs', value: 'coeurs' },
+              { label: 'Matrix', value: 'matrix' },
               { label: 'Particules', value: 'particules' },
               { label: 'Étoiles', value: 'etoiles' },
               { label: 'Confettis', value: 'confetti' },

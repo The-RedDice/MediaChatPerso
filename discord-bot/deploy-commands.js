@@ -51,13 +51,27 @@ const commands = [
        .setDescription('Override la couleur (ex: red)')
        .setRequired(false))
     .addStringOption(o =>
+      o.setName('filtre')
+       .setDescription('Applique un filtre visuel')
+       .setRequired(false)
+       .addChoices(
+         { name: 'Noir & Blanc', value: 'grayscale' },
+         { name: 'Sépia', value: 'sepia' },
+         { name: 'Négatif', value: 'invert' },
+         { name: 'Flou', value: 'blur' },
+         { name: 'Contraste Élevé', value: 'contrast' },
+         { name: 'Saturation Max', value: 'saturate' }
+       ))
+    .addStringOption(o =>
       o.setName('police')
        .setDescription('Override la police')
        .setRequired(false)
        .addChoices(
-         { name: 'Impact', value: 'Impact' },
-         { name: 'Comic Sans MS', value: '"Comic Sans MS"' },
-         { name: 'Courier New', value: '"Courier New"' },
+         { name: 'Pixel (Retro)', value: '"Press Start 2P"' },
+         { name: 'Horreur', value: 'Creepster' },
+         { name: 'Impact (Meme)', value: 'Impact' },
+         { name: 'Comic Sans MS (Troll)', value: '"Comic Sans MS"' },
+         { name: 'Courier New (Machine à écrire)', value: '"Courier New"' },
          { name: 'Arial', value: 'Arial' },
          { name: 'Georgia', value: 'Georgia' },
          { name: 'Trebuchet MS', value: '"Trebuchet MS"' }
@@ -67,6 +81,9 @@ const commands = [
        .setDescription('Override l\'animation')
        .setRequired(false)
        .addChoices(
+         { name: 'Glitch', value: 'glitch' },
+         { name: 'Machine à écrire', value: 'typewriter' },
+         { name: 'Pulse', value: 'pulse' },
          { name: 'Fondu (Fade)', value: 'fade' },
          { name: 'Glissement (Slide)', value: 'slide' },
          { name: 'Rebond (Bounce)', value: 'bounce' },
@@ -81,6 +98,9 @@ const commands = [
        .setRequired(false)
        .addChoices(
          { name: 'Aucun', value: 'aucun' },
+         { name: 'Neige', value: 'neige' },
+         { name: 'Cœurs', value: 'coeurs' },
+         { name: 'Matrix', value: 'matrix' },
          { name: 'Particules', value: 'particules' },
          { name: 'Étoiles', value: 'etoiles' },
          { name: 'Confetti', value: 'confetti' },
@@ -115,13 +135,27 @@ const commands = [
        .setDescription('Override la couleur (ex: red)')
        .setRequired(false))
     .addStringOption(o =>
+      o.setName('filtre')
+       .setDescription('Applique un filtre visuel')
+       .setRequired(false)
+       .addChoices(
+         { name: 'Noir & Blanc', value: 'grayscale' },
+         { name: 'Sépia', value: 'sepia' },
+         { name: 'Négatif', value: 'invert' },
+         { name: 'Flou', value: 'blur' },
+         { name: 'Contraste Élevé', value: 'contrast' },
+         { name: 'Saturation Max', value: 'saturate' }
+       ))
+    .addStringOption(o =>
       o.setName('police')
        .setDescription('Override la police')
        .setRequired(false)
        .addChoices(
-         { name: 'Impact', value: 'Impact' },
-         { name: 'Comic Sans MS', value: '"Comic Sans MS"' },
-         { name: 'Courier New', value: '"Courier New"' },
+         { name: 'Pixel (Retro)', value: '"Press Start 2P"' },
+         { name: 'Horreur', value: 'Creepster' },
+         { name: 'Impact (Meme)', value: 'Impact' },
+         { name: 'Comic Sans MS (Troll)', value: '"Comic Sans MS"' },
+         { name: 'Courier New (Machine à écrire)', value: '"Courier New"' },
          { name: 'Arial', value: 'Arial' },
          { name: 'Georgia', value: 'Georgia' },
          { name: 'Trebuchet MS', value: '"Trebuchet MS"' }
@@ -131,6 +165,9 @@ const commands = [
        .setDescription('Override l\'animation')
        .setRequired(false)
        .addChoices(
+         { name: 'Glitch', value: 'glitch' },
+         { name: 'Machine à écrire', value: 'typewriter' },
+         { name: 'Pulse', value: 'pulse' },
          { name: 'Fondu (Fade)', value: 'fade' },
          { name: 'Glissement (Slide)', value: 'slide' },
          { name: 'Rebond (Bounce)', value: 'bounce' },
@@ -145,6 +182,9 @@ const commands = [
        .setRequired(false)
        .addChoices(
          { name: 'Aucun', value: 'aucun' },
+         { name: 'Neige', value: 'neige' },
+         { name: 'Cœurs', value: 'coeurs' },
+         { name: 'Matrix', value: 'matrix' },
          { name: 'Particules', value: 'particules' },
          { name: 'Étoiles', value: 'etoiles' },
          { name: 'Confetti', value: 'confetti' },
@@ -180,9 +220,11 @@ const commands = [
        .setDescription('Override la police')
        .setRequired(false)
        .addChoices(
-         { name: 'Impact', value: 'Impact' },
-         { name: 'Comic Sans MS', value: '"Comic Sans MS"' },
-         { name: 'Courier New', value: '"Courier New"' },
+         { name: 'Pixel (Retro)', value: '"Press Start 2P"' },
+         { name: 'Horreur', value: 'Creepster' },
+         { name: 'Impact (Meme)', value: 'Impact' },
+         { name: 'Comic Sans MS (Troll)', value: '"Comic Sans MS"' },
+         { name: 'Courier New (Machine à écrire)', value: '"Courier New"' },
          { name: 'Arial', value: 'Arial' },
          { name: 'Georgia', value: 'Georgia' },
          { name: 'Trebuchet MS', value: '"Trebuchet MS"' }
@@ -192,6 +234,9 @@ const commands = [
        .setDescription('Override l\'animation')
        .setRequired(false)
        .addChoices(
+         { name: 'Glitch', value: 'glitch' },
+         { name: 'Machine à écrire', value: 'typewriter' },
+         { name: 'Pulse', value: 'pulse' },
          { name: 'Fondu (Fade)', value: 'fade' },
          { name: 'Glissement (Slide)', value: 'slide' },
          { name: 'Rebond (Bounce)', value: 'bounce' },
@@ -206,6 +251,9 @@ const commands = [
        .setRequired(false)
        .addChoices(
          { name: 'Aucun', value: 'aucun' },
+         { name: 'Neige', value: 'neige' },
+         { name: 'Cœurs', value: 'coeurs' },
+         { name: 'Matrix', value: 'matrix' },
          { name: 'Particules', value: 'particules' },
          { name: 'Étoiles', value: 'etoiles' },
          { name: 'Confetti', value: 'confetti' },

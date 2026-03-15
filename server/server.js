@@ -472,7 +472,7 @@ app.post('/api/upload', requireAuth, uploadMiddleware.single('file'), async (req
     return res.status(400).json({ error: 'Aucun fichier uploadé.' });
   }
 
-  const { target = 'all', caption, ttsVoice, greenscreen } = req.body;
+  const { target = 'all', caption, ttsVoice, greenscreen, filter } = req.body;
 
   const senderName = req.user.displayName || req.user.username;
   const avatarUrl = `https://cdn.discordapp.com/avatars/${req.user.id}/${req.user.avatar}.png`;
@@ -498,7 +498,7 @@ app.post('/api/upload', requireAuth, uploadMiddleware.single('file'), async (req
 
   const result = enqueue(target, {
     type: 'file',
-    payload: { url: fileUrl, fileType, caption: caption || '', senderName, avatarUrl, ttsUrl, greenscreen: greenscreen === 'true', style },
+    payload: { url: fileUrl, fileType, caption: caption || '', senderName, avatarUrl, ttsUrl, greenscreen: greenscreen === 'true', filter, style },
   });
 
   if (result?.error) return res.status(404).json(result);
@@ -545,7 +545,7 @@ router.post('/style/:userId', requireAuth, (req, res) => {
 
 // POST /api/sendurl
 router.post('/sendurl', requireAuth, async (req, res) => {
-  const { url, target = 'all', caption, senderName, avatarUrl, ttsVoice, greenscreen, userId, color, font, animation, effect } = req.body;
+  const { url, target = 'all', caption, senderName, avatarUrl, ttsVoice, greenscreen, filter, userId, color, font, animation, effect } = req.body;
   if (!url) return res.status(400).json({ error: 'url requis' });
 
   let ttsUrl = '';
@@ -604,7 +604,7 @@ router.post('/sendurl', requireAuth, async (req, res) => {
   if (isDirectFile) {
     const result = enqueue(target, {
       type: 'file',
-      payload: { url, fileType, caption: caption || '', senderName: senderName || '', avatarUrl: avatarUrl || '', ttsUrl, greenscreen: !!greenscreen, style: payloadStyle },
+      payload: { url, fileType, caption: caption || '', senderName: senderName || '', avatarUrl: avatarUrl || '', ttsUrl, greenscreen: !!greenscreen, filter, style: payloadStyle },
     });
     if (result?.error) return res.status(404).json(result);
     if (userId) recordAction(userId, senderName, 'file');
@@ -617,7 +617,7 @@ router.post('/sendurl', requireAuth, async (req, res) => {
 
     const result = enqueue(target, {
       type: 'media',
-      payload: { ...media, caption: caption || '', senderName: senderName || '', avatarUrl: avatarUrl || '', ttsUrl, greenscreen: !!greenscreen, style: payloadStyle },
+      payload: { ...media, caption: caption || '', senderName: senderName || '', avatarUrl: avatarUrl || '', ttsUrl, greenscreen: !!greenscreen, filter, style: payloadStyle },
     });
     if (result?.error) return res.status(404).json(result);
     if (userId) recordAction(userId, senderName, 'media');
@@ -632,7 +632,7 @@ router.post('/sendurl', requireAuth, async (req, res) => {
 
 // POST /api/sendfile  (URL CDN Discord ou autre URL directe)
 router.post('/sendfile', requireAuth, async (req, res) => {
-  const { fileUrl, target = 'all', fileType = 'image', caption, senderName, avatarUrl, ttsVoice, greenscreen, userId, color, font, animation, effect } = req.body;
+  const { fileUrl, target = 'all', fileType = 'image', caption, senderName, avatarUrl, ttsVoice, greenscreen, filter, userId, color, font, animation, effect } = req.body;
   if (!fileUrl) return res.status(400).json({ error: 'fileUrl requis' });
 
   try {
@@ -659,7 +659,7 @@ router.post('/sendfile', requireAuth, async (req, res) => {
 
   const result = enqueue(target, {
     type: 'file',
-    payload: { url: fileUrl, fileType, caption: caption || '', senderName: senderName || '', avatarUrl: avatarUrl || '', ttsUrl, greenscreen: !!greenscreen, style: payloadStyle },
+    payload: { url: fileUrl, fileType, caption: caption || '', senderName: senderName || '', avatarUrl: avatarUrl || '', ttsUrl, greenscreen: !!greenscreen, filter, style: payloadStyle },
   });
   if (result?.error) return res.status(404).json(result);
   if (userId) recordAction(userId, senderName, 'file');

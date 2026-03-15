@@ -125,6 +125,7 @@ async function uploadFile() {
   const caption = document.getElementById('caption-input').value.trim();
   const ttsVoice = document.getElementById('tts-input').value.trim();
   const greenscreen = document.getElementById('greenscreen-input').checked;
+  const filter = document.getElementById('filter-select').value;
 
   const formData = new FormData();
   formData.append('file', file);
@@ -132,6 +133,7 @@ async function uploadFile() {
   formData.append('caption', caption);
   formData.append('ttsVoice', ttsVoice);
   formData.append('greenscreen', greenscreen.toString());
+  if (filter) formData.append('filter', filter);
 
   const progressWrap = document.getElementById('upload-progress');
   const progressBar = document.getElementById('upload-bar');
