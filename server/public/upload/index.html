@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BordelBox — Upload</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;800&family=Space+Grotesk:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/panel/css/panel.css"> <!-- We reuse panel CSS for base styles -->
+  <link rel="stylesheet" href="css/upload.css">
+</head>
+<body>
+  <div class="scanlines"></div>
+
+  <header>
+    <div class="logo">🤖 <span>BORDELBOX UPLOAD</span></div>
+    <div class="status-bar" id="auth-status">
+      <span class="dot"></span>
+      <span id="auth-label">Vérification...</span>
+    </div>
+  </header>
+
+  <main>
+    <section class="actions" id="main-content" style="max-width: 600px; margin: 40px auto; width: 100%;">
+
+      <!-- Login Card -->
+      <div class="card" id="login-card" style="display: none; text-align: center; padding: 40px 20px;">
+        <h2>Connexion Requise</h2>
+        <p style="margin: 20px 0; color: #aaa;">Vous devez être connecté avec Discord et membre du serveur autorisé pour envoyer des fichiers.</p>
+        <button class="btn btn-primary" onclick="window.location.href='/auth/discord'" style="font-size: 1.2rem; padding: 15px 30px;">Se connecter avec Discord</button>
+        <div id="error-message" style="color: #ff3c6e; margin-top: 20px; display: none;"></div>
+      </div>
+
+      <!-- Upload Form (Shown when logged in) -->
+      <div id="upload-form" style="display: none;">
+
+        <div class="card" style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px;">
+          <img id="user-avatar" src="" alt="Avatar" style="width: 50px; height: 50px; border-radius: 50%;">
+          <div>
+            <div style="font-size: 0.9rem; color: #888;">Connecté en tant que</div>
+            <div id="user-name" style="font-weight: bold; font-size: 1.1rem; color: #fff;"></div>
+          </div>
+          <button class="btn btn-secondary" onclick="logout()" style="margin-left: auto;">Déconnexion</button>
+        </div>
+
+        <div class="card" id="target-card">
+          <h3>🎯 Cible</h3>
+          <div class="target-row">
+            <label class="radio-pill">
+              <input type="radio" name="target" value="all" checked> Tous
+            </label>
+            <div id="target-pills"></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>📎 Fichier à envoyer</h3>
+          <div class="input-row" style="flex-direction: column; align-items: flex-start; gap: 15px;">
+            <input type="file" id="file-input" accept="image/*,video/*,audio/*" style="width: 100%; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 6px; color: #fff; cursor: pointer;">
+
+            <input type="text" id="caption-input" placeholder="Texte d'accompagnement (optionnel)" style="width: 100%;">
+
+            <div style="display: flex; gap: 15px; width: 100%;">
+              <input type="text" id="tts-input" placeholder="Voix TTS (ex: mario)" style="flex: 1;">
+              <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; color: #ccc;">
+                <input type="checkbox" id="greenscreen-input"> Fond Vert
+              </label>
+            </div>
+
+            <button class="btn btn-danger" id="submit-btn" onclick="uploadFile()" style="width: 100%; padding: 15px; font-size: 1.1rem; margin-top: 10px;">ENVOYER À LA BORDELBOX</button>
+          </div>
+
+          <div class="progress-wrap hidden" id="upload-progress" style="margin-top: 20px;">
+            <div class="progress-bar" id="upload-bar"></div>
+            <span id="upload-status">Upload en cours...</span>
+          </div>
+        </div>
+
+      </div>
+    </section>
+  </main>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="js/upload.js"></script>
+</body>
+</html>

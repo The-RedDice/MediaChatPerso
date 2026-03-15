@@ -15,6 +15,9 @@ const fs             = require('fs');
 const { execFile }   = require('child_process');
 const basicAuth      = require('express-basic-auth');
 const multer         = require('multer');
+const session        = require('express-session');
+const passport       = require('passport');
+const DiscordStrategy = require('passport-discord').Strategy;
 const { getAvailableModels, generateTTS } = require('./tts');
 const { recordAction, getUserStats, getLeaderboard, getUserProfile, saveUserProfile } = require('./stats');
 
@@ -82,6 +85,39 @@ app.use((req, res, next) => {
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+
+// Trust proxy pour les cookies sécurisés derrière un reverse proxy (ex: Nginx/Cloudflare)
+if (process.env.NODE_ENV === 'production') {
+  app.set('trust proxy', 1);
+}
+
+// Configuration Session et Passport pour Discord
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'changeme',
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    secure: process.env.NODE_ENV === 'production',
+    maxAge: 7 * 24 * 60 * 60 * 1000 // 1 semaine
+  }
+}));
+
+app.use(passport.initialize());
+app.use(passport.session());
+
+if (process.env.DISCORD_CLIENT_ID && process.env.DISCORD_CLIENT_SECRET) {
+  passport.use(new DiscordStrategy({
+    clientID: process.env.DISCORD_CLIENT_ID,
+    clientSecret: process.env.DISCORD_CLIENT_SECRET,
+    callbackURL: process.env.DISCORD_REDIRECT_URI || `${SERVER_URL}/auth/discord/callback`,
+    scope: ['identify', 'guilds']
+  }, (accessToken, refreshToken, profile, done) => {
+    return done(null, profile);
+  }));
+
+  passport.serializeUser((user, done) => done(null, user));
+  passport.deserializeUser((obj, done) => done(null, obj));
+}
 
 // Servir les médias uploadés
 app.use('/media', express.static(MEDIA_DIR));
@@ -294,6 +330,10 @@ function downloadMedia(url) {
 const router = express.Router();
 
 // GET /api/clients — liste des connectés
+app.get('/api/clients', (_req, res) => {
+  res.json({ clients: getClientList() });
+});
+
 router.get('/clients', (_req, res) => {
   res.json({ clients: getClientList() });
 });
@@ -350,6 +390,111 @@ router.delete('/queue/:pseudo', (req, res) => {
   io.emit('queue_update', getQueueDataForEmitters());
   res.json({ ok: true, msg: `File de ${pseudo} vidée.` });
 });
+
+// ─── Authentification Discord & Upload public ────────────────────────────────
+
+// Redirection vers Discord
+app.get('/auth/discord', passport.authenticate('discord'));
+
+// Retour de Discord
+app.get('/auth/discord/callback', passport.authenticate('discord', {
+  failureRedirect: '/upload?error=auth_failed'
+}), (req, res) => {
+  // Vérifie que l'utilisateur est dans la guild
+  const guildId = process.env.DISCORD_GUILD_ID;
+  if (!guildId) {
+    return res.redirect('/upload'); // pas de vérification de serveur si non défini
+  }
+
+  const inGuild = req.user.guilds.some(g => g.id === guildId);
+  if (!inGuild) {
+    req.logout((err) => {
+      res.redirect('/upload?error=not_in_guild');
+    });
+    return;
+  }
+
+  res.redirect('/upload');
+});
+
+// Statut d'authentification pour le front
+app.get('/auth/status', (req, res) => {
+  if (req.isAuthenticated()) {
+    res.json({ authenticated: true, user: { username: req.user.username, id: req.user.id, avatar: `https://cdn.discordapp.com/avatars/${req.user.id}/${req.user.avatar}.png` } });
+  } else {
+    res.json({ authenticated: false });
+  }
+});
+
+app.post('/auth/logout', (req, res) => {
+  req.logout((err) => {
+    res.json({ ok: true });
+  });
+});
+
+// Stockage Multer pour l'upload local (page d'upload)
+const uploadStorage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, MEDIA_DIR),
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    cb(null, `upload_${Date.now()}_${Math.round(Math.random() * 1E9)}${ext}`);
+  }
+});
+
+const uploadMiddleware = multer({
+  storage: uploadStorage,
+  limits: { fileSize: 250 * 1024 * 1024 } // 250MB limit
+});
+
+// Helper: Vérification auth pour les middlewares
+function requireAuth(req, res, next) {
+  if (req.isAuthenticated()) return next();
+  res.status(401).json({ error: 'Non authentifié via Discord.' });
+}
+
+// L'endpoint qui reçoit le fichier de la page upload (l'auth DOIT se faire avant multer)
+app.post('/api/upload', requireAuth, uploadMiddleware.single('file'), async (req, res) => {
+  const file = req.file;
+  if (!file) {
+    return res.status(400).json({ error: 'Aucun fichier uploadé.' });
+  }
+
+  const { target = 'all', caption, ttsVoice, greenscreen } = req.body;
+
+  const senderName = req.user.displayName || req.user.username;
+  const avatarUrl = `https://cdn.discordapp.com/avatars/${req.user.id}/${req.user.avatar}.png`;
+  const userId = req.user.id;
+
+  // Utiliser le profil utilisateur sauvegardé
+  const profile = getUserProfile(userId) || {};
+  const style = { color: profile.color, font: profile.font, animation: profile.animation, effect: profile.effect };
+
+  let ttsUrl = '';
+  if (ttsVoice && caption) {
+    const ttsFilename = `tts_${Date.now()}.wav`;
+    const ttsOutPath = path.join(MEDIA_DIR, ttsFilename);
+    const generated = await generateTTS(caption, ttsVoice, ttsOutPath);
+    if (generated) ttsUrl = `${SERVER_URL}/media/${ttsFilename}`;
+  }
+
+  let fileType = 'image';
+  if (file.mimetype.startsWith('audio/')) fileType = 'audio';
+  else if (file.mimetype.startsWith('video/')) fileType = 'video';
+
+  const fileUrl = `${SERVER_URL}/media/${file.filename}`;
+
+  const result = enqueue(target, {
+    type: 'file',
+    payload: { url: fileUrl, fileType, caption: caption || '', senderName, avatarUrl, ttsUrl, greenscreen: greenscreen === 'true', style },
+  });
+
+  if (result?.error) return res.status(404).json(result);
+
+  recordAction(userId, senderName, 'file');
+  io.emit('panel_log', { msg: `${senderName} a uploadé un fichier (${fileType}) depuis le web → ${target}`, type: 'ok' });
+  res.json({ ok: true, fileUrl, ttsUrl });
+});
+
 
 // ─── API Stats ───────────────────────────────────────────────────────────────
 
@@ -583,6 +728,17 @@ router.post('/message', async (req, res) => {
 
 app.use('/api', router);
 
+// ─── Fichiers Statiques Publics ──────────────────────────────────────────────
+// Les assets communs (css/js/images) doivent être accessibles sans auth
+app.use('/panel/css', express.static(path.join(__dirname, 'public', 'css')));
+app.use('/panel/js', express.static(path.join(__dirname, 'public', 'js')));
+
+// Route publique pour la page d'upload
+app.use('/upload', express.static(path.join(__dirname, 'public', 'upload')));
+app.get('/upload/*path', (_req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'upload', 'index.html'));
+});
+
 // ─── Panel Web ───────────────────────────────────────────────────────────────
 
 // Auth basique pour le panel
@@ -591,6 +747,7 @@ app.use('/panel', basicAuth({
   challenge: true,
 }));
 
+// Route statique pour servir index.html du panel
 app.use('/panel', express.static(path.join(__dirname, 'public')));
 
 // SPA fallback pour le panel

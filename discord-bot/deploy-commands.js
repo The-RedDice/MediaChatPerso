@@ -244,6 +244,10 @@ const commands = [
     .setName('style')
     .setDescription('Ouvre un menu interactif pour personnaliser l\'affichage de vos envois (couleur, animation, police)'),
 
+  new SlashCommandBuilder()
+    .setName('download')
+    .setDescription('Télécharge la dernière version du client BordelBox (depuis GitHub)'),
+
 ].map(cmd => cmd.toJSON());
 
 // ─── Déploiement ─────────────────────────────────────────
