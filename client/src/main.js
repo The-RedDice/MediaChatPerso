@@ -279,14 +279,14 @@ function applyStyle(payload, textElement, effectsElement) {
         el.style.width = `${size}px`;
         el.style.height = `${size}px`;
 
-        // Position relative au conteneur cible, mais éparpillée autour
-        el.style.left = `${Math.random() * 150 - 25}%`;
-        el.style.top = `${Math.random() * 150 - 25}%`;
+        // Position relative stricte à la zone du texte
+        el.style.left = `${Math.random() * 100}%`;
+        el.style.top = `${Math.random() * 100}%`;
 
         el.style.animationDelay = `${Math.random() * 2}s`;
         el.style.animationDuration = `${Math.random() * 2 + 2}s`;
 
-        if (!isStars && style.color) {
+        if (style.color) {
           el.style.background = style.color;
         }
 
