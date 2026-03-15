@@ -57,6 +57,7 @@ function recordAction(userId, username, type) {
       fileCount: 0,
       messageCount: 0,
       totalCount: 0,
+      firstAction: Date.now(),
       lastAction: Date.now(),
       reputation: 0,
       votesGiven: {}
@@ -64,6 +65,10 @@ function recordAction(userId, username, type) {
   } else {
     // Mettre à jour le pseudo s'il a changé
     stats[userId].username = username;
+    // Retrocompatibilité : si firstAction n'existe pas, on l'initialise
+    if (!stats[userId].firstAction) {
+      stats[userId].firstAction = stats[userId].lastAction || Date.now();
+    }
   }
 
   if (type === 'media') {

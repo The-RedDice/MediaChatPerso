@@ -531,6 +531,18 @@ router.get('/stats/:userId', (req, res) => {
   const rankFlopIdx = flopLb.findIndex(u => u.userId === userId && (u.skippedCount || 0) > 0);
   responseData.rankFlop = rankFlopIdx !== -1 ? rankFlopIdx + 1 : null;
 
+  const repLb = getLeaderboard('rep', 1000);
+  const rankRepIdx = repLb.findIndex(u => u.userId === userId);
+  responseData.rankRep = rankRepIdx !== -1 ? rankRepIdx + 1 : null;
+
+  // Include user profile for style information
+  const userProfile = getUserProfile(userId);
+  if (userProfile) {
+    responseData.profile = userProfile;
+  } else {
+    responseData.profile = {};
+  }
+
   res.json(responseData);
 });
 
