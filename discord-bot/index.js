@@ -147,6 +147,11 @@ client.on(Events.InteractionCreate, async (interaction) => {
         const ttsVoice = interaction.options.getString('tts') || '';
         const greenscreen = interaction.options.getBoolean('greenscreen') || false;
 
+        if (attachment.size > 250 * 1024 * 1024) {
+          await interaction.editReply(`❌ Erreur : Le fichier dépasse la limite de 250 Mo.`);
+          return;
+        }
+
         const senderName = interaction.user.displayName || interaction.user.username;
         const avatarUrl  = interaction.user.displayAvatarURL({ size: 64, extension: 'png' });
 
