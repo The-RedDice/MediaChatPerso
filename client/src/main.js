@@ -13,7 +13,6 @@ let CONFIG = {
   mediaSize:   80,   // % écran
   muted:       true,
   shortcut:    'Ctrl+O',
-  shortcutVoteskip: 'Ctrl+Shift+S',
 };
 
 let overlayEnabled = true;
@@ -736,7 +735,6 @@ async function setupTauriEvents() {
       const oldUrl = CONFIG.serverUrl;
       const oldPseudo = CONFIG.pseudo;
       const oldShortcut = CONFIG.shortcut;
-      const oldShortcutVoteskip = CONFIG.shortcutVoteskip;
 
       const newConfig = typeof payload === 'string' ? JSON.parse(payload) : payload;
       // Ne pas écraser l'état mute actuel avec ce qui vient des options,
@@ -754,18 +752,6 @@ async function setupTauriEvents() {
           });
         } catch (e) {
           console.error("Erreur mise à jour raccourci", e);
-        }
-      }
-
-      if (CONFIG.shortcutVoteskip !== oldShortcutVoteskip && CONFIG.shortcutVoteskip) {
-        try {
-          await unregister(oldShortcutVoteskip).catch(() => {});
-          await register(CONFIG.shortcutVoteskip, (shortcut) => {
-            if (shortcut && shortcut.state === "Released") return;
-            triggerVoteskipSafely();
-          });
-        } catch (e) {
-          console.error("Erreur mise à jour raccourci voteskip", e);
         }
       }
 
@@ -802,32 +788,6 @@ async function setupTauriEvents() {
         });
       } catch (e) {
         console.error("[BordelBox] Impossible d'enregistrer le raccourci initial:", e);
-      }
-    }
-
-    let lastVoteskipTime = 0;
-    window.triggerVoteskipSafely = () => {
-      const now = Date.now();
-      if (now - lastVoteskipTime < 1000) return; // Debounce de 1 seconde
-      lastVoteskipTime = now;
-
-      fetch(`${CONFIG.serverUrl}/api/voteskip`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ voterId: CONFIG.pseudo }) // Utilisation du pseudo comme ID
-      }).catch(e => console.error("[BordelBox] Erreur appel voteskip:", e));
-    };
-
-    if (CONFIG.shortcutVoteskip) {
-      try {
-        await unregister(CONFIG.shortcutVoteskip).catch(() => {});
-        await register(CONFIG.shortcutVoteskip, (e) => {
-          if (e.state === "Pressed") {
-            triggerVoteskipSafely();
-          }
-        });
-      } catch (e) {
-        console.error("[BordelBox] Impossible d'enregistrer le raccourci voteskip initial:", e);
       }
     }
 

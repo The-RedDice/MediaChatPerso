@@ -25,7 +25,6 @@ async function init() {
     const px = config.posX ?? 50;
     const py = config.posY ?? 50;
     const sc = config.shortcut || 'Ctrl+O';
-    const scVs = config.shortcutVoteskip || 'Ctrl+Shift+S';
 
     document.getElementById('messageSize').value  = msgSize;
     document.getElementById('captionSize').value  = capSize;
@@ -33,7 +32,6 @@ async function init() {
     document.getElementById('posX').value = px;
     document.getElementById('posY').value = py;
     document.getElementById('shortcut').value = sc;
-    document.getElementById('shortcutVoteskip').value = scVs;
     updateLabels(msgSize, capSize, ms, px, py);
 
   } catch (e) {
@@ -118,7 +116,6 @@ function handleShortcutInput(e, inputId) {
 }
 
 document.getElementById('shortcut').addEventListener('keydown', (e) => handleShortcutInput(e, 'shortcut'));
-document.getElementById('shortcutVoteskip').addEventListener('keydown', (e) => handleShortcutInput(e, 'shortcutVoteskip'));
 
 window.saveOptions = async function () {
   const config = {
@@ -130,7 +127,6 @@ window.saveOptions = async function () {
     posX:        parseInt(document.getElementById('posX').value, 10),
     posY:        parseInt(document.getElementById('posY').value, 10),
     shortcut:    document.getElementById('shortcut').value.trim(),
-    shortcutVoteskip: document.getElementById('shortcutVoteskip').value.trim(),
   };
 
   if (!config.pseudo) {
