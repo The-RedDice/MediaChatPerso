@@ -780,16 +780,22 @@ BordelBox est un système permettant d'afficher des médias et des messages en d
 - **cible** : Permet de choisir un PC spécifique. Si vide, l'envoi se fait sur tous les PC.
 - **text** / **texte** : Un texte d'accompagnement.
 - **tts** : Génère une voix (Text-to-Speech) qui lit votre texte en même temps (ex: "mario").
-- **greenscreen** : Active un filtre d'incrustation (fond vert) pour rendre le fond transparent.
+- **greenscreen** : Active un filtre d'incrustation (fond vert) pour rendre le fond transparent d'une vidéo ou image.
+- **filtre** : Applique un filtre visuel (grayscale, sepia, invert, blur, contrast, saturate).
 - **couleur / police / animation / effet** : Modifie temporairement l'apparence visuelle.
 
+**⭐ Réputation & Système de Vote :**
+- Chaque envoi de média génère un message dans le salon de réputation.
+- Les autres membres peuvent voter 👍 ou 👎 sur vos envois.
+- Votre réputation globale est visible via \` /profile \` ou \` /leaderboard type:rep \`.
+
 **📊 Utilitaires & Infos :**
-\` /queue \` : Affiche et gère la file d'attente (avec des boutons pour vider/skip).
+\` /queue \` : Affiche et gère la file d'attente globale ou d'un PC (avec boutons pour vider ou voter pour skip).
 \` /style \` : Menu pour personnaliser votre affichage global (couleur, animation, police, effets).
 \` /profile \` : Affiche votre profil, vos statistiques et votre style visuel.
-\` /leaderboard \` : Affiche le top des spammeurs de la BordelBox.
+\` /leaderboard \` : Affiche le top des spammeurs, des flops ou de la réputation de la BordelBox.
 \` /online \` : Liste les PC actuellement connectés.
-\` /upload \` : Obtient le lien de la page web pour envoyer des fichiers lourds hors-discord.
+\` /upload \` : Accède au panel web (hors de Discord) pour envoyer des fichiers lourds jusqu'à 250 Mo.
 \` /download \` : Télécharge la dernière version du client BordelBox (depuis GitHub).
 \` /tuto \` : Affiche ce message d'aide.
         `.trim();
