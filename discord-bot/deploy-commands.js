@@ -248,6 +248,10 @@ const commands = [
     .setName('download')
     .setDescription('Télécharge la dernière version du client BordelBox (depuis GitHub)'),
 
+  new SlashCommandBuilder()
+    .setName('upload')
+    .setDescription('Obtenir le lien de la page web pour envoyer des fichiers directement depuis votre PC'),
+
 ].map(cmd => cmd.toJSON());
 
 // ─── Déploiement ─────────────────────────────────────────
