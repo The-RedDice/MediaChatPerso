@@ -187,6 +187,53 @@
       color: #fff;
     }
 
+    /* ─── Barre de progression audio ─── */
+    #audio-progress-container {
+      position: fixed;
+      /* On place la barre sous la boite de sender info qui est top: 30px avec 48px de hauteur env */
+      top: 90px;
+      left: 30px;
+      width: 200px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      background: rgba(0,0,0,0.6);
+      padding: 4px 8px;
+      border-radius: 6px;
+      backdrop-filter: blur(8px);
+      box-sizing: border-box;
+      z-index: 30;
+      pointer-events: none;
+    }
+    #audio-progress-container.visible { opacity: 1; }
+
+    #audio-progress-bar {
+      flex: 1;
+      height: 4px;
+      background: rgba(255,255,255,0.2);
+      border-radius: 2px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    #audio-progress-fill {
+      height: 100%;
+      width: 0%;
+      background: rgba(255,60,110,0.8);
+      border-radius: 2px;
+      transition: width 0.1s linear;
+    }
+
+    #audio-progress-text {
+      font-family: monospace;
+      font-size: 11px;
+      color: rgba(255,255,255,0.8);
+      min-width: 70px;
+      text-align: right;
+    }
+
     /* ─── Message texte ─── */
     #message-container {
       position: fixed;
@@ -395,6 +442,13 @@
       <img id="sender-avatar" alt="">
     </div>
     <span id="sender-name"></span>
+  </div>
+
+  <div id="audio-progress-container">
+    <div id="audio-progress-bar">
+      <div id="audio-progress-fill"></div>
+    </div>
+    <div id="audio-progress-text">0:00 / 0:00</div>
   </div>
 
   <audio id="audio-player" crossorigin="anonymous" autoplay></audio>

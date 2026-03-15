@@ -40,6 +40,11 @@ const audioVisualizer = document.getElementById('audio-visualizer');
 const mediaProgressContainer = document.getElementById('media-progress-container');
 const mediaProgressFill      = document.getElementById('media-progress-fill');
 const mediaProgressText      = document.getElementById('media-progress-text');
+
+const audioProgressContainer = document.getElementById('audio-progress-container');
+const audioProgressFill      = document.getElementById('audio-progress-fill');
+const audioProgressText      = document.getElementById('audio-progress-text');
+
 const voteskipContainer      = document.getElementById('voteskip-container');
 const voteskipCount          = document.getElementById('voteskip-count');
 
@@ -57,6 +62,13 @@ function updateProgress(currentTime, duration) {
   const percent = (currentTime / duration) * 100;
   if (mediaProgressFill) mediaProgressFill.style.width = `${percent}%`;
   if (mediaProgressText) mediaProgressText.textContent = `${formatTime(currentTime)} / ${formatTime(duration)}`;
+}
+
+function updateAudioProgress(currentTime, duration) {
+  if (!duration || isNaN(duration)) return;
+  const percent = (currentTime / duration) * 100;
+  if (audioProgressFill) audioProgressFill.style.width = `${percent}%`;
+  if (audioProgressText) audioProgressText.textContent = `${formatTime(currentTime)} / ${formatTime(duration)}`;
 }
 
 // ─── Application de la config ─────────────────────────────────────────────────
@@ -437,9 +449,9 @@ function showItem(item) {
           hideAll();
           socket.emit('media_ended');
         };
-        if (mediaProgressContainer) {
-          mediaProgressContainer.classList.add('visible');
-          audioPlayer.ontimeupdate = () => updateProgress(audioPlayer.currentTime, audioPlayer.duration);
+        if (audioProgressContainer) {
+          audioProgressContainer.classList.add('visible');
+          audioPlayer.ontimeupdate = () => updateAudioProgress(audioPlayer.currentTime, audioPlayer.duration);
         }
       } else if (fileType === 'video') {
         if (mediaProgressContainer) {
@@ -576,6 +588,12 @@ window.hideAll = function hideAll() {
     mediaProgressContainer.classList.remove('visible');
     if (mediaProgressFill) mediaProgressFill.style.width = '0%';
     if (mediaProgressText) mediaProgressText.textContent = '0:00 / 0:00';
+  }
+
+  if (audioProgressContainer) {
+    audioProgressContainer.classList.remove('visible');
+    if (audioProgressFill) audioProgressFill.style.width = '0%';
+    if (audioProgressText) audioProgressText.textContent = '0:00 / 0:00';
   }
 
   if (voteskipContainer) {
