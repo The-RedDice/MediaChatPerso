@@ -20,15 +20,19 @@
     </div>
   </header>
 
-  <main>
-    <section class="actions" id="main-content" style="max-width: 600px; margin: 40px auto; width: 100%;">
+  <main style="display: flex; justify-content: center; align-items: center; min-height: 100vh;">
+    <section class="actions" id="main-content" style="max-width: 600px; width: 100%; padding: 20px;">
 
       <!-- Login Card -->
-      <div class="card" id="login-card" style="display: none; text-align: center; padding: 40px 20px;">
-        <h2>Connexion Requise</h2>
-        <p style="margin: 20px 0; color: #aaa;">Vous devez être connecté avec Discord et membre du serveur autorisé pour envoyer des fichiers.</p>
-        <button class="btn btn-primary" onclick="window.location.href='/auth/discord'" style="font-size: 1.2rem; padding: 15px 30px;">Se connecter avec Discord</button>
-        <div id="error-message" style="color: #ff3c6e; margin-top: 20px; display: none;"></div>
+      <div class="card hidden" id="login-card" style="text-align: center; width: 100%; box-sizing: border-box;">
+        <h2 style="font-size: 2rem; margin-bottom: 20px;">Connexion Requise</h2>
+        <p style="margin: 0 auto 30px auto; color: #aaa; font-size: 1.1rem; max-width: 400px; line-height: 1.5;">
+          Vous devez être connecté avec Discord et membre du serveur autorisé pour envoyer des fichiers.
+        </p>
+        <button class="btn btn-primary" onclick="window.location.href='/auth/discord'" style="font-size: 1.2rem; padding: 15px 30px; width: 100%; max-width: 300px;">
+          Se connecter avec Discord
+        </button>
+        <div id="error-message" style="color: #ff3c6e; margin-top: 20px; display: none; font-size: 1.1rem;"></div>
       </div>
 
       <!-- Upload Form (Shown when logged in) -->

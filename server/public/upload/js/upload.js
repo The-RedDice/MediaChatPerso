@@ -33,7 +33,8 @@ async function checkAuthStatus() {
     const dot = document.querySelector('#auth-status .dot');
 
     if (data.authenticated) {
-      document.getElementById('login-card').style.display = 'none';
+      document.getElementById('login-card').classList.add('hidden');
+      document.getElementById('upload-form').classList.remove('hidden');
       document.getElementById('upload-form').style.display = 'block';
 
       document.getElementById('user-name').textContent = data.user.username;
@@ -46,7 +47,8 @@ async function checkAuthStatus() {
       // Init Socket.io pour avoir les clients connectés
       initSocket();
     } else {
-      document.getElementById('login-card').style.display = 'block';
+      document.getElementById('login-card').classList.remove('hidden');
+      document.getElementById('upload-form').classList.add('hidden');
       document.getElementById('upload-form').style.display = 'none';
 
       authLabel.textContent = 'Non connecté';
