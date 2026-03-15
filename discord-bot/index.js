@@ -28,23 +28,35 @@ const client = new Client({
 
 // ─── Helpers API ─────────────────────────────────────────
 
+function getAuthHeader() {
+  const panelPassword = process.env.PANEL_PASSWORD || 'changeme';
+  const credentials = Buffer.from(`admin:${panelPassword}`).toString('base64');
+  return { 'Authorization': `Basic ${credentials}` };
+}
+
 async function apiPost(endpoint, body) {
   const res = await fetch(`${SERVER_URL}/api${endpoint}`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeader()
+    },
     body: JSON.stringify(body),
   });
   return res.json();
 }
 
 async function apiGet(endpoint) {
-  const res = await fetch(`${SERVER_URL}/api${endpoint}`);
+  const res = await fetch(`${SERVER_URL}/api${endpoint}`, {
+    headers: { ...getAuthHeader() }
+  });
   return res.json();
 }
 
 async function apiDelete(endpoint) {
   const res = await fetch(`${SERVER_URL}/api${endpoint}`, {
-    method: 'DELETE'
+    method: 'DELETE',
+    headers: { ...getAuthHeader() }
   });
   return res.json();
 }

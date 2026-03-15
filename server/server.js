@@ -362,7 +362,7 @@ router.get('/history', (_req, res) => {
 });
 
 // DELETE /api/queue/:pseudo/:index — Supprimer un élément précis de la queue
-router.delete('/queue/:pseudo/:index', (req, res) => {
+router.delete('/queue/:pseudo/:index', requireAuth, (req, res) => {
   const { pseudo, index } = req.params;
   const q = queues.get(pseudo);
   if (!q) return res.status(404).json({ error: 'Queue introuvable' });
@@ -378,7 +378,7 @@ router.delete('/queue/:pseudo/:index', (req, res) => {
 });
 
 // DELETE /api/queue/:pseudo — Vider entièrement la file d'un joueur
-router.delete('/queue/:pseudo', (req, res) => {
+router.delete('/queue/:pseudo', requireAuth, (req, res) => {
   const { pseudo } = req.params;
   const q = queues.get(pseudo);
   if (!q) return res.status(404).json({ error: 'Queue introuvable' });
@@ -445,10 +445,24 @@ const uploadMiddleware = multer({
   limits: { fileSize: 250 * 1024 * 1024 } // 250MB limit
 });
 
-// Helper: Vérification auth pour les middlewares
+// Helper: Vérification auth pour les middlewares (Discord OAuth ou Basic Auth pour le Bot/Panel)
 function requireAuth(req, res, next) {
   if (req.isAuthenticated()) return next();
-  res.status(401).json({ error: 'Non authentifié via Discord.' });
+
+  // Tentative Basic Auth (pour le bot Discord ou les appels API directs)
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith('Basic ')) {
+    const base64Credentials = authHeader.split(' ')[1];
+    const credentials = Buffer.from(base64Credentials, 'base64').toString('ascii');
+    const [username, password] = credentials.split(':');
+
+    const panelPassword = process.env.PANEL_PASSWORD || 'changeme';
+    if (username === 'admin' && password === panelPassword) {
+      return next();
+    }
+  }
+
+  res.status(401).json({ error: 'Non authentifié. Connexion Discord ou Basic Auth requise.' });
 }
 
 // L'endpoint qui reçoit le fichier de la page upload (l'auth DOIT se faire avant multer)
@@ -513,7 +527,7 @@ router.get('/style/:userId', (req, res) => {
   res.json({ profile: data });
 });
 
-router.post('/style/:userId', (req, res) => {
+router.post('/style/:userId', requireAuth, (req, res) => {
   const { username, color, font, animation, effect } = req.body;
   if (!username) return res.status(400).json({ error: 'username requis' });
 
@@ -530,7 +544,7 @@ router.post('/style/:userId', (req, res) => {
 });
 
 // POST /api/sendurl
-router.post('/sendurl', async (req, res) => {
+router.post('/sendurl', requireAuth, async (req, res) => {
   const { url, target = 'all', caption, senderName, avatarUrl, ttsVoice, greenscreen, userId, color, font, animation, effect } = req.body;
   if (!url) return res.status(400).json({ error: 'url requis' });
 
@@ -617,7 +631,7 @@ router.post('/sendurl', async (req, res) => {
 });
 
 // POST /api/sendfile  (URL CDN Discord ou autre URL directe)
-router.post('/sendfile', async (req, res) => {
+router.post('/sendfile', requireAuth, async (req, res) => {
   const { fileUrl, target = 'all', fileType = 'image', caption, senderName, avatarUrl, ttsVoice, greenscreen, userId, color, font, animation, effect } = req.body;
   if (!fileUrl) return res.status(400).json({ error: 'fileUrl requis' });
 
@@ -701,7 +715,7 @@ router.post('/voteskip', (req, res) => {
 });
 
 // POST /api/message
-router.post('/message', async (req, res) => {
+router.post('/message', requireAuth, async (req, res) => {
   const { text, target = 'all', senderName, avatarUrl, ttsVoice, greenscreen, userId, color, font, animation, effect } = req.body;
   if (!text) return res.status(400).json({ error: 'text requis' });
 
