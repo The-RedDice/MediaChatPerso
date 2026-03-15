@@ -100,6 +100,26 @@ const commands = [
     .setName('tuto')
     .setDescription('Affiche un tutoriel sur le fonctionnement du bot et ses commandes'),
 
+  new SlashCommandBuilder()
+    .setName('stats')
+    .setDescription('Affiche les statistiques d\'envoi (médias, messages) d\'un utilisateur')
+    .addUserOption(o =>
+      o.setName('utilisateur')
+       .setDescription('Utilisateur dont on veut voir les stats')
+       .setRequired(false)),
+
+  new SlashCommandBuilder()
+    .setName('leaderboard')
+    .setDescription('Affiche le top des personnes qui ont envoyé le plus de médias'),
+
+  new SlashCommandBuilder()
+    .setName('queue')
+    .setDescription('Affiche la file d\'attente des médias pour un PC')
+    .addStringOption(o =>
+      o.setName('cible')
+       .setDescription('Le PC cible ("all" ou un pseudo, laissez vide pour voir toutes les files)')
+       .setRequired(false)),
+
 ].map(cmd => cmd.toJSON());
 
 // ─── Déploiement ─────────────────────────────────────────

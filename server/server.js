@@ -16,6 +16,7 @@ const { execFile }   = require('child_process');
 const basicAuth      = require('express-basic-auth');
 const multer         = require('multer');
 const { getAvailableModels, generateTTS } = require('./tts');
+const { recordAction, getUserStats, getLeaderboard } = require('./stats');
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 
@@ -25,6 +26,39 @@ const MEDIA_DIR  = path.resolve(process.env.MEDIA_DIR || './public/media');
 
 // S'assurer que le dossier media existe
 if (!fs.existsSync(MEDIA_DIR)) fs.mkdirSync(MEDIA_DIR, { recursive: true });
+
+// ─── Nettoyage Auto ──────────────────────────────────────────────────────────
+
+function cleanupOldMedia() {
+  const maxAgeMs = 24 * 60 * 60 * 1000; // 24 heures
+  const now = Date.now();
+
+  fs.readdir(MEDIA_DIR, (err, files) => {
+    if (err) {
+      console.error('[Cleanup Error]', err);
+      return;
+    }
+
+    files.forEach((file) => {
+      const filePath = path.join(MEDIA_DIR, file);
+      fs.stat(filePath, (err, stats) => {
+        if (err) return;
+
+        // On ne supprime que les fichiers
+        if (stats.isFile() && (now - stats.mtimeMs > maxAgeMs)) {
+          fs.unlink(filePath, (err) => {
+            if (err) console.error(`[Cleanup Error] Impossible de supprimer ${file}:`, err);
+            else console.log(`[Cleanup] Supprimé ${file} (vieux de > 24h)`);
+          });
+        }
+      });
+    });
+  });
+}
+
+// Nettoyage au démarrage puis toutes les heures
+cleanupOldMedia();
+setInterval(cleanupOldMedia, 60 * 60 * 1000);
 
 // ─── App ─────────────────────────────────────────────────────────────────────
 
@@ -304,9 +338,34 @@ router.delete('/queue/:pseudo/:index', (req, res) => {
   res.json({ ok: true });
 });
 
+// DELETE /api/queue/:pseudo — Vider entièrement la file d'un joueur
+router.delete('/queue/:pseudo', (req, res) => {
+  const { pseudo } = req.params;
+  const q = queues.get(pseudo);
+  if (!q) return res.status(404).json({ error: 'Queue introuvable' });
+
+  // Vider le tableau tout en gardant la même référence mémoire
+  q.length = 0;
+
+  io.emit('queue_update', getQueueDataForEmitters());
+  res.json({ ok: true, msg: `File de ${pseudo} vidée.` });
+});
+
+// ─── API Stats ───────────────────────────────────────────────────────────────
+
+router.get('/stats/:userId', (req, res) => {
+  const data = getUserStats(req.params.userId);
+  if (!data) return res.json({ error: 'Aucune donnée pour cet utilisateur' });
+  res.json(data);
+});
+
+router.get('/leaderboard', (req, res) => {
+  res.json(getLeaderboard());
+});
+
 // POST /api/sendurl
 router.post('/sendurl', async (req, res) => {
-  const { url, target = 'all', caption, senderName, avatarUrl, ttsVoice, greenscreen } = req.body;
+  const { url, target = 'all', caption, senderName, avatarUrl, ttsVoice, greenscreen, userId } = req.body;
   if (!url) return res.status(400).json({ error: 'url requis' });
 
   let ttsUrl = '';
@@ -366,6 +425,7 @@ router.post('/sendurl', async (req, res) => {
       payload: { url, fileType, caption: caption || '', senderName: senderName || '', avatarUrl: avatarUrl || '', ttsUrl, greenscreen: !!greenscreen },
     });
     if (result?.error) return res.status(404).json(result);
+    if (userId) recordAction(userId, senderName, 'file');
     io.emit('panel_log', { msg: `${senderName || 'Discord'} a envoyé un lien direct (${fileType}) → ${target}`, type: 'ok' });
     return res.json({ ok: true, ttsUrl, directUrl: true });
   }
@@ -378,6 +438,7 @@ router.post('/sendurl', async (req, res) => {
       payload: { ...media, caption: caption || '', senderName: senderName || '', avatarUrl: avatarUrl || '', ttsUrl, greenscreen: !!greenscreen },
     });
     if (result?.error) return res.status(404).json(result);
+    if (userId) recordAction(userId, senderName, 'media');
     io.emit('panel_log', { msg: `${senderName || 'Discord'} a envoyé un lien via yt-dlp → ${target}`, type: 'ok' });
     res.json({ ok: true, ...media, ttsUrl });
   } catch (err) {
@@ -389,7 +450,7 @@ router.post('/sendurl', async (req, res) => {
 
 // POST /api/sendfile  (URL CDN Discord ou autre URL directe)
 router.post('/sendfile', async (req, res) => {
-  const { fileUrl, target = 'all', fileType = 'image', caption, senderName, avatarUrl, ttsVoice, greenscreen } = req.body;
+  const { fileUrl, target = 'all', fileType = 'image', caption, senderName, avatarUrl, ttsVoice, greenscreen, userId } = req.body;
   if (!fileUrl) return res.status(400).json({ error: 'fileUrl requis' });
 
   try {
@@ -417,6 +478,7 @@ router.post('/sendfile', async (req, res) => {
     payload: { url: fileUrl, fileType, caption: caption || '', senderName: senderName || '', avatarUrl: avatarUrl || '', ttsUrl, greenscreen: !!greenscreen },
   });
   if (result?.error) return res.status(404).json(result);
+  if (userId) recordAction(userId, senderName, 'file');
   io.emit('panel_log', { msg: `${senderName || 'Discord'} a envoyé un fichier (${fileType}) → ${target}`, type: 'ok' });
   res.json({ ok: true, ttsUrl });
 });
@@ -470,7 +532,7 @@ router.post('/voteskip', (req, res) => {
 
 // POST /api/message
 router.post('/message', async (req, res) => {
-  const { text, target = 'all', senderName, avatarUrl, ttsVoice, greenscreen } = req.body;
+  const { text, target = 'all', senderName, avatarUrl, ttsVoice, greenscreen, userId } = req.body;
   if (!text) return res.status(400).json({ error: 'text requis' });
 
   let ttsUrl = '';
@@ -486,6 +548,7 @@ router.post('/message', async (req, res) => {
     payload: { text, senderName: senderName || '', avatarUrl: avatarUrl || '', ttsUrl, greenscreen: !!greenscreen },
   });
   if (result?.error) return res.status(404).json(result);
+  if (userId) recordAction(userId, senderName, 'message');
   io.emit('panel_log', { msg: `${senderName || 'Discord'} a envoyé un message texte → ${target}`, type: 'ok' });
   res.json({ ok: true, ttsUrl });
 });
