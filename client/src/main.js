@@ -265,8 +265,12 @@ function applyStyle(payload, textElement, effectsElement) {
   textElement.style.animation = 'none';
   textElement.offsetHeight; // force reflow
 
-  // Reset typewriter specific class
+  // Reset typewriter specific state
   textElement.classList.remove('typewriter-text');
+  if (textElement._typewriterInterval) {
+    clearInterval(textElement._typewriterInterval);
+    textElement._typewriterInterval = null;
+  }
 
   if (style.animation) {
     if (style.animation === 'fade') textElement.style.animation = 'msg-fade 0.5s ease-in-out both';
@@ -279,8 +283,22 @@ function applyStyle(payload, textElement, effectsElement) {
     else if (style.animation === 'glitch') textElement.style.animation = 'msg-glitch 0.4s infinite linear both';
     else if (style.animation === 'pulse') textElement.style.animation = 'msg-pulse 1s infinite ease-in-out both';
     else if (style.animation === 'typewriter') {
-      textElement.style.animation = 'none'; // handeled by class
+      textElement.style.animation = 'none';
       textElement.classList.add('typewriter-text');
+
+      const fullText = textElement.textContent;
+      textElement.textContent = '';
+
+      let index = 0;
+      textElement._typewriterInterval = setInterval(() => {
+        if (index < fullText.length) {
+          textElement.textContent += fullText.charAt(index);
+          index++;
+        } else {
+          clearInterval(textElement._typewriterInterval);
+          textElement._typewriterInterval = null;
+        }
+      }, 50);
     }
   } else {
     // Par défaut

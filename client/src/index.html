@@ -326,16 +326,11 @@
       80% { transform: translate(2px, -2px) scale(1.02); opacity: 1; text-shadow: 2px 2px #ff00c1, -2px -2px #00fff9; }
       100% { transform: translate(0) scale(1); opacity: 1; text-shadow: none; }
     }
-    @keyframes msg-typewriter {
-      from { width: 0; opacity: 1; }
-      to { width: 100%; opacity: 1; }
-    }
     .typewriter-text {
-      overflow: hidden;
-      white-space: nowrap;
-      margin: 0 auto;
+      /* Keep standard wrapping and layout, just add blinking cursor */
       border-right: .15em solid white;
-      animation: msg-typewriter 2s steps(40, end), blink-caret .75s step-end infinite;
+      animation: blink-caret .75s step-end infinite;
+      display: inline-block;
     }
     @keyframes blink-caret {
       from, to { border-color: transparent }
