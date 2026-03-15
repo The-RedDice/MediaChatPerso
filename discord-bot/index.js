@@ -182,7 +182,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
   const { commandName } = interaction;
 
   // Réponse différée pour les commandes longues
-  if (commandName === 'sendurl' || commandName === 'sendfile' || commandName === 'message' || commandName === 'online' || commandName === 'stats' || commandName === 'leaderboard' || commandName === 'queue') {
+  if (commandName === 'sendurl' || commandName === 'sendfile' || commandName === 'message' || commandName === 'online' || commandName === 'stats' || commandName === 'leaderboard' || commandName === 'queue' || commandName === 'download') {
     await interaction.deferReply();
   } else if (commandName === 'tuto' || commandName === 'style') {
     await interaction.deferReply({ ephemeral: true });
@@ -513,6 +513,37 @@ client.on(Events.InteractionCreate, async (interaction) => {
         break;
       }
 
+      // ── /download ──────────────────────────────────────
+      case 'download': {
+        const repoUrl = 'https://api.github.com/repos/The-RedDice/MediaChatPerso/releases/latest';
+
+        try {
+          const response = await fetch(repoUrl);
+          if (!response.ok) {
+             await interaction.editReply('❌ Impossible de récupérer la dernière version (Release introuvable sur GitHub).');
+             return;
+          }
+
+          const release = await response.json();
+          const installer = release.assets.find(a => a.name.endsWith('.exe'));
+
+          if (!installer) {
+             await interaction.editReply(`❌ La dernière version (\`${release.name || release.tag_name}\`) a été trouvée, mais aucun installeur \`.exe\` n'y est attaché.\nLien : <${release.html_url}>`);
+             return;
+          }
+
+          const msg = `🚀 **Dernière version de BordelBox Client** (\`${release.name || release.tag_name}\`)\n\n` +
+                      `⬇️ **Télécharger l'installeur :**\n<${installer.browser_download_url}>\n\n` +
+                      `*Notes de version :* <${release.html_url}>`;
+
+          await interaction.editReply(msg);
+        } catch (err) {
+          console.error('[Download error]', err);
+          await interaction.editReply('❌ Erreur lors de la communication avec l\'API GitHub.');
+        }
+        break;
+      }
+
       // ── /tuto ──────────────────────────────────────────
       case 'tuto': {
         const tutoMessage = `
@@ -520,21 +551,26 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
 BordelBox est un système permettant d'afficher des médias et des messages en direct sur les écrans des ordinateurs connectés via l'overlay client.
 
-**💻 Commandes disponibles :**
+**💻 Commandes d'envoi :**
 \` /sendurl \` : Envoie une vidéo YouTube, TikTok ou un lien direct (mp4, mp3, image) sur les PC.
 \` /sendfile \` : Permet d'uploader directement un fichier (image, vidéo, audio) depuis Discord.
 \` /message \` : Affiche un gros texte animé sur les écrans.
-\` /online \` : Affiche la liste des PC actuellement connectés à BordelBox.
+
+**⚙️ Options des commandes d'envoi :**
+- **cible** : Permet de choisir un PC spécifique. Si vide, l'envoi se fait sur tous les PC.
+- **text** / **texte** : Un texte d'accompagnement.
+- **tts** : Génère une voix (Text-to-Speech) qui lit votre texte en même temps (ex: "mario").
+- **greenscreen** : Active un filtre d'incrustation (fond vert) pour rendre le fond transparent.
+- **couleur / police / animation / effet** : Modifie temporairement l'apparence visuelle.
+
+**📊 Utilitaires & Infos :**
+\` /queue \` : Affiche et gère la file d'attente (avec des boutons pour vider/skip).
+\` /style \` : Menu pour personnaliser votre affichage global (couleur, animation, police, effets).
+\` /stats \` : Affiche vos statistiques d'envoi.
+\` /leaderboard \` : Affiche le top des spammeurs de la BordelBox.
+\` /online \` : Liste les PC actuellement connectés.
+\` /download \` : Télécharge la dernière version du client BordelBox (depuis GitHub).
 \` /tuto \` : Affiche ce message d'aide.
-
-**✨ Options des commandes d'envoi (\`/sendurl\`, \`/sendfile\`, \`/message\`) :**
-- **cible** : Permet de choisir un PC spécifique (par son pseudo). Si vide, l'envoi se fait sur tous les PC connectés.
-- **text** / **texte** : Un texte d'accompagnement affiché sous le média.
-- **tts** : Génère une voix (Text-to-Speech) qui lit votre texte en même temps. Il faut indiquer le nom du modèle (ex: "mario").
-- **greenscreen** : Active un filtre d'incrustation (fond vert) pour rendre le fond du média transparent sur l'overlay.
-
-**🎙️ Comment fonctionne le TTS (Text-to-Speech) ?**
-Dans l'option \`tts\`, vous devez entrer le nom exact d'un modèle vocal (ex: "robot"). Si le modèle existe sur le serveur, il va générer l'audio et le jouer en même temps que votre média ou texte. De nouveaux modèles peuvent être ajoutés par l'administrateur directement sur le serveur Ubuntu !
         `.trim();
 
         await interaction.editReply({ content: tutoMessage });
