@@ -221,40 +221,7 @@ const commands = [
 
   new SlashCommandBuilder()
     .setName('style')
-    .setDescription('Modifie votre profil d\'affichage (couleur, police, animation) par défaut')
-    .addStringOption(o =>
-      o.setName('couleur')
-       .setDescription('Couleur du texte en hexadécimal (ex: #FF0000) ou nom (ex: red)')
-       .setRequired(false))
-    .addStringOption(o =>
-      o.setName('police')
-       .setDescription('Police d\'écriture pour vos messages')
-       .setRequired(false)
-       .addChoices(
-         { name: 'Impact (Meme)', value: 'Impact' },
-         { name: 'Comic Sans MS (Troll)', value: '"Comic Sans MS"' },
-         { name: 'Courier New (Machine à écrire)', value: '"Courier New"' },
-         { name: 'Arial (Classique)', value: 'Arial' }
-       ))
-    .addStringOption(o =>
-      o.setName('animation')
-       .setDescription('Animation d\'apparition du média/message')
-       .setRequired(false)
-       .addChoices(
-         { name: 'Fondu (Fade)', value: 'fade' },
-         { name: 'Glissement (Slide)', value: 'slide' },
-         { name: 'Rebond (Bounce)', value: 'bounce' },
-         { name: 'Zoom', value: 'zoom' }
-       ))
-    .addStringOption(o =>
-      o.setName('effet')
-       .setDescription('Effet visuel en arrière-plan')
-       .setRequired(false)
-       .addChoices(
-         { name: 'Aucun', value: 'aucun' },
-         { name: 'Particules', value: 'particules' },
-         { name: 'Étoiles', value: 'etoiles' }
-       )),
+    .setDescription('Ouvre un menu interactif pour modifier votre profil d\'affichage (couleur, police, animation) par défaut'),
 
 ].map(cmd => cmd.toJSON());
 

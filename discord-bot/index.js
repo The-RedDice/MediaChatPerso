@@ -7,7 +7,7 @@
 
 require('dotenv').config({ path: '../.env' });
 
-const { Client, GatewayIntentBits, Events, ActivityType, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { Client, GatewayIntentBits, Events, ActivityType, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
 // fetch est natif depuis Node.js 18 — pas besoin de node-fetch
 
 // ─── Config ──────────────────────────────────────────────
@@ -88,6 +88,25 @@ client.on(Events.InteractionCreate, async (interaction) => {
   if (interaction.isButton()) {
     const customId = interaction.customId;
 
+    if (customId === 'btn_color') {
+      const modal = new ModalBuilder()
+        .setCustomId('modal_color')
+        .setTitle('Couleur personnalisée');
+
+      const colorInput = new TextInputBuilder()
+        .setCustomId('color_input')
+        .setLabel("Couleur Hexadécimale (ex: #FF0000)")
+        .setStyle(TextInputStyle.Short)
+        .setPlaceholder("#FF0000 ou red")
+        .setRequired(false);
+
+      const actionRow = new ActionRowBuilder().addComponents(colorInput);
+      modal.addComponents(actionRow);
+
+      await interaction.showModal(modal);
+      return;
+    }
+
     // Gérer les boutons "Vider la file" et "Skip actuel"
     if (customId.startsWith('clear_')) {
       const target = customId.replace('clear_', '');
@@ -113,14 +132,59 @@ client.on(Events.InteractionCreate, async (interaction) => {
     return;
   }
 
+  if (interaction.isStringSelectMenu() || interaction.isModalSubmit()) {
+    const customId = interaction.customId;
+    const userId = interaction.user.id;
+    const username = interaction.user.displayName || interaction.user.username;
+
+    let payload = { username };
+
+    if (interaction.isStringSelectMenu()) {
+      const selectedValue = interaction.values[0] === 'default' ? null : interaction.values[0];
+      if (customId === 'select_font') payload.font = selectedValue;
+      if (customId === 'select_anim') payload.animation = selectedValue;
+      if (customId === 'select_effect') payload.effect = selectedValue;
+    } else if (interaction.isModalSubmit() && customId === 'modal_color') {
+      let colorValue = interaction.fields.getTextInputValue('color_input').trim();
+      payload.color = colorValue || null;
+    }
+
+    try {
+      await apiPost(`/style/${userId}`, payload);
+
+      const data = await apiGet(`/style/${userId}`);
+      const p = data.profile || {};
+
+      let msg = `🎨 **Configuration de votre profil visuel**\n\n`;
+      msg += `> **Couleur** : \`${p.color || 'Par défaut'}\`\n`;
+      msg += `> **Police** : \`${p.font || 'Par défaut'}\`\n`;
+      msg += `> **Animation** : \`${p.animation || 'Par défaut'}\`\n`;
+      msg += `> **Effet** : \`${p.effect || 'Aucun'}\`\n\n`;
+      msg += `✅ Modification enregistrée !`;
+
+      if (interaction.isModalSubmit()) {
+        await interaction.update({ content: msg });
+      } else {
+        await interaction.update({ content: msg });
+      }
+    } catch (err) {
+      if (interaction.deferred || interaction.replied) {
+        await interaction.editReply({ content: `❌ Erreur : Impossible de sauvegarder le style.` });
+      } else {
+        await interaction.reply({ content: `❌ Erreur : Impossible de sauvegarder le style.`, ephemeral: true });
+      }
+    }
+    return;
+  }
+
   if (!interaction.isChatInputCommand()) return;
 
   const { commandName } = interaction;
 
   // Réponse différée pour les commandes longues
-  if (commandName === 'sendurl' || commandName === 'sendfile' || commandName === 'message' || commandName === 'online' || commandName === 'stats' || commandName === 'leaderboard' || commandName === 'queue' || commandName === 'style') {
+  if (commandName === 'sendurl' || commandName === 'sendfile' || commandName === 'message' || commandName === 'online' || commandName === 'stats' || commandName === 'leaderboard' || commandName === 'queue') {
     await interaction.deferReply();
-  } else if (commandName === 'tuto') {
+  } else if (commandName === 'tuto' || commandName === 'style') {
     await interaction.deferReply({ ephemeral: true });
   } else {
     await interaction.deferReply({ ephemeral: true });
@@ -270,43 +334,65 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
       // ── /style ─────────────────────────────────────────
       case 'style': {
-        const color = interaction.options.getString('couleur');
-        const font = interaction.options.getString('police');
-        const animation = interaction.options.getString('animation');
-        const effect = interaction.options.getString('effet');
-
-        const username = interaction.user.displayName || interaction.user.username;
         const userId = interaction.user.id;
-
-        // On vérifie que l'utilisateur veut modifier au moins un truc
-        if (!color && !font && !animation && !effect) {
-          const data = await apiGet(`/style/${userId}`);
-          const p = data.profile || {};
-          let msg = `🎨 **Votre profil de style actuel** :\n`;
-          msg += `• Couleur : ${p.color || '*Par défaut*'}\n`;
-          msg += `• Police : ${p.font || '*Par défaut*'}\n`;
-          msg += `• Animation : ${p.animation || '*Par défaut*'}\n`;
-          msg += `• Effet : ${p.effect || '*Aucun*'}\n`;
-          msg += `\n*Utilisez \`/style [options]\` pour les modifier.*`;
-          await interaction.editReply(msg);
-          return;
-        }
-
-        const data = await apiPost(`/style/${userId}`, { username, color, font, animation, effect });
-
-        if (data.error) {
-          await interaction.editReply(`❌ Erreur : ${data.error}`);
-          return;
-        }
-
+        const data = await apiGet(`/style/${userId}`);
         const p = data.profile || {};
-        let msg = `✅ **Profil de style mis à jour avec succès !**\n`;
-        msg += `• Couleur : ${p.color || '*Par défaut*'}\n`;
-        msg += `• Police : ${p.font || '*Par défaut*'}\n`;
-        msg += `• Animation : ${p.animation || '*Par défaut*'}\n`;
-        msg += `• Effet : ${p.effect || '*Aucun*'}`;
 
-        await interaction.editReply(msg);
+        let msg = `🎨 **Configuration de votre profil visuel**\n\n`;
+        msg += `> **Couleur** : \`${p.color || 'Par défaut'}\`\n`;
+        msg += `> **Police** : \`${p.font || 'Par défaut'}\`\n`;
+        msg += `> **Animation** : \`${p.animation || 'Par défaut'}\`\n`;
+        msg += `> **Effet** : \`${p.effect || 'Aucun'}\`\n\n`;
+        msg += `Utilisez les menus ci-dessous pour modifier votre style :`;
+
+        const fontMenu = new ActionRowBuilder().addComponents(
+          new StringSelectMenuBuilder()
+            .setCustomId('select_font')
+            .setPlaceholder('Choisir une police...')
+            .addOptions([
+              { label: 'Par défaut', value: 'default' },
+              { label: 'Impact (Meme)', value: 'Impact' },
+              { label: 'Comic Sans MS (Troll)', value: '"Comic Sans MS"' },
+              { label: 'Courier New (Machine à écrire)', value: '"Courier New"' },
+              { label: 'Arial (Classique)', value: 'Arial' }
+            ])
+        );
+
+        const animMenu = new ActionRowBuilder().addComponents(
+          new StringSelectMenuBuilder()
+            .setCustomId('select_anim')
+            .setPlaceholder('Choisir une animation...')
+            .addOptions([
+              { label: 'Par défaut', value: 'default' },
+              { label: 'Fondu (Fade)', value: 'fade' },
+              { label: 'Glissement (Slide)', value: 'slide' },
+              { label: 'Rebond (Bounce)', value: 'bounce' },
+              { label: 'Zoom', value: 'zoom' }
+            ])
+        );
+
+        const effectMenu = new ActionRowBuilder().addComponents(
+          new StringSelectMenuBuilder()
+            .setCustomId('select_effect')
+            .setPlaceholder('Choisir un effet visuel...')
+            .addOptions([
+              { label: 'Aucun', value: 'aucun' },
+              { label: 'Particules', value: 'particules' },
+              { label: 'Étoiles', value: 'etoiles' }
+            ])
+        );
+
+        const colorBtnRow = new ActionRowBuilder().addComponents(
+          new ButtonBuilder()
+            .setCustomId('btn_color')
+            .setLabel('Modifier la Couleur')
+            .setStyle(ButtonStyle.Primary)
+        );
+
+        await interaction.editReply({
+          content: msg,
+          components: [fontMenu, animMenu, effectMenu, colorBtnRow]
+        });
         break;
       }
 
