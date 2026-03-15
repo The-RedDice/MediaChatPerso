@@ -284,6 +284,7 @@ const commands = [
        .setDescription('Le type de classement à afficher')
        .setRequired(false)
        .addChoices(
+         { name: 'Top Réputation', value: 'rep' },
          { name: 'Top Médias Envoyés', value: 'media' },
          { name: 'Top Flop (Skip)', value: 'flop' }
        )),

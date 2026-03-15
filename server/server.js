@@ -19,7 +19,7 @@ const session        = require('express-session');
 const passport       = require('passport');
 const DiscordStrategy = require('passport-discord').Strategy;
 const { getAvailableModels, generateTTS } = require('./tts');
-const { recordAction, recordSkip, getUserStats, getLeaderboard, getUserProfile, saveUserProfile } = require('./stats');
+const { recordAction, recordSkip, getUserStats, getLeaderboard, getUserProfile, saveUserProfile, updateReputation } = require('./stats');
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 
@@ -683,6 +683,22 @@ router.post('/sendfile', requireAuth, async (req, res) => {
   if (userId) recordAction(userId, senderName, 'file');
   io.emit('panel_log', { msg: `${senderName || 'Discord'} a envoyé un fichier (${fileType}) → ${target}`, type: 'ok' });
   res.json({ ok: true, ttsUrl });
+});
+
+// POST /api/reputation
+router.post('/reputation', (req, res) => {
+  const { targetId, targetUsername, value, voterId, messageId } = req.body;
+  if (!targetId || !voterId || !messageId || value === undefined) {
+    return res.status(400).json({ error: 'Paramètres manquants' });
+  }
+
+  const result = updateReputation(targetId, targetUsername, value, voterId, messageId);
+  if (!result.success) {
+    return res.status(400).json({ error: result.message });
+  }
+
+  io.emit('panel_log', { msg: `Vote réputation (${value > 0 ? '+1' : '-1'}) enregistré pour ${targetUsername} par ${voterId}.`, type: 'info' });
+  res.json({ ok: true, newScore: result.newScore });
 });
 
 // POST /api/voteskip
