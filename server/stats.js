@@ -81,6 +81,21 @@ function recordAction(userId, username, type) {
 }
 
 /**
+ * Incrémenter la statistique de "skip" (flop) pour un utilisateur
+ * @param {string} userId - L'ID Discord de l'utilisateur
+ */
+function recordSkip(userId) {
+  if (!userId || !stats[userId]) return;
+
+  if (typeof stats[userId].skippedCount !== 'number') {
+    stats[userId].skippedCount = 0;
+  }
+
+  stats[userId].skippedCount++;
+  saveStats();
+}
+
+/**
  * Obtenir les stats d'un utilisateur
  */
 function getUserStats(userId) {
@@ -89,11 +104,24 @@ function getUserStats(userId) {
 
 /**
  * Obtenir le top N des utilisateurs
+ * @param {string} type - 'media' ou 'flop'
+ * @param {number} limit - Nombre de résultats maximum
  */
-function getLeaderboard(limit = 10) {
+function getLeaderboard(type = 'media', limit = 10) {
   return Object.entries(stats)
     .map(([userId, data]) => ({ userId, ...data }))
-    .sort((a, b) => b.totalCount - a.totalCount)
+    .sort((a, b) => {
+      if (type === 'flop') {
+        const aFlop = a.skippedCount || 0;
+        const bFlop = b.skippedCount || 0;
+        return bFlop - aFlop;
+      } else {
+        // type === 'media'
+        const aMedia = (a.mediaCount || 0) + (a.fileCount || 0);
+        const bMedia = (b.mediaCount || 0) + (b.fileCount || 0);
+        return bMedia - aMedia;
+      }
+    })
     .slice(0, limit);
 }
 
@@ -128,6 +156,7 @@ function getUserProfile(userId) {
 
 module.exports = {
   recordAction,
+  recordSkip,
   getUserStats,
   getLeaderboard,
   saveUserProfile,

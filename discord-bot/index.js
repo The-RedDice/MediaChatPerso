@@ -321,11 +321,16 @@ client.on(Events.InteractionCreate, async (interaction) => {
           return;
         }
 
+        const totalMedia = (data.mediaCount || 0) + (data.fileCount || 0);
+        const flops = data.skippedCount || 0;
+
+        const rankMediaStr = data.rankMedia ? ` *(#${data.rankMedia})*` : '';
+        const rankFlopStr = data.rankFlop ? ` *(#${data.rankFlop})*` : '';
+
         const msg = `📊 **Statistiques de ${data.username}** :\n` +
-          `• Total envoyé : **${data.totalCount}**\n` +
-          `• Vidéos (yt-dlp) : ${data.mediaCount || 0}\n` +
-          `• Fichiers directs : ${data.fileCount || 0}\n` +
-          `• Messages texte : ${data.messageCount || 0}\n` +
+          `• Médias envoyés : **${totalMedia}**${rankMediaStr}\n` +
+          `• Médias flop (skip) : **${flops}**${rankFlopStr}\n` +
+          `• Total envoyé : ${data.totalCount} (incl. messages texte)\n` +
           `• Dernière activité : <t:${Math.floor(data.lastAction / 1000)}:R>`;
 
         await interaction.editReply(msg);
@@ -334,20 +339,29 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
       // ── /leaderboard ───────────────────────────────────
       case 'leaderboard': {
-        const lb = await apiGet('/leaderboard');
+        const type = interaction.options.getString('type') || 'media';
+        const lb = await apiGet(`/leaderboard?type=${type}`);
 
         if (!lb || lb.length === 0) {
-          await interaction.editReply('🏆 Le leaderboard est vide. Soyez le premier à envoyer quelque chose !');
+          await interaction.editReply('🏆 Le leaderboard est vide.');
           return;
         }
 
         const places = ['🥇', '🥈', '🥉'];
         const list = lb.map((user, i) => {
           const rank = i < 3 ? places[i] : `**#${i + 1}**`;
-          return `${rank} **${user.username}** — ${user.totalCount} envois`;
+          let valueStr = '';
+          if (type === 'flop') {
+            valueStr = `${user.skippedCount || 0} flops`;
+          } else {
+            const totalMedia = (user.mediaCount || 0) + (user.fileCount || 0);
+            valueStr = `${totalMedia} médias`;
+          }
+          return `${rank} **${user.username}** — ${valueStr}`;
         }).join('\n');
 
-        await interaction.editReply(`🏆 **TOP 10 SPAMMEURS BORDELBOX** 🏆\n\n${list}`);
+        const title = type === 'flop' ? '🏆 **TOP FLOP BORDELBOX (Médias Skippés)** 🏆' : '🏆 **TOP MÉDIAS BORDELBOX** 🏆';
+        await interaction.editReply(`${title}\n\n${list}`);
         break;
       }
 

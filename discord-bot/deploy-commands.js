@@ -278,7 +278,15 @@ const commands = [
 
   new SlashCommandBuilder()
     .setName('leaderboard')
-    .setDescription('Affiche le top des personnes qui ont envoyé le plus de médias'),
+    .setDescription('Affiche le top des utilisateurs')
+    .addStringOption(o =>
+      o.setName('type')
+       .setDescription('Le type de classement à afficher')
+       .setRequired(false)
+       .addChoices(
+         { name: 'Top Médias Envoyés', value: 'media' },
+         { name: 'Top Flop (Skip)', value: 'flop' }
+       )),
 
   new SlashCommandBuilder()
     .setName('queue')

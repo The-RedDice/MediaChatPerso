@@ -19,7 +19,7 @@ const session        = require('express-session');
 const passport       = require('passport');
 const DiscordStrategy = require('passport-discord').Strategy;
 const { getAvailableModels, generateTTS } = require('./tts');
-const { recordAction, getUserStats, getLeaderboard, getUserProfile, saveUserProfile } = require('./stats');
+const { recordAction, recordSkip, getUserStats, getLeaderboard, getUserProfile, saveUserProfile } = require('./stats');
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 
@@ -159,7 +159,8 @@ const queues  = new Map();
 const voteSkipState = {
   active: false,
   voters: new Set(),
-  requiredVotes: 0
+  requiredVotes: 0,
+  currentItemUserId: null
 };
 
 // Historique des 100 derniers éléments joués/envoyés
@@ -186,11 +187,13 @@ function flushQueue(pseudo) {
   const queue = getQueue(pseudo);
   if (queue.length === 0) return;
 
+  const item = queue.shift();
+
   // Réinitialiser les votes s'il s'agit d'un flush global (simplifié: dès qu'un nouvel item commence)
   voteSkipState.active = false;
   voteSkipState.voters.clear();
+  voteSkipState.currentItemUserId = item.payload?.userId || null;
 
-  const item = queue.shift();
   client.busy = true;
   io.to(client.socketId).emit('show', item);
   addHistory(item, pseudo);
@@ -498,7 +501,7 @@ app.post('/api/upload', requireAuth, uploadMiddleware.single('file'), async (req
 
   const result = enqueue(target, {
     type: 'file',
-    payload: { url: fileUrl, fileType, caption: caption || '', senderName, avatarUrl, ttsUrl, greenscreen: greenscreen === 'true', filter, style },
+    payload: { url: fileUrl, fileType, caption: caption || '', senderName, avatarUrl, ttsUrl, greenscreen: greenscreen === 'true', filter, style, userId },
   });
 
   if (result?.error) return res.status(404).json(result);
@@ -512,13 +515,28 @@ app.post('/api/upload', requireAuth, uploadMiddleware.single('file'), async (req
 // ─── API Stats ───────────────────────────────────────────────────────────────
 
 router.get('/stats/:userId', (req, res) => {
-  const data = getUserStats(req.params.userId);
+  const userId = req.params.userId;
+  const data = getUserStats(userId);
   if (!data) return res.json({ error: 'Aucune donnée pour cet utilisateur' });
-  res.json(data);
+
+  // Create a copy to avoid mutating the in-memory persistent stats object
+  const responseData = { ...data };
+
+  // Calculate rankings
+  const mediaLb = getLeaderboard('media', 1000);
+  const rankMediaIdx = mediaLb.findIndex(u => u.userId === userId);
+  responseData.rankMedia = rankMediaIdx !== -1 ? rankMediaIdx + 1 : null;
+
+  const flopLb = getLeaderboard('flop', 1000);
+  const rankFlopIdx = flopLb.findIndex(u => u.userId === userId && (u.skippedCount || 0) > 0);
+  responseData.rankFlop = rankFlopIdx !== -1 ? rankFlopIdx + 1 : null;
+
+  res.json(responseData);
 });
 
 router.get('/leaderboard', (req, res) => {
-  res.json(getLeaderboard());
+  const type = req.query.type || 'media';
+  res.json(getLeaderboard(type));
 });
 
 router.get('/style/:userId', (req, res) => {
@@ -604,7 +622,7 @@ router.post('/sendurl', requireAuth, async (req, res) => {
   if (isDirectFile) {
     const result = enqueue(target, {
       type: 'file',
-      payload: { url, fileType, caption: caption || '', senderName: senderName || '', avatarUrl: avatarUrl || '', ttsUrl, greenscreen: !!greenscreen, filter, style: payloadStyle },
+      payload: { url, fileType, caption: caption || '', senderName: senderName || '', avatarUrl: avatarUrl || '', ttsUrl, greenscreen: !!greenscreen, filter, style: payloadStyle, userId },
     });
     if (result?.error) return res.status(404).json(result);
     if (userId) recordAction(userId, senderName, 'file');
@@ -617,7 +635,7 @@ router.post('/sendurl', requireAuth, async (req, res) => {
 
     const result = enqueue(target, {
       type: 'media',
-      payload: { ...media, caption: caption || '', senderName: senderName || '', avatarUrl: avatarUrl || '', ttsUrl, greenscreen: !!greenscreen, filter, style: payloadStyle },
+      payload: { ...media, caption: caption || '', senderName: senderName || '', avatarUrl: avatarUrl || '', ttsUrl, greenscreen: !!greenscreen, filter, style: payloadStyle, userId },
     });
     if (result?.error) return res.status(404).json(result);
     if (userId) recordAction(userId, senderName, 'media');
@@ -659,7 +677,7 @@ router.post('/sendfile', requireAuth, async (req, res) => {
 
   const result = enqueue(target, {
     type: 'file',
-    payload: { url: fileUrl, fileType, caption: caption || '', senderName: senderName || '', avatarUrl: avatarUrl || '', ttsUrl, greenscreen: !!greenscreen, filter, style: payloadStyle },
+    payload: { url: fileUrl, fileType, caption: caption || '', senderName: senderName || '', avatarUrl: avatarUrl || '', ttsUrl, greenscreen: !!greenscreen, filter, style: payloadStyle, userId },
   });
   if (result?.error) return res.status(404).json(result);
   if (userId) recordAction(userId, senderName, 'file');
@@ -699,9 +717,15 @@ router.post('/voteskip', (req, res) => {
     io.emit('force_skip');
     io.emit('panel_log', { msg: `VoteSkip validé ! (${currentVotes}/${requiredVotes}) Media passé.`, type: 'ok' });
 
+    // Enregistrer le flop pour l'utilisateur
+    if (voteSkipState.currentItemUserId) {
+      recordSkip(voteSkipState.currentItemUserId);
+    }
+
     // On réinitialise l'état
     voteSkipState.active = false;
     voteSkipState.voters.clear();
+    voteSkipState.currentItemUserId = null;
 
     // Le 'force_skip' côté client va déclencher 'media_ended' qui fera avancer la file
     return res.json({ skipped: true, currentVotes, requiredVotes });
@@ -731,7 +755,7 @@ router.post('/message', requireAuth, async (req, res) => {
 
   const result = enqueue(target, {
     type: 'message',
-    payload: { text, senderName: senderName || '', avatarUrl: avatarUrl || '', ttsUrl, greenscreen: !!greenscreen, style: payloadStyle },
+    payload: { text, senderName: senderName || '', avatarUrl: avatarUrl || '', ttsUrl, greenscreen: !!greenscreen, style: payloadStyle, userId },
   });
   if (result?.error) return res.status(404).json(result);
   if (userId) recordAction(userId, senderName, 'message');
