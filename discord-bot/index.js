@@ -184,7 +184,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
   // Réponse différée pour les commandes longues
   if (commandName === 'sendurl' || commandName === 'sendfile' || commandName === 'message' || commandName === 'online' || commandName === 'stats' || commandName === 'leaderboard' || commandName === 'queue' || commandName === 'download') {
     await interaction.deferReply();
-  } else if (commandName === 'tuto' || commandName === 'style') {
+  } else if (commandName === 'tuto' || commandName === 'style' || commandName === 'upload') {
     await interaction.deferReply({ ephemeral: true });
   } else {
     await interaction.deferReply({ ephemeral: true });
@@ -513,6 +513,17 @@ client.on(Events.InteractionCreate, async (interaction) => {
         break;
       }
 
+      // ── /upload ────────────────────────────────────────
+      case 'upload': {
+        const msg = `🌐 **Page d'Upload Web**\n\n` +
+                    `Vous pouvez uploader des fichiers (jusqu'à 250 Mo) directement depuis votre PC sans passer par Discord en utilisant le lien suivant :\n` +
+                    `<${SERVER_URL}/upload>\n\n` +
+                    `*Une connexion Discord est requise sur le site pour vérifier que vous êtes membre du serveur.*`;
+
+        await interaction.editReply(msg);
+        break;
+      }
+
       // ── /download ──────────────────────────────────────
       case 'download': {
         const repoUrl = 'https://api.github.com/repos/The-RedDice/MediaChatPerso/releases/latest';
@@ -569,6 +580,7 @@ BordelBox est un système permettant d'afficher des médias et des messages en d
 \` /stats \` : Affiche vos statistiques d'envoi.
 \` /leaderboard \` : Affiche le top des spammeurs de la BordelBox.
 \` /online \` : Liste les PC actuellement connectés.
+\` /upload \` : Obtient le lien de la page web pour envoyer des fichiers lourds hors-discord.
 \` /download \` : Télécharge la dernière version du client BordelBox (depuis GitHub).
 \` /tuto \` : Affiche ce message d'aide.
         `.trim();
