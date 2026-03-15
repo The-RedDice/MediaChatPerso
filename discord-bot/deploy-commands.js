@@ -58,7 +58,9 @@ const commands = [
          { name: 'Impact', value: 'Impact' },
          { name: 'Comic Sans MS', value: '"Comic Sans MS"' },
          { name: 'Courier New', value: '"Courier New"' },
-         { name: 'Arial', value: 'Arial' }
+         { name: 'Arial', value: 'Arial' },
+         { name: 'Georgia', value: 'Georgia' },
+         { name: 'Trebuchet MS', value: '"Trebuchet MS"' }
        ))
     .addStringOption(o =>
       o.setName('animation')
@@ -68,7 +70,10 @@ const commands = [
          { name: 'Fondu (Fade)', value: 'fade' },
          { name: 'Glissement (Slide)', value: 'slide' },
          { name: 'Rebond (Bounce)', value: 'bounce' },
-         { name: 'Zoom', value: 'zoom' }
+         { name: 'Zoom', value: 'zoom' },
+         { name: 'Rotation (Spin)', value: 'spin' },
+         { name: 'Tremblement (Shake)', value: 'shake' },
+         { name: 'Chute (Drop)', value: 'drop' }
        ))
     .addStringOption(o =>
       o.setName('effet')
@@ -77,7 +82,9 @@ const commands = [
        .addChoices(
          { name: 'Aucun', value: 'aucun' },
          { name: 'Particules', value: 'particules' },
-         { name: 'Étoiles', value: 'etoiles' }
+         { name: 'Étoiles', value: 'etoiles' },
+         { name: 'Confetti', value: 'confetti' },
+         { name: 'Feu', value: 'feu' }
        )),
 
   new SlashCommandBuilder()
@@ -115,7 +122,9 @@ const commands = [
          { name: 'Impact', value: 'Impact' },
          { name: 'Comic Sans MS', value: '"Comic Sans MS"' },
          { name: 'Courier New', value: '"Courier New"' },
-         { name: 'Arial', value: 'Arial' }
+         { name: 'Arial', value: 'Arial' },
+         { name: 'Georgia', value: 'Georgia' },
+         { name: 'Trebuchet MS', value: '"Trebuchet MS"' }
        ))
     .addStringOption(o =>
       o.setName('animation')
@@ -125,7 +134,10 @@ const commands = [
          { name: 'Fondu (Fade)', value: 'fade' },
          { name: 'Glissement (Slide)', value: 'slide' },
          { name: 'Rebond (Bounce)', value: 'bounce' },
-         { name: 'Zoom', value: 'zoom' }
+         { name: 'Zoom', value: 'zoom' },
+         { name: 'Rotation (Spin)', value: 'spin' },
+         { name: 'Tremblement (Shake)', value: 'shake' },
+         { name: 'Chute (Drop)', value: 'drop' }
        ))
     .addStringOption(o =>
       o.setName('effet')
@@ -134,7 +146,9 @@ const commands = [
        .addChoices(
          { name: 'Aucun', value: 'aucun' },
          { name: 'Particules', value: 'particules' },
-         { name: 'Étoiles', value: 'etoiles' }
+         { name: 'Étoiles', value: 'etoiles' },
+         { name: 'Confetti', value: 'confetti' },
+         { name: 'Feu', value: 'feu' }
        )),
 
   new SlashCommandBuilder()
@@ -169,7 +183,9 @@ const commands = [
          { name: 'Impact', value: 'Impact' },
          { name: 'Comic Sans MS', value: '"Comic Sans MS"' },
          { name: 'Courier New', value: '"Courier New"' },
-         { name: 'Arial', value: 'Arial' }
+         { name: 'Arial', value: 'Arial' },
+         { name: 'Georgia', value: 'Georgia' },
+         { name: 'Trebuchet MS', value: '"Trebuchet MS"' }
        ))
     .addStringOption(o =>
       o.setName('animation')
@@ -179,7 +195,10 @@ const commands = [
          { name: 'Fondu (Fade)', value: 'fade' },
          { name: 'Glissement (Slide)', value: 'slide' },
          { name: 'Rebond (Bounce)', value: 'bounce' },
-         { name: 'Zoom', value: 'zoom' }
+         { name: 'Zoom', value: 'zoom' },
+         { name: 'Rotation (Spin)', value: 'spin' },
+         { name: 'Tremblement (Shake)', value: 'shake' },
+         { name: 'Chute (Drop)', value: 'drop' }
        ))
     .addStringOption(o =>
       o.setName('effet')
@@ -188,7 +207,9 @@ const commands = [
        .addChoices(
          { name: 'Aucun', value: 'aucun' },
          { name: 'Particules', value: 'particules' },
-         { name: 'Étoiles', value: 'etoiles' }
+         { name: 'Étoiles', value: 'etoiles' },
+         { name: 'Confetti', value: 'confetti' },
+         { name: 'Feu', value: 'feu' }
        )),
 
   new SlashCommandBuilder()

@@ -258,6 +258,9 @@ function applyStyle(payload, textElement, effectsElement) {
     else if (style.animation === 'slide') textElement.style.animation = 'msg-slide 0.5s cubic-bezier(0.25, 1, 0.5, 1) both';
     else if (style.animation === 'zoom') textElement.style.animation = 'msg-zoom 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both';
     else if (style.animation === 'bounce') textElement.style.animation = 'msg-bounce 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both';
+    else if (style.animation === 'spin') textElement.style.animation = 'msg-spin 0.6s cubic-bezier(0.25, 1, 0.5, 1) both';
+    else if (style.animation === 'shake') textElement.style.animation = 'msg-shake 0.5s ease-in-out both';
+    else if (style.animation === 'drop') textElement.style.animation = 'msg-drop 0.5s cubic-bezier(0.25, 1, 0.5, 1) both';
   } else {
     // Par défaut
     if (textElement === messageText) textElement.style.animation = 'msg-bounce 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both';
@@ -267,27 +270,50 @@ function applyStyle(payload, textElement, effectsElement) {
   // Appliquer les particules dans le conteneur cible (s'il y en a un)
   if (effectsElement) {
     effectsElement.innerHTML = '';
-    if (style.effect === 'particules' || style.effect === 'etoiles') {
-      const isStars = style.effect === 'etoiles';
-      const count = isStars ? 30 : 50;
+    if (style.effect === 'particules' || style.effect === 'etoiles' || style.effect === 'confetti' || style.effect === 'feu') {
+      const effectType = style.effect;
+      const count = (effectType === 'etoiles' || effectType === 'confetti') ? 30 : 50;
 
       for (let i = 0; i < count; i++) {
         const el = document.createElement('div');
-        el.className = isStars ? 'star' : 'particle';
 
-        const size = Math.random() * (isStars ? 20 : 10) + 5;
+        if (effectType === 'etoiles') el.className = 'star';
+        else if (effectType === 'confetti') el.className = 'confetti';
+        else if (effectType === 'feu') el.className = 'fire';
+        else el.className = 'particle';
+
+        // Tailles aléatoires
+        let size = Math.random() * 10 + 5;
+        if (effectType === 'etoiles') size = Math.random() * 15 + 5;
+        else if (effectType === 'feu') size = Math.random() * 20 + 10;
+
         el.style.width = `${size}px`;
         el.style.height = `${size}px`;
 
         // Position relative stricte à la zone du texte
         el.style.left = `${Math.random() * 100}%`;
-        el.style.top = `${Math.random() * 100}%`;
+
+        if (effectType === 'feu') {
+           el.style.top = `${Math.random() * 20 + 80}%`; // Le feu commence plus bas
+        } else {
+           el.style.top = `${Math.random() * 100}%`;
+        }
 
         el.style.animationDelay = `${Math.random() * 2}s`;
-        el.style.animationDuration = `${Math.random() * 2 + 2}s`;
+        el.style.animationDuration = `${Math.random() * 2 + 1.5}s`;
 
-        if (style.color) {
-          el.style.background = style.color;
+        if (effectType === 'feu') {
+          // Si c'est du feu, les couleurs vont du jaune au rouge, ou on utilise la custom color
+          el.style.background = style.color ? style.color : (Math.random() > 0.5 ? '#ff5500' : '#ffaa00');
+        } else if (effectType === 'confetti') {
+          // Confettis ont des couleurs aléatoires si l'user n'a pas défini de couleur
+          const colors = ['#ff0', '#0f0', '#00f', '#f00', '#f0f', '#0ff'];
+          el.style.background = style.color ? style.color : colors[Math.floor(Math.random() * colors.length)];
+        } else {
+          // Particules/étoiles normales
+          if (style.color) {
+            el.style.background = style.color;
+          }
         }
 
         effectsElement.appendChild(el);
