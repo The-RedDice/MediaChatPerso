@@ -18,15 +18,27 @@ try {
   console.error('[Stats] Erreur lors du chargement des stats:', err);
 }
 
+let saveTimeout = null;
+
 /**
- * Sauvegarder les stats sur le disque
+ * Sauvegarder les stats sur le disque (version asynchrone débouncée)
  */
 function saveStats() {
-  try {
-    fs.writeFileSync(STATS_FILE, JSON.stringify(stats, null, 2));
-  } catch (err) {
-    console.error('[Stats] Erreur lors de la sauvegarde:', err);
-  }
+  if (saveTimeout) return;
+
+  saveTimeout = setTimeout(() => {
+    saveTimeout = null;
+    try {
+      const data = JSON.stringify(stats, null, 2);
+      fs.writeFile(STATS_FILE, data, (err) => {
+        if (err) {
+          console.error('[Stats] Erreur lors de la sauvegarde:', err);
+        }
+      });
+    } catch (err) {
+      console.error('[Stats] Erreur lors de la sérialisation des stats:', err);
+    }
+  }, 1000);
 }
 
 /**
