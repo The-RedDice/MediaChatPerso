@@ -7,7 +7,7 @@
 
 require('dotenv').config({ path: '../.env' });
 
-const { Client, GatewayIntentBits, Events, ActivityType, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
+const { Client, GatewayIntentBits, Events, ActivityType, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, EmbedBuilder } = require('discord.js');
 // fetch est natif depuis Node.js 18 — pas besoin de node-fetch
 
 // ─── Config ──────────────────────────────────────────────
@@ -416,26 +416,49 @@ client.on(Events.InteractionCreate, async (interaction) => {
         const queues = Object.entries(data);
 
         if (queues.length === 0 || queues.every(([_, q]) => q.length === 0)) {
-          await interaction.editReply('📭 La file d\'attente globale est vide.');
+          const embed = new EmbedBuilder()
+            .setColor(0x36393F)
+            .setDescription('📭 **La file d\'attente globale est totalement vide.**');
+          await interaction.editReply({ embeds: [embed] });
           return;
         }
+
+        const formatItem = (item, index) => {
+          let typeEmoji = item.type === 'message' ? '💬' : (item.payload?.fileType === 'audio' ? '🎵' : (item.payload?.fileType === 'image' ? '🖼️' : '🎬'));
+          const sender = item.payload?.senderName || 'Système';
+          let preview = item.type === 'message' ? item.payload?.text : (item.payload?.caption || '*Sans texte*');
+          if (preview && preview.length > 40) preview = preview.substring(0, 40) + '…';
+
+          let extras = [];
+          if (item.payload?.ttsUrl) extras.push('🎙️ TTS');
+          if (item.payload?.greenscreen) extras.push('🟩 GS');
+          const extrasStr = extras.length > 0 ? ` [${extras.join(', ')}]` : '';
+
+          return `\`#${index + 1}\` ${typeEmoji} par **${sender}** : ${preview}${extrasStr}`;
+        };
 
         if (target) {
           const q = data[target];
           if (!q || q.length === 0) {
-            await interaction.editReply(`📭 La file d'attente de **${target}** est vide.`);
+            const embed = new EmbedBuilder()
+              .setColor(0x36393F)
+              .setDescription(`📭 La file d'attente de **${target}** est vide.`);
+            await interaction.editReply({ embeds: [embed] });
             return;
           }
 
-          let msg = `⏳ **File d'attente de ${target}** (${q.length} élément${q.length > 1 ? 's' : ''}) :\n`;
-          q.slice(0, 10).forEach((item, i) => {
-            const typeEmoji = item.type === 'message' ? '💬' : (item.payload?.fileType === 'audio' ? '🎵' : '🎬');
-            const sender = item.payload?.senderName || 'Système';
-            let preview = item.type === 'message' ? item.payload?.text : (item.payload?.caption || 'Média');
-            if (preview && preview.length > 30) preview = preview.substring(0, 30) + '…';
-            msg += `\`#${i + 1}\` ${typeEmoji} de **${sender}** : *${preview}*\n`;
-          });
-          if (q.length > 10) msg += `*... et ${q.length - 10} autres*`;
+          const embed = new EmbedBuilder()
+            .setColor(0x5865F2)
+            .setTitle(`⏳ File d'attente : ${target}`)
+            .setDescription(`Il y a **${q.length}** élément(s) en attente pour ce PC.`)
+            .setThumbnail(q[0].payload?.avatarUrl || null);
+
+          let listText = q.slice(0, 10).map((item, i) => formatItem(item, i)).join('\n');
+          if (q.length > 10) {
+            listText += `\n*... et ${q.length - 10} autres éléments.*`;
+          }
+
+          embed.addFields({ name: 'Prochains médias', value: listText });
 
           // Création des boutons de gestion
           const row = new ActionRowBuilder()
@@ -446,20 +469,36 @@ client.on(Events.InteractionCreate, async (interaction) => {
                 .setStyle(ButtonStyle.Primary),
               new ButtonBuilder()
                 .setCustomId(`clear_${target}`)
-                .setLabel('Vider sa file')
+                .setLabel('Vider la file')
                 .setStyle(ButtonStyle.Danger)
             );
 
-          await interaction.editReply({ content: msg, components: [row] });
+          await interaction.editReply({ embeds: [embed], components: [row] });
         } else {
-          let msg = `⏳ **Files d'attente globales** :\n\n`;
+          // Vue globale avec le détail de toutes les files actives
+          const embed = new EmbedBuilder()
+            .setColor(0x5865F2)
+            .setTitle('⏳ Files d\'attente globales');
+
+          let hasActiveQueues = false;
+
           queues.forEach(([pseudo, q]) => {
             if (q.length > 0) {
-              msg += `**${pseudo}** : ${q.length} élément${q.length > 1 ? 's' : ''}\n`;
+              hasActiveQueues = true;
+              let listText = q.slice(0, 5).map((item, i) => formatItem(item, i)).join('\n');
+              if (q.length > 5) listText += `\n*+ ${q.length - 5} autres...*`;
+
+              embed.addFields({ name: `🖥️ ${pseudo} (${q.length})`, value: listText });
             }
           });
-          msg += `\n*Utilisez \`/queue @utilisateur\` pour voir les détails et gérer sa file.*`;
-          await interaction.editReply(msg);
+
+          if (!hasActiveQueues) {
+            embed.setDescription('Toutes les files sont vides.');
+          } else {
+             embed.setFooter({ text: 'Astuce : Utilisez /queue [cible] pour interagir avec une file spécifique (Skip/Vider).' });
+          }
+
+          await interaction.editReply({ embeds: [embed] });
         }
         break;
       }
