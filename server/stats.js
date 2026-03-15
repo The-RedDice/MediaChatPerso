@@ -57,7 +57,9 @@ function recordAction(userId, username, type) {
       fileCount: 0,
       messageCount: 0,
       totalCount: 0,
-      lastAction: Date.now()
+      lastAction: Date.now(),
+      reputation: 0,
+      votesGiven: {}
     };
   } else {
     // Mettre à jour le pseudo s'il a changé
@@ -103,8 +105,63 @@ function getUserStats(userId) {
 }
 
 /**
+ * Mettre à jour la réputation d'un utilisateur (géré avec les votes)
+ * @param {string} targetId - ID de l'utilisateur qui reçoit la réputation
+ * @param {string} targetUsername - Pseudo de l'utilisateur
+ * @param {number} value - Valeur du vote (1 ou -1)
+ * @param {string} voterId - ID de l'utilisateur qui vote
+ * @param {string} messageId - ID du message Discord lié au média
+ * @returns {object|null} - { success, newScore, message } ou null si échec/déjà voté
+ */
+function updateReputation(targetId, targetUsername, value, voterId, messageId) {
+  if (!targetId || !voterId || !messageId) return { success: false, message: 'Paramètres invalides' };
+
+  // Assurer que le votant existe dans les stats pour traquer son vote
+  if (!stats[voterId]) {
+    stats[voterId] = {
+      username: 'Unknown',
+      mediaCount: 0, fileCount: 0, messageCount: 0, totalCount: 0,
+      lastAction: Date.now(),
+      reputation: 0,
+      votesGiven: {}
+    };
+  } else if (!stats[voterId].votesGiven) {
+    stats[voterId].votesGiven = {};
+  }
+
+  // Vérifier si l'utilisateur a déjà voté pour ce message
+  if (stats[voterId].votesGiven[messageId]) {
+    return { success: false, message: 'Tu as déjà voté pour ce message.' };
+  }
+
+  // Assurer que le receveur existe
+  if (!stats[targetId]) {
+    stats[targetId] = {
+      username: targetUsername,
+      mediaCount: 0, fileCount: 0, messageCount: 0, totalCount: 0,
+      lastAction: Date.now(),
+      reputation: 0,
+      votesGiven: {}
+    };
+  } else {
+    stats[targetId].username = targetUsername;
+    if (typeof stats[targetId].reputation !== 'number') {
+      stats[targetId].reputation = 0;
+    }
+  }
+
+  // Appliquer le vote
+  stats[voterId].votesGiven[messageId] = value;
+  stats[targetId].reputation += value;
+
+  saveStats();
+
+  return { success: true, newScore: stats[targetId].reputation };
+}
+
+/**
  * Obtenir le top N des utilisateurs
- * @param {string} type - 'media' ou 'flop'
+ * @param {string} type - 'media' ou 'flop' ou 'rep'
  * @param {number} limit - Nombre de résultats maximum
  */
 function getLeaderboard(type = 'media', limit = 10) {
@@ -115,6 +172,10 @@ function getLeaderboard(type = 'media', limit = 10) {
         const aFlop = a.skippedCount || 0;
         const bFlop = b.skippedCount || 0;
         return bFlop - aFlop;
+      } else if (type === 'rep') {
+        const aRep = a.reputation || 0;
+        const bRep = b.reputation || 0;
+        return bRep - aRep;
       } else {
         // type === 'media'
         const aMedia = (a.mediaCount || 0) + (a.fileCount || 0);
@@ -137,7 +198,9 @@ function saveUserProfile(userId, username, profileData) {
       fileCount: 0,
       messageCount: 0,
       totalCount: 0,
-      lastAction: Date.now()
+      lastAction: Date.now(),
+      reputation: 0,
+      votesGiven: {}
     };
   } else {
     stats[userId].username = username;
@@ -160,5 +223,6 @@ module.exports = {
   getUserStats,
   getLeaderboard,
   saveUserProfile,
-  getUserProfile
+  getUserProfile,
+  updateReputation
 };

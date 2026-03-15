@@ -14,6 +14,7 @@ const { Client, GatewayIntentBits, Events, ActivityType, ActionRowBuilder, Butto
 
 const SERVER_URL = process.env.SERVER_URL || 'http://localhost:3000';
 const TOKEN      = process.env.DISCORD_TOKEN;
+const REPUTATION_CHANNEL_ID = process.env.REPUTATION_CHANNEL_ID;
 
 if (!TOKEN) {
   console.error('❌  DISCORD_TOKEN manquant dans .env');
@@ -85,6 +86,44 @@ async function updatePresence() {
   }
 }
 
+// ─── Fonction de log de réputation ───────────────────────
+
+async function sendReputationLog(interaction, title, description, thumbnail) {
+  if (!REPUTATION_CHANNEL_ID) return;
+  try {
+    const channel = await client.channels.fetch(REPUTATION_CHANNEL_ID);
+    if (!channel || !channel.isTextBased()) return;
+
+    // Use message ID to uniquely track votes
+    const messageId = Date.now().toString() + Math.floor(Math.random() * 1000);
+
+    const embed = new EmbedBuilder()
+      .setColor(0x0099FF)
+      .setTitle(title)
+      .setDescription(description)
+      .setAuthor({ name: interaction.user.displayName || interaction.user.username, iconURL: interaction.user.displayAvatarURL({ size: 64, extension: 'png' }) })
+      .setFooter({ text: `Réputation: 0` });
+
+    if (thumbnail) embed.setThumbnail(thumbnail);
+
+    const row = new ActionRowBuilder()
+      .addComponents(
+        new ButtonBuilder()
+          .setCustomId(`rep_up_${interaction.user.id}_${messageId}`)
+          .setLabel('👍 Upvote')
+          .setStyle(ButtonStyle.Success),
+        new ButtonBuilder()
+          .setCustomId(`rep_down_${interaction.user.id}_${messageId}`)
+          .setLabel('👎 Downvote')
+          .setStyle(ButtonStyle.Danger),
+      );
+
+    await channel.send({ embeds: [embed], components: [row] });
+  } catch (err) {
+    console.error('[Reputation] Erreur envoi log:', err);
+  }
+}
+
 // ─── Ready ───────────────────────────────────────────────
 
 client.once(Events.ClientReady, async (c) => {
@@ -116,6 +155,59 @@ client.on(Events.InteractionCreate, async (interaction) => {
       modal.addComponents(actionRow);
 
       await interaction.showModal(modal);
+      return;
+    }
+
+
+    // Gérer les boutons de réputation
+    if (customId.startsWith('rep_up_') || customId.startsWith('rep_down_')) {
+      const parts = customId.split('_');
+      const action = parts[1]; // 'up' ou 'down'
+      const authorId = parts[2];
+      const messageId = parts[3];
+
+      if (interaction.user.id === authorId) {
+        await interaction.reply({ content: '❌ Tu ne peux pas voter pour ton propre média !', ephemeral: true });
+        return;
+      }
+
+      const value = action === 'up' ? 1 : -1;
+      const voterId = interaction.user.id;
+
+      try {
+        // Obtenir le username de l'auteur d'origine depuis le message si possible, ou via une mention.
+        // Ici l'auteur du post dans le salon REPUTATION_CHANNEL_ID est toujours le bot,
+        // mais on peut extraire le nom de l'embed author.
+        let authorUsername = authorId;
+        const embed = interaction.message.embeds[0];
+        if (embed && embed.author && embed.author.name) {
+            authorUsername = embed.author.name;
+        }
+
+        const res = await apiPost('/reputation', {
+          targetId: authorId,
+          targetUsername: authorUsername,
+          value,
+          voterId,
+          messageId
+        });
+
+        if (res && res.ok) {
+          // Mise à jour de l'embed pour afficher le nouveau score
+          if (embed) {
+            const newEmbed = EmbedBuilder.from(embed).setFooter({ text: `Réputation: ${res.newScore > 0 ? '+' : ''}${res.newScore}` });
+            await interaction.update({ embeds: [newEmbed] });
+          } else {
+            await interaction.reply({ content: `✅ Vote enregistré ! (${res.newScore > 0 ? '+' : ''}${res.newScore})`, ephemeral: true });
+          }
+        } else {
+          await interaction.reply({ content: `❌ Erreur : ${res.error}`, ephemeral: true });
+        }
+      } catch (err) {
+        let errMsg = 'Erreur serveur.';
+        if (err.message && err.message.includes('déjà voté')) errMsg = 'Tu as déjà voté pour ce message.';
+        await interaction.reply({ content: `❌ ${errMsg}`, ephemeral: true });
+      }
       return;
     }
 
@@ -251,6 +343,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
           );
         }
         updatePresence();
+        await sendReputationLog(interaction, 'Nouveau Lien Envoyé', `**Cible :** ${target === 'all' ? 'Tout le monde' : target}\n**Lien :** ${url}\n**Texte :** ${caption || '*Aucun*'}`);
         break;
       }
 
@@ -305,6 +398,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
           `✅ Fichier (${fileType}) envoyé à **${target === 'all' ? 'tout le monde' : target}** !` +
           (caption ? `\n💬 Caption : "${caption}"` : '')
         );
+        await sendReputationLog(interaction, 'Nouveau Fichier Envoyé', `**Cible :** ${target === 'all' ? 'Tout le monde' : target}\n**Type :** ${fileType}\n**Texte :** ${caption || '*Aucun*'}`, attachment.url);
         break;
       }
 
@@ -353,6 +447,8 @@ client.on(Events.InteractionCreate, async (interaction) => {
           let valueStr = '';
           if (type === 'flop') {
             valueStr = `${user.skippedCount || 0} flops`;
+          } else if (type === 'rep') {
+            valueStr = `${user.reputation || 0} réputation`;
           } else {
             const totalMedia = (user.mediaCount || 0) + (user.fileCount || 0);
             valueStr = `${totalMedia} médias`;
@@ -360,7 +456,9 @@ client.on(Events.InteractionCreate, async (interaction) => {
           return `${rank} **${user.username}** — ${valueStr}`;
         }).join('\n');
 
-        const title = type === 'flop' ? '🏆 **TOP FLOP BORDELBOX (Médias Skippés)** 🏆' : '🏆 **TOP MÉDIAS BORDELBOX** 🏆';
+        let title = '🏆 **TOP MÉDIAS BORDELBOX** 🏆';
+        if (type === 'flop') title = '🏆 **TOP FLOP BORDELBOX (Médias Skippés)** 🏆';
+        if (type === 'rep') title = '🏆 **TOP RÉPUTATION BORDELBOX** 🏆';
         await interaction.editReply(`${title}\n\n${list}`);
         break;
       }
@@ -570,6 +668,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
         await interaction.editReply(
           `💬 Message envoyé à **${target === 'all' ? 'tout le monde' : target}** :\n> ${text}`
         );
+        await sendReputationLog(interaction, 'Nouveau Message Envoyé', `**Cible :** ${target === 'all' ? 'Tout le monde' : target}\n**Message :** ${text}`);
         break;
       }
 
