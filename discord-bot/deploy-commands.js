@@ -235,9 +235,9 @@ const commands = [
   new SlashCommandBuilder()
     .setName('queue')
     .setDescription('Affiche la file d\'attente des médias pour un PC')
-    .addStringOption(o =>
+    .addUserOption(o =>
       o.setName('cible')
-       .setDescription('Le PC cible ("all" ou un pseudo, laissez vide pour voir toutes les files)')
+       .setDescription('Utilisateur du PC ciblé (laisser vide pour voir toutes les files)')
        .setRequired(false)),
 
   new SlashCommandBuilder()

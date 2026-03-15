@@ -410,7 +410,8 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
       // ── /queue ─────────────────────────────────────────
       case 'queue': {
-        const target = interaction.options.getString('cible');
+        const targetUser = interaction.options.getUser('cible');
+        const target = targetUser ? targetUser.username : null;
 
         const data = await apiGet('/queue');
         const queues = Object.entries(data);
