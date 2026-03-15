@@ -99,6 +99,14 @@
     /* ─── Caption texte sous le média ─── */
     #media-caption {
       margin-top: 14px;
+      position: relative;
+      display: none;
+      align-items: center;
+      justify-content: center;
+    }
+    #media-caption.visible { display: flex; }
+
+    #caption-text {
       font-family: 'Arial Black', Impact, sans-serif;
       font-size: clamp(1rem, var(--caption-size, 2.5vw), 10rem);
       font-weight: 900;
@@ -107,9 +115,9 @@
       text-shadow: 2px 2px 0 #000, -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000;
       max-width: 80vw;
       word-break: break-word;
-      display: none;
+      z-index: 2;
+      position: relative;
     }
-    #media-caption.visible { display: block; }
 
     /* ─── Indicateur VoteSkip ─── */
     #voteskip-container {
@@ -208,9 +216,20 @@
         4px -4px 0 #000, -4px 4px 0 #000;
       padding: 0 5vw;
       line-height: 1.15;
-      animation: msg-bounce 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both;
       max-width: 90vw;
       word-break: break-word;
+      position: relative;
+      z-index: 2;
+    }
+
+    .effects-wrapper {
+      position: absolute;
+      top: 50%; left: 50%;
+      width: 150%; height: 150%;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+      z-index: 1;
+      overflow: visible;
     }
     @keyframes msg-bounce {
       from { transform: scale(0.3) rotate(-5deg); opacity: 0; }
@@ -305,7 +324,10 @@
       <div id="media-progress-text">0:00 / 0:00</div>
     </div>
 
-    <div id="media-caption"></div>
+    <div id="media-caption">
+      <div id="caption-effects" class="effects-wrapper"></div>
+      <span id="caption-text"></span>
+    </div>
 
     <div id="voteskip-container">
       Passer (Skip) : <span id="voteskip-count">0/0</span> votes
@@ -313,6 +335,7 @@
   </div>
 
   <div id="message-container">
+    <div id="message-effects" class="effects-wrapper"></div>
     <div id="message-text"></div>
   </div>
 
@@ -346,8 +369,6 @@
       </filter>
     </defs>
   </svg>
-
-  <div id="effects-container" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 5;"></div>
 
   <script type="module" src="./main.js"></script>
 </body>

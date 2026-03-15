@@ -23,14 +23,16 @@ let socket;
 
 const mediaContainer  = document.getElementById('media-container');
 const mediaVideo      = document.getElementById('media-video');
-const effectsContainer = document.getElementById('effects-container');
 const mediaImage      = document.getElementById('media-image');
 const mediaCaption    = document.getElementById('media-caption');
+const captionText     = document.getElementById('caption-text');
+const captionEffects  = document.getElementById('caption-effects');
 const senderInfo      = document.getElementById('sender-info');
 const senderAvatar    = document.getElementById('sender-avatar');
 const senderName      = document.getElementById('sender-name');
 const messageContainer = document.getElementById('message-container');
 const messageText     = document.getElementById('message-text');
+const messageEffects  = document.getElementById('message-effects');
 const audioPlayer     = document.getElementById('audio-player');
 const muteBadge       = document.getElementById('mute-badge');
 const audioVisualizer = document.getElementById('audio-visualizer');
@@ -228,67 +230,68 @@ async function loadSocketIO() {
 
 // ─── Effets et Styles ────────────────────────────────────────────────────────
 
-function applyStyle(payload) {
+function applyStyle(payload, textElement, effectsElement) {
   const style = payload.style || {};
 
-  // Appliquer la police et la couleur au caption et au message
-  const elements = [messageText, mediaCaption];
-  elements.forEach(el => {
-    if (style.color) {
-      el.style.color = style.color;
-      el.style.textShadow = `2px 2px 0 #000, -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000, 0 0 10px ${style.color}`;
-    } else {
-      el.style.color = '';
-      el.style.textShadow = '';
-    }
+  if (!textElement) return;
 
-    if (style.font) {
-      el.style.fontFamily = style.font;
-    } else {
-      el.style.fontFamily = '';
-    }
+  if (style.color) {
+    textElement.style.color = style.color;
+    textElement.style.textShadow = `2px 2px 0 #000, -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000, 0 0 10px ${style.color}`;
+  } else {
+    textElement.style.color = '';
+    textElement.style.textShadow = '';
+  }
 
-    // Animation de texte (surtout pour le message)
-    el.style.animation = 'none';
-    el.offsetHeight; // force reflow
+  if (style.font) {
+    textElement.style.fontFamily = style.font;
+  } else {
+    textElement.style.fontFamily = '';
+  }
 
-    if (style.animation) {
-      if (style.animation === 'fade') el.style.animation = 'msg-fade 0.5s ease-in-out both';
-      else if (style.animation === 'slide') el.style.animation = 'msg-slide 0.5s cubic-bezier(0.25, 1, 0.5, 1) both';
-      else if (style.animation === 'zoom') el.style.animation = 'msg-zoom 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both';
-      else if (style.animation === 'bounce') el.style.animation = 'msg-bounce 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both';
-    } else {
-      // Par défaut
-      if (el === messageText) el.style.animation = 'msg-bounce 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both';
-      else el.style.animation = 'msg-fade 0.3s ease both';
-    }
-  });
+  // Animation de texte (surtout pour le message)
+  textElement.style.animation = 'none';
+  textElement.offsetHeight; // force reflow
 
-  // Appliquer les particules
-  effectsContainer.innerHTML = '';
-  if (style.effect === 'particules' || style.effect === 'etoiles') {
-    const isStars = style.effect === 'etoiles';
-    const count = isStars ? 30 : 50;
+  if (style.animation) {
+    if (style.animation === 'fade') textElement.style.animation = 'msg-fade 0.5s ease-in-out both';
+    else if (style.animation === 'slide') textElement.style.animation = 'msg-slide 0.5s cubic-bezier(0.25, 1, 0.5, 1) both';
+    else if (style.animation === 'zoom') textElement.style.animation = 'msg-zoom 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both';
+    else if (style.animation === 'bounce') textElement.style.animation = 'msg-bounce 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both';
+  } else {
+    // Par défaut
+    if (textElement === messageText) textElement.style.animation = 'msg-bounce 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both';
+    else textElement.style.animation = 'msg-fade 0.3s ease both';
+  }
 
-    for (let i = 0; i < count; i++) {
-      const el = document.createElement('div');
-      el.className = isStars ? 'star' : 'particle';
+  // Appliquer les particules dans le conteneur cible (s'il y en a un)
+  if (effectsElement) {
+    effectsElement.innerHTML = '';
+    if (style.effect === 'particules' || style.effect === 'etoiles') {
+      const isStars = style.effect === 'etoiles';
+      const count = isStars ? 30 : 50;
 
-      const size = Math.random() * (isStars ? 20 : 10) + 5;
-      el.style.width = `${size}px`;
-      el.style.height = `${size}px`;
+      for (let i = 0; i < count; i++) {
+        const el = document.createElement('div');
+        el.className = isStars ? 'star' : 'particle';
 
-      el.style.left = `${Math.random() * 100}vw`;
-      el.style.top = `${Math.random() * 100}vh`;
+        const size = Math.random() * (isStars ? 20 : 10) + 5;
+        el.style.width = `${size}px`;
+        el.style.height = `${size}px`;
 
-      el.style.animationDelay = `${Math.random() * 2}s`;
-      el.style.animationDuration = `${Math.random() * 2 + 2}s`;
+        // Position relative au conteneur cible, mais éparpillée autour
+        el.style.left = `${Math.random() * 150 - 25}%`;
+        el.style.top = `${Math.random() * 150 - 25}%`;
 
-      if (!isStars && style.color) {
-        el.style.background = style.color;
+        el.style.animationDelay = `${Math.random() * 2}s`;
+        el.style.animationDuration = `${Math.random() * 2 + 2}s`;
+
+        if (!isStars && style.color) {
+          el.style.background = style.color;
+        }
+
+        effectsElement.appendChild(el);
       }
-
-      effectsContainer.appendChild(el);
     }
   }
 }
@@ -314,13 +317,10 @@ function showItem(item) {
     messageContainer.classList.remove('visible');
     senderInfo.classList.remove('visible');
     mediaCaption.classList.remove('visible');
-    mediaCaption.textContent = '';
+    captionText.textContent = '';
     mediaVideo.src = ''; mediaVideo.pause();
     mediaImage.src = '';
   }
-
-  // Appliquer le style personnalisé (s'il y en a)
-  applyStyle(payload);
 
   // Afficher l'expéditeur Discord si présent
   if (payload.senderName) {
@@ -375,7 +375,8 @@ function showItem(item) {
 
       // Caption optionnelle
       if (payload.caption) {
-        mediaCaption.textContent = payload.caption;
+        captionText.textContent = payload.caption;
+        applyStyle(payload, captionText, captionEffects);
         mediaCaption.classList.add('visible');
       }
 
@@ -438,7 +439,8 @@ function showItem(item) {
         }
 
         if (payload.caption) {
-          mediaCaption.textContent = payload.caption;
+          captionText.textContent = payload.caption;
+          applyStyle(payload, captionText, captionEffects);
           mediaCaption.classList.add('visible');
         }
 
@@ -460,7 +462,8 @@ function showItem(item) {
         mediaContainer.classList.add('visible');
 
         if (payload.caption) {
-          mediaCaption.textContent = payload.caption;
+          captionText.textContent = payload.caption;
+          applyStyle(payload, captionText, captionEffects);
           mediaCaption.classList.add('visible');
         }
 
@@ -494,6 +497,7 @@ function showItem(item) {
         messageText.classList.remove('greenscreen');
       }
 
+      applyStyle(payload, messageText, messageEffects);
       messageContainer.classList.add('visible');
 
       let duration = Math.min(8000, Math.max(3000, payload.text.length * 60));
@@ -535,7 +539,10 @@ window.hideAll = function hideAll() {
   messageContainer.classList.remove('visible');
   senderInfo.classList.remove('visible');
   mediaCaption.classList.remove('visible');
-  mediaCaption.textContent = '';
+  captionText.textContent = '';
+  messageText.textContent = '';
+  captionEffects.innerHTML = '';
+  messageEffects.innerHTML = '';
   mediaVideo.src = ''; mediaVideo.pause();
   mediaImage.src = '';
   audioPlayer.src = ''; audioPlayer.pause();
