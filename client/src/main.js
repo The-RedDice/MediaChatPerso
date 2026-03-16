@@ -28,6 +28,7 @@ const captionText     = document.getElementById('caption-text');
 const captionEffects  = document.getElementById('caption-effects');
 const senderInfo      = document.getElementById('sender-info');
 const senderAvatar    = document.getElementById('sender-avatar');
+const senderCrown     = document.getElementById('sender-crown');
 const senderName      = document.getElementById('sender-name');
 const messageContainer = document.getElementById('message-container');
 const messageText     = document.getElementById('message-text');
@@ -610,9 +611,13 @@ function showItem(item) {
     senderName.textContent  = payload.senderName;
     senderAvatar.src        = payload.avatarUrl || '';
     senderAvatar.style.display = payload.avatarUrl ? 'block' : 'none';
+    if (senderCrown) {
+      senderCrown.style.display = payload.isRankOne ? 'block' : 'none';
+    }
     senderInfo.classList.add('visible');
   } else {
     senderInfo.classList.remove('visible');
+    if (senderCrown) senderCrown.style.display = 'none';
   }
 
   // Si un son TTS est fourni, on le met en route via audioPlayer (seulement si non mute)
@@ -653,6 +658,7 @@ window.hideAll = function hideAll() {
   mediaContainer.classList.remove('visible');
   messageContainer.classList.remove('visible');
   senderInfo.classList.remove('visible');
+  if (senderCrown) senderCrown.style.display = 'none';
   mediaCaption.classList.remove('visible');
   captionText.textContent = '';
   messageText.textContent = '';

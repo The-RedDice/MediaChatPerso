@@ -355,6 +355,19 @@ function getQueueDataForEmitters() {
   return result;
 }
 
+function checkIfRankOne(userId) {
+  if (!userId) return false;
+  const mediaLb = getLeaderboard('media', 1);
+  const flopLb = getLeaderboard('flop', 1);
+  const repLb = getLeaderboard('rep', 1);
+
+  return (
+    (mediaLb.length > 0 && mediaLb[0].userId === userId) ||
+    (flopLb.length > 0 && flopLb[0].userId === userId && (flopLb[0].skippedCount || 0) > 0) ||
+    (repLb.length > 0 && repLb[0].userId === userId && (repLb[0].reputation || 0) !== 0)
+  );
+}
+
 // GET /api/tts/models — liste des modèles TTS
 router.get('/tts/models', (_req, res) => {
   res.json({ models: getAvailableModels() });
@@ -505,9 +518,11 @@ app.post('/api/upload', requireAuth, uploadMiddleware.single('file'), async (req
 
   const fileUrl = `${SERVER_URL}/media/${file.filename}`;
 
+  const isRankOne = checkIfRankOne(userId);
+
   const result = enqueue(target, {
     type: 'file',
-    payload: { url: fileUrl, fileType, caption: caption || '', senderName, avatarUrl, ttsUrl, greenscreen: greenscreen === 'true', filter, style, userId },
+    payload: { url: fileUrl, fileType, caption: caption || '', senderName, avatarUrl, ttsUrl, greenscreen: greenscreen === 'true', filter, style, userId, isRankOne },
   });
 
   if (result?.error) return res.status(404).json(result);
@@ -729,10 +744,12 @@ router.post('/sendurl', requireAuth, async (req, res) => {
 
   const payloadStyle = { color, font, animation, effect };
 
+  const isRankOne = checkIfRankOne(userId);
+
   if (isDirectFile) {
     const result = enqueue(target, {
       type: 'file',
-      payload: { url, fileType, caption: caption || '', senderName: senderName || '', avatarUrl: avatarUrl || '', ttsUrl, greenscreen: !!greenscreen, filter, style: payloadStyle, userId },
+      payload: { url, fileType, caption: caption || '', senderName: senderName || '', avatarUrl: avatarUrl || '', ttsUrl, greenscreen: !!greenscreen, filter, style: payloadStyle, userId, isRankOne },
     });
     if (result?.error) return res.status(404).json(result);
     if (userId) recordAction(userId, senderName, 'file');
@@ -745,7 +762,7 @@ router.post('/sendurl', requireAuth, async (req, res) => {
 
     const result = enqueue(target, {
       type: 'media',
-      payload: { ...media, caption: caption || '', senderName: senderName || '', avatarUrl: avatarUrl || '', ttsUrl, greenscreen: !!greenscreen, filter, style: payloadStyle, userId },
+      payload: { ...media, caption: caption || '', senderName: senderName || '', avatarUrl: avatarUrl || '', ttsUrl, greenscreen: !!greenscreen, filter, style: payloadStyle, userId, isRankOne },
     });
     if (result?.error) return res.status(404).json(result);
     if (userId) recordAction(userId, senderName, 'media');
@@ -785,9 +802,11 @@ router.post('/sendfile', requireAuth, async (req, res) => {
 
   const payloadStyle = { color, font, animation, effect };
 
+  const isRankOne = checkIfRankOne(userId);
+
   const result = enqueue(target, {
     type: 'file',
-    payload: { url: fileUrl, fileType, caption: caption || '', senderName: senderName || '', avatarUrl: avatarUrl || '', ttsUrl, greenscreen: !!greenscreen, filter, style: payloadStyle, userId },
+    payload: { url: fileUrl, fileType, caption: caption || '', senderName: senderName || '', avatarUrl: avatarUrl || '', ttsUrl, greenscreen: !!greenscreen, filter, style: payloadStyle, userId, isRankOne },
   });
   if (result?.error) return res.status(404).json(result);
   if (userId) recordAction(userId, senderName, 'file');
@@ -879,9 +898,11 @@ router.post('/message', requireAuth, async (req, res) => {
 
   const payloadStyle = { color, font, animation, effect };
 
+  const isRankOne = checkIfRankOne(userId);
+
   const result = enqueue(target, {
     type: 'message',
-    payload: { text, senderName: senderName || '', avatarUrl: avatarUrl || '', ttsUrl, greenscreen: !!greenscreen, style: payloadStyle, userId },
+    payload: { text, senderName: senderName || '', avatarUrl: avatarUrl || '', ttsUrl, greenscreen: !!greenscreen, style: payloadStyle, userId, isRankOne },
   });
   if (result?.error) return res.status(404).json(result);
   if (userId) recordAction(userId, senderName, 'message');

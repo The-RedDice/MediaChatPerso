@@ -172,6 +172,16 @@
       top: 0; left: 0;
       z-index: 2;
     }
+    #sender-crown {
+      position: absolute;
+      top: -18px;
+      left: 50%;
+      transform: translateX(-50%) rotate(10deg);
+      font-size: 24px;
+      z-index: 3;
+      display: none;
+      filter: drop-shadow(0 0 5px rgba(255,215,0,0.8));
+    }
     #audio-visualizer {
       position: absolute;
       /* On le centre et on le fait déborder de l'avatar */
@@ -553,6 +563,7 @@
 
   <div id="sender-info">
     <div id="sender-avatar-container">
+      <div id="sender-crown">👑</div>
       <canvas id="audio-visualizer"></canvas>
       <img id="sender-avatar" alt="">
     </div>
