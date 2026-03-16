@@ -1004,41 +1004,37 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
       // ── /tuto ──────────────────────────────────────────
       case 'tuto': {
-        const tutoMessage = `
-**Bienvenue sur BordelBox ! 🗃️**
+        const embed = new EmbedBuilder()
+          .setColor(0xFF0000)
+          .setTitle('🗃️ Bienvenue sur BordelBox !')
+          .setDescription('BordelBox permet d\'afficher des médias et messages en direct sur les écrans connectés via l\'overlay client.')
+          .setThumbnail(client.user.displayAvatarURL({ size: 128 }))
+          .addFields(
+            {
+              name: '🚀 Commandes d\'Envoi',
+              value: '`/sendurl` : Envoie une vidéo YouTube, TikTok ou un lien direct (mp4, mp3, image).\n`/sendfile` : Uploade directement un fichier (image, vidéo, audio, max 250 Mo).\n`/message` : Affiche un gros texte animé sur les écrans.'
+            },
+            {
+              name: '⚙️ Options d\'Envoi',
+              value: '🔸 **cible** : PC spécifique (vide = tous)\n🔸 **text/texte** : Message d\'accompagnement\n🔸 **tts** : Génère une voix (ex: "mario")\n🔸 **greenscreen** : Supprime le fond vert\n🔸 **filtre** : Applique un effet (grayscale, blur...)\n🔸 **Style** : Override couleur/police/animation'
+            },
+            {
+              name: '😂 Mèmes Personnels',
+              value: 'Sauvegardez vos médias favoris avec le bouton **💾 Mème** dans le salon de réputation.\n`/meme play <nom>` : Lance un de vos mèmes\n`/meme list` : Affiche vos mèmes sauvegardés\n`/meme remove <nom>` : Supprime un mème'
+            },
+            {
+              name: '⭐ Réputation & Statistiques',
+              value: 'Chaque envoi génère un vote 👍/👎 dans le salon de réputation.\n`/profile` : Affiche vos statistiques, réputation et style visuel.\n`/leaderboard` : Classement global (Médias, Flop, Réputation).'
+            },
+            {
+              name: '🔧 Utilitaires & Gestion',
+              value: '`/queue` : Gère les files d\'attente (Skip, Vider)\n`/style` : Menu interactif pour personnaliser votre profil\n`/online` : Liste des PC connectés\n`/upload` : Panel web pour les gros fichiers\n`/download` : Télécharge le client BordelBox\n`/tuto` : Affiche ce guide'
+            }
+          )
+          .setFooter({ text: 'Amusez-vous bien ! 🎬' })
+          .setTimestamp();
 
-BordelBox est un système permettant d'afficher des médias et des messages en direct sur les écrans des ordinateurs connectés via l'overlay client.
-
-**💻 Commandes d'envoi :**
-\` /sendurl \` : Envoie une vidéo YouTube, TikTok ou un lien direct (mp4, mp3, image) sur les PC.
-\` /sendfile \` : Permet d'uploader directement un fichier (image, vidéo, audio) depuis Discord.
-\` /message \` : Affiche un gros texte animé sur les écrans.
-
-**⚙️ Options des commandes d'envoi :**
-- **cible** : Permet de choisir un PC spécifique. Si vide, l'envoi se fait sur tous les PC.
-- **text** / **texte** : Un texte d'accompagnement.
-- **tts** : Génère une voix (Text-to-Speech) qui lit votre texte en même temps (ex: "mario").
-- **greenscreen** : Active un filtre d'incrustation (fond vert) pour rendre le fond transparent d'une vidéo ou image.
-- **filtre** : Applique un filtre visuel (grayscale, sepia, invert, blur, contrast, saturate).
-- **couleur / police / animation / effet** : Modifie temporairement l'apparence visuelle.
-
-**⭐ Réputation & Système de Vote :**
-- Chaque envoi de média génère un message dans le salon de réputation.
-- Les autres membres peuvent voter 👍 ou 👎 sur vos envois.
-- Votre réputation globale est visible via \` /profile \` ou \` /leaderboard type:rep \`.
-
-**📊 Utilitaires & Infos :**
-\` /queue \` : Affiche et gère la file d'attente globale ou d'un PC (avec boutons pour vider ou voter pour skip).
-\` /style \` : Menu pour personnaliser votre affichage global (couleur, animation, police, effets).
-\` /profile \` : Affiche votre profil, vos statistiques et votre style visuel.
-\` /leaderboard \` : Affiche le top des spammeurs, des flops ou de la réputation de la BordelBox.
-\` /online \` : Liste les PC actuellement connectés.
-\` /upload \` : Accède au panel web (hors de Discord) pour envoyer des fichiers lourds jusqu'à 250 Mo.
-\` /download \` : Télécharge la dernière version du client BordelBox (depuis GitHub).
-\` /tuto \` : Affiche ce message d'aide.
-        `.trim();
-
-        await interaction.editReply({ content: tutoMessage });
+        await interaction.editReply({ embeds: [embed] });
         break;
       }
 
