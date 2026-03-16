@@ -34,9 +34,70 @@ async function init() {
     document.getElementById('shortcut').value = sc;
     updateLabels(msgSize, capSize, ms, px, py);
 
+    // Vérification de la version
+    checkVersion();
+
   } catch (e) {
     console.error('[Options] Erreur init :', e);
     document.getElementById('status').textContent = '❌ Erreur init : ' + e;
+  }
+}
+
+async function checkVersion() {
+  try {
+    let currentVersion = '1.0.0';
+    if (window.__TAURI__) {
+      currentVersion = await window.__TAURI__.app.getVersion();
+    }
+
+    document.getElementById('current-version').textContent = `v${currentVersion}`;
+
+    if (!navigator.onLine) return; // Pas internet
+
+    const res = await fetch('https://api.github.com/repos/The-RedDice/MediaChatPerso/releases/latest');
+    if (!res.ok) return;
+    const data = await res.json();
+
+    if (data && data.tag_name) {
+      const latestVersion = data.tag_name.replace(/^v/, '');
+
+      const isNewer = (latest, current) => {
+        const lParts = latest.split('.').map(Number);
+        const cParts = current.split('.').map(Number);
+        for (let i = 0; i < Math.max(lParts.length, cParts.length); i++) {
+          const l = lParts[i] || 0;
+          const c = cParts[i] || 0;
+          if (l > c) return true;
+          if (l < c) return false;
+        }
+        return false;
+      };
+
+      if (isNewer(latestVersion, currentVersion)) {
+        let downloadUrl = data.html_url;
+        if (data.assets && data.assets.length > 0) {
+          const exeAsset = data.assets.find(a => a.name.endsWith('.exe'));
+          if (exeAsset) downloadUrl = exeAsset.browser_download_url;
+        }
+
+        const linkContainer = document.getElementById('update-link-container');
+        const link = document.getElementById('update-link');
+
+        link.textContent = `🚨 Mise à jour v${latestVersion} disponible ! Cliquez ici 🚨`;
+        link.href = '#';
+        link.onclick = (e) => {
+          e.preventDefault();
+          if (window.__TAURI__) {
+            window.__TAURI__.plugin.shell.open(downloadUrl).catch(console.error);
+          } else {
+            window.open(downloadUrl, '_blank');
+          }
+        };
+        linkContainer.style.display = 'block';
+      }
+    }
+  } catch (err) {
+    console.warn("Erreur lors de la vérification de version dans les options:", err);
   }
 }
 

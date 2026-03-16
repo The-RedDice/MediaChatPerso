@@ -834,6 +834,82 @@ function connectSocket() {
   });
 }
 
+// ─── Verification de mise à jour ──────────────────────────────────────────────
+async function checkUpdateAndConnectivity() {
+  const notificationContainer = document.getElementById('top-notification');
+  if (!notificationContainer) return true; // fallback
+
+  const setNotification = (msg, url = null) => {
+    notificationContainer.textContent = msg;
+    notificationContainer.classList.add('visible');
+
+    if (url && window.__TAURI__) {
+      notificationContainer.classList.add('clickable');
+      notificationContainer.onclick = () => {
+        window.__TAURI__.plugin.shell.open(url).catch(console.error);
+      };
+    }
+  };
+
+  // 1. Vérification connexion
+  if (!navigator.onLine) {
+    setNotification("Pas de connexion internet");
+    return false; // Bloque le démarrage
+  }
+
+  // 2. Vérification mise à jour
+  try {
+    let currentVersion = '1.0.0';
+    if (window.__TAURI__) {
+      currentVersion = await window.__TAURI__.app.getVersion();
+    }
+
+    const res = await fetch('https://api.github.com/repos/The-RedDice/MediaChatPerso/releases/latest');
+    if (!res.ok) return true; // Si l'API GitHub bug, on laisse passer
+    const data = await res.json();
+
+    if (data && data.tag_name) {
+      const latestTag = data.tag_name;
+      const latestVersion = latestTag.replace(/^v/, '');
+
+      // Comparaison basique (ex: "1.0.1" !== "1.0.0")
+      // Basic semantic version comparison to only trigger if the latest is newer
+      const isNewer = (latest, current) => {
+        const lParts = latest.split('.').map(Number);
+        const cParts = current.split('.').map(Number);
+        for (let i = 0; i < Math.max(lParts.length, cParts.length); i++) {
+          const l = lParts[i] || 0;
+          const c = cParts[i] || 0;
+          if (l > c) return true;
+          if (l < c) return false;
+        }
+        return false;
+      };
+
+      if (isNewer(latestVersion, currentVersion)) {
+        // Chercher le lien .exe
+        let downloadUrl = data.html_url;
+        if (data.assets && data.assets.length > 0) {
+          const exeAsset = data.assets.find(a => a.name.endsWith('.exe'));
+          if (exeAsset) downloadUrl = exeAsset.browser_download_url;
+        }
+
+        setNotification(`Mise à jour v${latestVersion} disponible`, downloadUrl);
+
+        // Permettre au clic de la notif dans l'overlay via Tauri
+        if (window.__TAURI__) {
+          await window.__TAURI__.core.invoke('set_clickthrough', { enabled: false });
+        }
+        return false; // Bloque le démarrage car pas à jour
+      }
+    }
+  } catch (err) {
+    console.warn("Erreur lors de la vérification de mise à jour:", err);
+  }
+
+  return true; // Tout va bien, on continue
+}
+
 // ─── Init ─────────────────────────────────────────────────────────────────────
 
 (async () => {
@@ -842,6 +918,12 @@ function connectSocket() {
 
   if (!CONFIG.pseudo || CONFIG.pseudo === 'CHANGE_MOI') {
     CONFIG.pseudo = 'pc_' + Math.random().toString(36).slice(2, 7);
+  }
+
+  const isUpToDate = await checkUpdateAndConnectivity();
+  if (!isUpToDate) {
+    console.warn("[BordelBox] Démarrage bloqué (Pas de connexion ou mise à jour requise).");
+    return; // On ne charge pas Socket.io ni les événements
   }
 
   await loadSocketIO().catch(() => {

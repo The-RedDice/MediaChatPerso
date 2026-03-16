@@ -492,10 +492,45 @@
     }
     #overlay-badge.visible { display: block; }
 
+    /* ─── Notification Top Center (Mise à jour / Connexion) ─── */
+    #top-notification {
+      position: fixed;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(255, 60, 110, 0.9);
+      color: white;
+      font-family: 'Arial', sans-serif;
+      font-size: 1rem;
+      font-weight: bold;
+      padding: 10px 20px;
+      border-radius: 8px;
+      box-shadow: 0 4px 15px rgba(255, 60, 110, 0.5);
+      z-index: 999;
+      pointer-events: none; /* Par défaut non cliquable, activé en JS si nécessaire */
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      text-align: center;
+      display: none;
+    }
+    #top-notification.visible {
+      opacity: 1;
+      display: block;
+    }
+    #top-notification.clickable {
+      pointer-events: auto;
+      cursor: pointer;
+    }
+    #top-notification.clickable:hover {
+      background: rgba(255, 30, 80, 1);
+    }
+
     #audio-player { position: fixed; width: 0; height: 0; pointer-events: none; }
   </style>
 </head>
 <body>
+
+  <div id="top-notification"></div>
 
   <div id="media-container">
     <video id="media-video" crossorigin="anonymous" autoplay playsinline></video>
