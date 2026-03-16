@@ -269,6 +269,36 @@ const commands = [
     .setDescription('Affiche un tutoriel sur le fonctionnement du bot et ses commandes'),
 
   new SlashCommandBuilder()
+    .setName('meme')
+    .setDescription('Gère et joue vos mèmes personnels')
+    .addSubcommand(subcommand =>
+      subcommand
+        .setName('play')
+        .setDescription('Joue un mème de votre collection personnelle')
+        .addStringOption(option =>
+          option.setName('nom')
+            .setDescription('Le nom du mème à jouer')
+            .setRequired(true)
+            .setAutocomplete(true))
+        .addUserOption(option =>
+          option.setName('cible')
+            .setDescription('Utilisateur du PC ciblé (laisser vide = tout le monde)')
+            .setRequired(false)))
+    .addSubcommand(subcommand =>
+      subcommand
+        .setName('list')
+        .setDescription('Affiche la liste de vos mèmes personnels enregistrés'))
+    .addSubcommand(subcommand =>
+      subcommand
+        .setName('remove')
+        .setDescription('Supprime un mème de votre collection personnelle')
+        .addStringOption(option =>
+          option.setName('nom')
+            .setDescription('Le nom du mème à supprimer')
+            .setRequired(true)
+            .setAutocomplete(true))),
+
+  new SlashCommandBuilder()
     .setName('profile')
     .setDescription('Affiche les statistiques complètes et le style visuel d\'un utilisateur')
     .addUserOption(o =>

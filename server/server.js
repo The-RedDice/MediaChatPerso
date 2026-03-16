@@ -20,15 +20,18 @@ const passport       = require('passport');
 const DiscordStrategy = require('passport-discord').Strategy;
 const { getAvailableModels, generateTTS } = require('./tts');
 const { recordAction, recordSkip, getUserStats, getLeaderboard, getUserProfile, saveUserProfile, updateReputation } = require('./stats');
+const { addMeme, getUserMemes, removeMeme } = require('./memes');
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 
 const PORT      = process.env.PORT      || 3000;
 const SERVER_URL = process.env.SERVER_URL || `http://localhost:${PORT}`;
 const MEDIA_DIR  = path.resolve(process.env.MEDIA_DIR || './public/media');
+const MEMES_MEDIA_DIR = path.resolve('./public/memes_media');
 
 // S'assurer que le dossier media existe
 if (!fs.existsSync(MEDIA_DIR)) fs.mkdirSync(MEDIA_DIR, { recursive: true });
+if (!fs.existsSync(MEMES_MEDIA_DIR)) fs.mkdirSync(MEMES_MEDIA_DIR, { recursive: true });
 
 // ─── Nettoyage Auto ──────────────────────────────────────────────────────────
 
@@ -105,6 +108,12 @@ app.use(session({
 app.use(passport.initialize());
 app.use(passport.session());
 
+// Servir les médias uploadés temporaires
+app.use('/media', express.static(MEDIA_DIR));
+
+// Servir les médias persistants (memes)
+app.use('/memes_media', express.static(MEMES_MEDIA_DIR));
+
 if (process.env.DISCORD_CLIENT_ID && process.env.DISCORD_CLIENT_SECRET) {
   passport.use(new DiscordStrategy({
     clientID: process.env.DISCORD_CLIENT_ID,
@@ -118,9 +127,6 @@ if (process.env.DISCORD_CLIENT_ID && process.env.DISCORD_CLIENT_SECRET) {
   passport.serializeUser((user, done) => done(null, user));
   passport.deserializeUser((obj, done) => done(null, obj));
 }
-
-// Servir les médias uploadés
-app.use('/media', express.static(MEDIA_DIR));
 
 // ─── Proxy Audio ─────────────────────────────────────────────────────────────
 // Requis pour l'API Web Audio (AudioContext) du client Tauri. Les CDN comme Discord
@@ -571,6 +577,98 @@ router.get('/style/:userId', (req, res) => {
   if (!data) return res.json({ profile: {} });
   res.json({ profile: data });
 });
+
+// ─── API Memes ───────────────────────────────────────────────────────────────
+
+router.get('/memes/:userId', (req, res) => {
+  const userId = req.params.userId;
+  const memes = getUserMemes(userId);
+  res.json({ memes });
+});
+
+router.post('/memes', requireAuth, async (req, res) => {
+  const { userId, memeName, memeData } = req.body;
+  if (!userId || !memeName || !memeData || !memeData.url) {
+    return res.status(400).json({ error: 'Paramètres manquants' });
+  }
+
+  let finalUrl = memeData.url;
+
+  // Si l'URL pointe vers un fichier local temporaire, on le copie vers le dossier persistant
+  if (finalUrl.startsWith(`${SERVER_URL}/media/`)) {
+    const filename = finalUrl.split('/').pop();
+    const tempPath = path.join(MEDIA_DIR, filename);
+    const ext = path.extname(filename);
+    const newFilename = `meme_${Date.now()}_${Math.floor(Math.random() * 1000)}${ext}`;
+    const newPath = path.join(MEMES_MEDIA_DIR, newFilename);
+
+    try {
+      if (fs.existsSync(tempPath)) {
+        fs.copyFileSync(tempPath, newPath);
+        finalUrl = `${SERVER_URL}/memes_media/${newFilename}`;
+      } else {
+        return res.status(404).json({ error: "Le fichier média temporaire n'existe plus (expiré)." });
+      }
+    } catch (err) {
+      console.error('[Memes] Erreur lors de la copie du média:', err);
+      return res.status(500).json({ error: "Erreur lors de la sauvegarde du média local." });
+    }
+  } else if (finalUrl.includes('cdn.discordapp.com') || finalUrl.includes('media.discordapp.net')) {
+    // Si c'est un lien d'attachement Discord, il va expirer (généralement dans les 24h)
+    // On doit le télécharger et le stocker localement de manière permanente
+    try {
+      const ext = path.extname(new URL(finalUrl).pathname) || (memeData.type === 'video' ? '.mp4' : (memeData.type === 'audio' ? '.mp3' : '.png'));
+      const newFilename = `meme_${Date.now()}_${Math.floor(Math.random() * 1000)}${ext}`;
+      const newPath = path.join(MEMES_MEDIA_DIR, newFilename);
+
+      const resFetch = await fetch(finalUrl);
+      if (!resFetch.ok) {
+        throw new Error(`Erreur lors du téléchargement du fichier Discord (${resFetch.status})`);
+      }
+
+      const buffer = await resFetch.arrayBuffer();
+      fs.writeFileSync(newPath, Buffer.from(buffer));
+
+      finalUrl = `${SERVER_URL}/memes_media/${newFilename}`;
+    } catch (err) {
+      console.error('[Memes] Erreur lors du téléchargement de la pièce jointe Discord:', err);
+      return res.status(500).json({ error: "Impossible de télécharger l'attachement pour le sauvegarder." });
+    }
+  }
+
+  const result = addMeme(userId, memeName, { ...memeData, url: finalUrl });
+
+  if (result.success) {
+    io.emit('panel_log', { msg: `Nouveau mème enregistré pour l'utilisateur ${userId} : ${memeName}`, type: 'info' });
+    res.json(result);
+  } else {
+    res.status(400).json({ error: result.message });
+  }
+});
+
+router.delete('/memes/:userId/:memeName', requireAuth, (req, res) => {
+  const { userId, memeName } = req.params;
+
+  const result = removeMeme(userId, memeName);
+
+  if (result.success && result.deletedMeme) {
+    // Si l'URL pointait vers un fichier local persistant, on le supprime
+    const url = result.deletedMeme.url;
+    if (url && url.startsWith(`${SERVER_URL}/memes_media/`)) {
+      const filename = url.split('/').pop();
+      const localPath = path.join(MEMES_MEDIA_DIR, filename);
+      if (fs.existsSync(localPath)) {
+        fs.unlinkSync(localPath);
+      }
+    }
+
+    io.emit('panel_log', { msg: `Mème supprimé pour l'utilisateur ${userId} : ${memeName}`, type: 'info' });
+    res.json({ ok: true });
+  } else {
+    res.status(404).json({ error: result.message });
+  }
+});
+
 
 router.post('/style/:userId', requireAuth, (req, res) => {
   const { username, color, font, animation, effect } = req.body;
