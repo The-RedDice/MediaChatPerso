@@ -88,7 +88,7 @@ async function updatePresence() {
 
 // ─── Fonction de log de réputation ───────────────────────
 
-async function sendReputationLog(interaction, title, description, thumbnail, memeData = null) {
+async function sendReputationLog(interaction, title, description, thumbnail) {
   if (!REPUTATION_CHANNEL_ID) return;
   try {
     const channel = await client.channels.fetch(REPUTATION_CHANNEL_ID);
@@ -106,51 +106,23 @@ async function sendReputationLog(interaction, title, description, thumbnail, mem
 
     if (thumbnail) embed.setThumbnail(thumbnail);
 
-    const actionComponents = [
-      new ButtonBuilder()
-        .setCustomId(`rep_up_${interaction.user.id}_${messageId}`)
-        .setLabel('👍 Upvote')
-        .setStyle(ButtonStyle.Success),
-      new ButtonBuilder()
-        .setCustomId(`rep_down_${interaction.user.id}_${messageId}`)
-        .setLabel('👎 Downvote')
-        .setStyle(ButtonStyle.Danger),
-    ];
-
-    // Ajouter un bouton pour sauvegarder le mème si les données sont fournies (médias/fichiers, pas messages texte purs)
-    if (memeData) {
-       // On encode les données du meme dans le footer de l'embed car le customId est limité à 100 char.
-       // On le met sous forme JSON invisible ou juste on laisse un flag dans le customId et on reconstruit à partir de la description.
-       // Pour être fiable, on ajoute l'URL dans le footer ou un champ caché, ou on encode en base64 un objet léger si possible.
-       // Comme c'est trop long pour customId, on va créer une map temporaire en RAM ou extraire depuis l'embed lors du clic.
-       // Le plus simple : on met l'URL dans un champ de l'embed.
-       embed.addFields({ name: 'URL Média (Caché)', value: memeData.url || 'Aucune URL' });
-       // Note : Discord UI ne permet pas vraiment de champs "cachés".
-       // On peut aussi stocker l'URL en base64 dans le customId si c'est court, ou se fier à description/thumbnail.
-       // Plutôt que d'afficher l'URL, on utilise un cache en RAM, ou on l'extrait de la description si présente.
-
-       actionComponents.push(
-         new ButtonBuilder()
-          .setCustomId(`meme_save_${messageId}`)
-          .setLabel('💾 Mème')
-          .setStyle(ButtonStyle.Secondary)
-       );
-
-       // On enregistre les infos du meme associées au messageId pour la session courante du bot.
-       // En cas de redémarrage, on ne pourra plus sauvegarder les anciens mèmes, mais ce n'est pas critique.
-       memeDataCache.set(messageId, memeData);
-    }
-
-    const row = new ActionRowBuilder().addComponents(actionComponents);
+    const row = new ActionRowBuilder()
+      .addComponents(
+        new ButtonBuilder()
+          .setCustomId(`rep_up_${interaction.user.id}_${messageId}`)
+          .setLabel('👍 Upvote')
+          .setStyle(ButtonStyle.Success),
+        new ButtonBuilder()
+          .setCustomId(`rep_down_${interaction.user.id}_${messageId}`)
+          .setLabel('👎 Downvote')
+          .setStyle(ButtonStyle.Danger),
+      );
 
     await channel.send({ embeds: [embed], components: [row] });
   } catch (err) {
     console.error('[Reputation] Erreur envoi log:', err);
   }
 }
-
-// Cache temporaire pour stocker les données du mème associées à un message de réputation
-const memeDataCache = new Map();
 
 // ─── Ready ───────────────────────────────────────────────
 
@@ -239,35 +211,6 @@ client.on(Events.InteractionCreate, async (interaction) => {
       return;
     }
 
-    // Gérer le bouton de sauvegarde de mème
-    if (customId.startsWith('meme_save_')) {
-      const messageId = customId.replace('meme_save_', '');
-      const memeData = memeDataCache.get(messageId);
-
-      if (!memeData) {
-        await interaction.reply({ content: '❌ Impossible de retrouver les données de ce mème. Veuillez renvoyer le média.', ephemeral: true });
-        return;
-      }
-
-      const modal = new ModalBuilder()
-        .setCustomId(`modal_meme_${messageId}`)
-        .setTitle('Sauvegarder ce Mème');
-
-      const nameInput = new TextInputBuilder()
-        .setCustomId('meme_name_input')
-        .setLabel("Nom du mème")
-        .setStyle(TextInputStyle.Short)
-        .setPlaceholder("Ex: wtf, wow, mario...")
-        .setMaxLength(50)
-        .setRequired(true);
-
-      const actionRow = new ActionRowBuilder().addComponents(nameInput);
-      modal.addComponents(actionRow);
-
-      await interaction.showModal(modal);
-      return;
-    }
-
     // Gérer les boutons "Vider la file" et "Skip actuel"
     if (customId.startsWith('clear_')) {
       const target = customId.replace('clear_', '');
@@ -308,32 +251,6 @@ client.on(Events.InteractionCreate, async (interaction) => {
     } else if (interaction.isModalSubmit() && customId === 'modal_color') {
       let colorValue = interaction.fields.getTextInputValue('color_input').trim();
       payload.color = colorValue || null;
-    } else if (interaction.isModalSubmit() && customId.startsWith('modal_meme_')) {
-      const messageId = customId.replace('modal_meme_', '');
-      const memeName = interaction.fields.getTextInputValue('meme_name_input').trim();
-      const memeData = memeDataCache.get(messageId);
-
-      if (!memeData) {
-        await interaction.reply({ content: '❌ Données du mème expirées.', ephemeral: true });
-        return;
-      }
-
-      try {
-        const res = await apiPost('/memes', {
-          userId: interaction.user.id,
-          memeName,
-          memeData
-        });
-
-        if (res.error) {
-          await interaction.reply({ content: `❌ Erreur : ${res.error}`, ephemeral: true });
-        } else {
-          await interaction.reply({ content: `✅ Mème **${memeName}** enregistré avec succès dans votre collection ! Utilisez \`/meme play ${memeName}\` pour le lancer.`, ephemeral: true });
-        }
-      } catch (err) {
-        await interaction.reply({ content: `❌ Erreur serveur lors de la sauvegarde du mème.`, ephemeral: true });
-      }
-      return;
     }
 
     try {
@@ -364,34 +281,12 @@ client.on(Events.InteractionCreate, async (interaction) => {
     return;
   }
 
-  if (interaction.isAutocomplete()) {
-    if (interaction.commandName === 'meme') {
-      const focusedValue = interaction.options.getFocused();
-      const userId = interaction.user.id;
-      try {
-        const data = await apiGet(`/memes/${userId}`);
-        const memes = data.memes || {};
-        const memeNames = Object.keys(memes);
-
-        const filtered = memeNames.filter(name => name.toLowerCase().includes(focusedValue.toLowerCase()));
-
-        await interaction.respond(
-          filtered.slice(0, 25).map(name => ({ name: name, value: name }))
-        );
-      } catch (err) {
-        // En cas d'erreur d'API, on ne peut pas répondre avec l'autocomplétion
-        await interaction.respond([]);
-      }
-    }
-    return;
-  }
-
   if (!interaction.isChatInputCommand()) return;
 
   const { commandName } = interaction;
 
   // Réponse différée pour les commandes longues
-  if (commandName === 'sendurl' || commandName === 'sendfile' || commandName === 'message' || commandName === 'online' || commandName === 'profile' || commandName === 'leaderboard' || commandName === 'queue' || commandName === 'download' || commandName === 'meme') {
+  if (commandName === 'sendurl' || commandName === 'sendfile' || commandName === 'message' || commandName === 'online' || commandName === 'profile' || commandName === 'leaderboard' || commandName === 'queue' || commandName === 'download') {
     await interaction.deferReply();
   } else if (commandName === 'tuto' || commandName === 'style' || commandName === 'upload') {
     await interaction.deferReply({ ephemeral: true });
@@ -448,17 +343,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
           );
         }
         updatePresence();
-
-        const memeDataToCache = {
-            url: data.url || url, // If yt-dlp, data.url is set, otherwise direct url
-            type: data.directUrl ? 'image' : 'video', // Approximation, the server knows better but we simplify here. Could refine if needed.
-            caption: caption,
-            style: { color, font, animation, effect },
-            greenscreen,
-            filter
-        };
-
-        await sendReputationLog(interaction, 'Nouveau Lien Envoyé', `**Cible :** ${target === 'all' ? 'Tout le monde' : target}\n**Lien :** ${url}\n**Texte :** ${caption || '*Aucun*'}`, null, memeDataToCache);
+        await sendReputationLog(interaction, 'Nouveau Lien Envoyé', `**Cible :** ${target === 'all' ? 'Tout le monde' : target}\n**Lien :** ${url}\n**Texte :** ${caption || '*Aucun*'}`);
         break;
       }
 
@@ -513,17 +398,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
           `✅ Fichier (${fileType}) envoyé à **${target === 'all' ? 'tout le monde' : target}** !` +
           (caption ? `\n💬 Caption : "${caption}"` : '')
         );
-
-        const memeDataToCache = {
-            url: attachment.url,
-            type: fileType,
-            caption: caption,
-            style: { color, font, animation, effect },
-            greenscreen,
-            filter
-        };
-
-        await sendReputationLog(interaction, 'Nouveau Fichier Envoyé', `**Cible :** ${target === 'all' ? 'Tout le monde' : target}\n**Type :** ${fileType}\n**Texte :** ${caption || '*Aucun*'}`, attachment.url, memeDataToCache);
+        await sendReputationLog(interaction, 'Nouveau Fichier Envoyé', `**Cible :** ${target === 'all' ? 'Tout le monde' : target}\n**Type :** ${fileType}\n**Texte :** ${caption || '*Aucun*'}`, attachment.url);
         break;
       }
 
@@ -889,152 +764,43 @@ client.on(Events.InteractionCreate, async (interaction) => {
         break;
       }
 
-      // ── /meme ──────────────────────────────────────────
-      case 'meme': {
-        const subCmd = interaction.options.getSubcommand();
-        const userId = interaction.user.id;
-
-        if (subCmd === 'list') {
-          const data = await apiGet(`/memes/${userId}`);
-          const memes = data.memes || {};
-          const memeNames = Object.keys(memes);
-
-          if (memeNames.length === 0) {
-            await interaction.editReply('📭 Vous n\'avez aucun mème personnel enregistré. Utilisez le bouton "💾 Mème" sur une vidéo ou image dans le salon de réputation.');
-            return;
-          }
-
-          const embed = new EmbedBuilder()
-            .setColor(0x5865F2)
-            .setTitle(`😂 Mèmes personnels de ${interaction.user.displayName || interaction.user.username}`)
-            .setDescription(`Vous avez **${memeNames.length}** mème(s) enregistré(s).`);
-
-          let listText = memeNames.slice(0, 20).map(name => {
-            const m = memes[name];
-            const typeEmoji = m.type === 'video' ? '🎬' : (m.type === 'audio' ? '🎵' : '🖼️');
-            return `**${name}** ${typeEmoji}`;
-          }).join('\n');
-
-          if (memeNames.length > 20) {
-            listText += `\n*... et ${memeNames.length - 20} autres.*`;
-          }
-
-          embed.addFields({ name: 'Liste', value: listText });
-          embed.setFooter({ text: 'Utilisez /meme play <nom> pour en lancer un !' });
-
-          await interaction.editReply({ embeds: [embed] });
-        }
-        else if (subCmd === 'remove') {
-          const memeName = interaction.options.getString('nom', true);
-          try {
-            const data = await apiDelete(`/memes/${userId}/${encodeURIComponent(memeName)}`);
-            if (data.ok) {
-              await interaction.editReply(`🗑️ Le mème **${memeName}** a été supprimé de votre collection.`);
-            } else {
-              await interaction.editReply(`❌ Erreur : ${data.error || 'Impossible de supprimer ce mème.'}`);
-            }
-          } catch (err) {
-            await interaction.editReply('❌ Erreur serveur lors de la suppression.');
-          }
-        }
-        else if (subCmd === 'play') {
-          const memeName = interaction.options.getString('nom', true);
-          const targetUser = interaction.options.getUser('cible');
-          const target = targetUser ? targetUser.username : 'all';
-
-          // 1. Fetch meme data
-          const data = await apiGet(`/memes/${userId}`);
-          const memes = data.memes || {};
-
-          // Case-insensitive search just in case
-          const lowerName = memeName.toLowerCase();
-          const actualKey = Object.keys(memes).find(k => k.toLowerCase() === lowerName);
-          const memeData = actualKey ? memes[actualKey] : null;
-
-          if (!memeData) {
-            await interaction.editReply(`❌ Le mème **${memeName}** n'existe pas dans votre collection.`);
-            return;
-          }
-
-          const url = memeData.url;
-          const senderName = interaction.user.displayName || interaction.user.username;
-          const avatarUrl = interaction.user.displayAvatarURL({ size: 64, extension: 'png' });
-          const caption = memeData.caption || '';
-          const style = memeData.style || {};
-          const greenscreen = memeData.greenscreen || false;
-          const filter = memeData.filter || '';
-
-          await interaction.editReply(`⏳ Chargement du mème **${memeName}** pour **${target === 'all' ? 'tout le monde' : target}**...`);
-
-          // 2. Send via API
-          // We decide between sendurl or sendfile based on the URL type.
-          // If it's a direct discord attachment or our own media proxy, we can use sendfile.
-          // Since all memes now have a direct URL (either external or copied locally), we can just use sendfile which handles direct URLs well.
-
-          const sendRes = await apiPost('/sendfile', {
-            fileUrl: url,
-            fileType: memeData.type || 'video',
-            target,
-            caption,
-            senderName,
-            avatarUrl,
-            ttsVoice: '', // TTS not saved with memes usually, but could be added later
-            greenscreen,
-            filter,
-            userId,
-            color: style.color,
-            font: style.font,
-            animation: style.animation,
-            effect: style.effect
-          });
-
-          if (sendRes.error) {
-            await interaction.editReply(`❌ Erreur lors de l'envoi du mème : ${sendRes.error}`);
-            return;
-          }
-
-          await interaction.editReply(`✅ Mème **${memeName}** envoyé à **${target === 'all' ? 'tout le monde' : target}** !`);
-          updatePresence();
-
-          // Optional: we can log the reputation for meme plays too, but it might spam. Let's log it.
-          await sendReputationLog(interaction, 'Mème Joué', `**Cible :** ${target === 'all' ? 'Tout le monde' : target}\n**Mème :** ${memeName}\n**Texte :** ${caption || '*Aucun*'}`, null, memeData);
-        }
-        break;
-      }
-
       // ── /tuto ──────────────────────────────────────────
       case 'tuto': {
-        const embed = new EmbedBuilder()
-          .setColor(0xFF0000)
-          .setTitle('🗃️ Bienvenue sur BordelBox !')
-          .setDescription('BordelBox permet d\'afficher des médias et messages en direct sur les écrans connectés via l\'overlay client.')
-          .setThumbnail(client.user.displayAvatarURL({ size: 128 }))
-          .addFields(
-            {
-              name: '🚀 Commandes d\'Envoi',
-              value: '`/sendurl` : Envoie une vidéo YouTube, TikTok ou un lien direct (mp4, mp3, image).\n`/sendfile` : Uploade directement un fichier (image, vidéo, audio, max 250 Mo).\n`/message` : Affiche un gros texte animé sur les écrans.'
-            },
-            {
-              name: '⚙️ Options d\'Envoi',
-              value: '🔸 **cible** : PC spécifique (vide = tous)\n🔸 **text/texte** : Message d\'accompagnement\n🔸 **tts** : Génère une voix (ex: "mario")\n🔸 **greenscreen** : Supprime le fond vert\n🔸 **filtre** : Applique un effet (grayscale, blur...)\n🔸 **Style** : Override couleur/police/animation'
-            },
-            {
-              name: '😂 Mèmes Personnels',
-              value: 'Sauvegardez vos médias favoris avec le bouton **💾 Mème** dans le salon de réputation.\n`/meme play <nom>` : Lance un de vos mèmes\n`/meme list` : Affiche vos mèmes sauvegardés\n`/meme remove <nom>` : Supprime un mème'
-            },
-            {
-              name: '⭐ Réputation & Statistiques',
-              value: 'Chaque envoi génère un vote 👍/👎 dans le salon de réputation.\n`/profile` : Affiche vos statistiques, réputation et style visuel.\n`/leaderboard` : Classement global (Médias, Flop, Réputation).'
-            },
-            {
-              name: '🔧 Utilitaires & Gestion',
-              value: '`/queue` : Gère les files d\'attente (Skip, Vider)\n`/style` : Menu interactif pour personnaliser votre profil\n`/online` : Liste des PC connectés\n`/upload` : Panel web pour les gros fichiers\n`/download` : Télécharge le client BordelBox\n`/tuto` : Affiche ce guide'
-            }
-          )
-          .setFooter({ text: 'Amusez-vous bien ! 🎬' })
-          .setTimestamp();
+        const tutoMessage = `
+**Bienvenue sur BordelBox ! 🗃️**
 
-        await interaction.editReply({ embeds: [embed] });
+BordelBox est un système permettant d'afficher des médias et des messages en direct sur les écrans des ordinateurs connectés via l'overlay client.
+
+**💻 Commandes d'envoi :**
+\` /sendurl \` : Envoie une vidéo YouTube, TikTok ou un lien direct (mp4, mp3, image) sur les PC.
+\` /sendfile \` : Permet d'uploader directement un fichier (image, vidéo, audio) depuis Discord.
+\` /message \` : Affiche un gros texte animé sur les écrans.
+
+**⚙️ Options des commandes d'envoi :**
+- **cible** : Permet de choisir un PC spécifique. Si vide, l'envoi se fait sur tous les PC.
+- **text** / **texte** : Un texte d'accompagnement.
+- **tts** : Génère une voix (Text-to-Speech) qui lit votre texte en même temps (ex: "mario").
+- **greenscreen** : Active un filtre d'incrustation (fond vert) pour rendre le fond transparent d'une vidéo ou image.
+- **filtre** : Applique un filtre visuel (grayscale, sepia, invert, blur, contrast, saturate).
+- **couleur / police / animation / effet** : Modifie temporairement l'apparence visuelle.
+
+**⭐ Réputation & Système de Vote :**
+- Chaque envoi de média génère un message dans le salon de réputation.
+- Les autres membres peuvent voter 👍 ou 👎 sur vos envois.
+- Votre réputation globale est visible via \` /profile \` ou \` /leaderboard type:rep \`.
+
+**📊 Utilitaires & Infos :**
+\` /queue \` : Affiche et gère la file d'attente globale ou d'un PC (avec boutons pour vider ou voter pour skip).
+\` /style \` : Menu pour personnaliser votre affichage global (couleur, animation, police, effets).
+\` /profile \` : Affiche votre profil, vos statistiques et votre style visuel.
+\` /leaderboard \` : Affiche le top des spammeurs, des flops ou de la réputation de la BordelBox.
+\` /online \` : Liste les PC actuellement connectés.
+\` /upload \` : Accède au panel web (hors de Discord) pour envoyer des fichiers lourds jusqu'à 250 Mo.
+\` /download \` : Télécharge la dernière version du client BordelBox (depuis GitHub).
+\` /tuto \` : Affiche ce message d'aide.
+        `.trim();
+
+        await interaction.editReply({ content: tutoMessage });
         break;
       }
 
