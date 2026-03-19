@@ -648,7 +648,9 @@ client.on(Events.InteractionCreate, async (interaction) => {
               { label: 'Courier New (Machine à écrire)', value: '"Courier New"' },
               { label: 'Arial (Classique)', value: 'Arial' },
               { label: 'Georgia (Sérieux)', value: 'Georgia' },
-              { label: 'Trebuchet MS', value: '"Trebuchet MS"' }
+              { label: 'Bangers (Comics)', value: 'Bangers' },
+              { label: 'Oswald (Gras)', value: 'Oswald' },
+              { label: 'Cinzel (Épique)', value: 'Cinzel' }
             ])
         );
 
@@ -667,7 +669,10 @@ client.on(Events.InteractionCreate, async (interaction) => {
               { label: 'Zoom', value: 'zoom' },
               { label: 'Rotation (Spin)', value: 'spin' },
               { label: 'Tremblement (Shake)', value: 'shake' },
-              { label: 'Chute (Drop)', value: 'drop' }
+              { label: 'Chute (Drop)', value: 'drop' },
+              { label: 'Swing', value: 'swing' },
+              { label: 'Wobble', value: 'wobble' },
+              { label: 'Flip', value: 'flip' }
             ])
         );
 
@@ -683,7 +688,10 @@ client.on(Events.InteractionCreate, async (interaction) => {
               { label: 'Particules', value: 'particules' },
               { label: 'Étoiles', value: 'etoiles' },
               { label: 'Confettis', value: 'confetti' },
-              { label: 'Feu', value: 'feu' }
+              { label: 'Feu', value: 'feu' },
+              { label: 'Pluie', value: 'pluie' },
+              { label: 'Bulles', value: 'bulles' },
+              { label: 'Éclairs', value: 'eclairs' }
             ])
         );
 

@@ -13,16 +13,27 @@ use tauri::{
 mod win_clickthrough {
     use windows::Win32::Foundation::HWND;
     use windows::Win32::UI::WindowsAndMessaging::{
-        GetWindowLongPtrW, SetWindowLongPtrW,
-        GWL_EXSTYLE, WS_EX_LAYERED, WS_EX_TRANSPARENT,
+        GetWindowLongPtrW, SetWindowLongPtrW, SetWindowPos,
+        GWL_EXSTYLE, HWND_TOPMOST, SWP_NOMOVE, SWP_NOSIZE, SWP_NOACTIVATE, WS_EX_LAYERED,
+        WS_EX_TRANSPARENT, WS_EX_TOOLWINDOW,
     };
 
     pub fn enable(hwnd: isize) {
         unsafe {
             let hwnd = HWND(hwnd as *mut _);
             let ex = GetWindowLongPtrW(hwnd, GWL_EXSTYLE);
+            // On ajoute aussi WS_EX_TOOLWINDOW pour cacher de l'Alt-Tab et s'assurer
+            // que c'est bien une fenêtre "overlay", ce qui aide avec certains jeux en plein écran.
             SetWindowLongPtrW(hwnd, GWL_EXSTYLE,
-                ex | WS_EX_LAYERED.0 as isize | WS_EX_TRANSPARENT.0 as isize);
+                ex | WS_EX_LAYERED.0 as isize | WS_EX_TRANSPARENT.0 as isize | WS_EX_TOOLWINDOW.0 as isize);
+
+            // Force l'affichage en TOPMOST par-dessus le reste
+            let _ = SetWindowPos(
+                hwnd,
+                HWND_TOPMOST,
+                0, 0, 0, 0,
+                SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE
+            );
         }
     }
     pub fn disable(hwnd: isize) {
@@ -31,6 +42,14 @@ mod win_clickthrough {
             let ex = GetWindowLongPtrW(hwnd, GWL_EXSTYLE);
             SetWindowLongPtrW(hwnd, GWL_EXSTYLE,
                 ex & !(WS_EX_TRANSPARENT.0 as isize));
+
+            // Force l'affichage en TOPMOST même quand on désactive le click-through
+            let _ = SetWindowPos(
+                hwnd,
+                HWND_TOPMOST,
+                0, 0, 0, 0,
+                SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE
+            );
         }
     }
 }

@@ -24,6 +24,8 @@ async function init() {
     const ms = config.mediaSize ?? 80;
     const px = config.posX ?? 50;
     const py = config.posY ?? 50;
+    const vol = config.volume ?? 100;
+    const opa = config.opacity ?? 100;
     const sc = config.shortcut || 'Ctrl+O';
 
     document.getElementById('messageSize').value  = msgSize;
@@ -31,8 +33,10 @@ async function init() {
     document.getElementById('mediaSize').value = ms;
     document.getElementById('posX').value = px;
     document.getElementById('posY').value = py;
+    document.getElementById('volume').value = vol;
+    document.getElementById('opacity').value = opa;
     document.getElementById('shortcut').value = sc;
-    updateLabels(msgSize, capSize, ms, px, py);
+    updateLabels(msgSize, capSize, ms, px, py, vol, opa);
 
     // Vérification de la version
     checkVersion();
@@ -101,7 +105,7 @@ async function checkVersion() {
   }
 }
 
-function updateLabels(msgSize, capSize, ms, px, py) {
+function updateLabels(msgSize, capSize, ms, px, py, vol, opa) {
   document.getElementById('messageSizeVal').textContent   = msgSize + 'vw';
   document.getElementById('captionSizeVal').textContent   = capSize + 'vw';
   document.getElementById('mediaSizeVal').textContent     = ms + '%';
@@ -110,7 +114,27 @@ function updateLabels(msgSize, capSize, ms, px, py) {
   document.getElementById('mediaSizeLabel').textContent   = ms;
   if(px !== undefined) document.getElementById('posXLabel').textContent = px;
   if(py !== undefined) document.getElementById('posYLabel').textContent = py;
+  if(vol !== undefined) {
+    document.getElementById('volumeVal').textContent = vol + '%';
+    document.getElementById('volumeLabel').textContent = vol;
+  }
+  if(opa !== undefined) {
+    document.getElementById('opacityVal').textContent = opa + '%';
+    document.getElementById('opacityLabel').textContent = opa;
+  }
 }
+
+document.getElementById('volume').addEventListener('input', (e) => {
+  const v = e.target.value;
+  document.getElementById('volumeVal').textContent = v + '%';
+  document.getElementById('volumeLabel').textContent = v;
+});
+
+document.getElementById('opacity').addEventListener('input', (e) => {
+  const v = e.target.value;
+  document.getElementById('opacityVal').textContent = v + '%';
+  document.getElementById('opacityLabel').textContent = v;
+});
 
 document.getElementById('posX').addEventListener('input', (e) => {
   document.getElementById('posXLabel').textContent = e.target.value;
@@ -144,7 +168,9 @@ window.resetOverlayOptions = function () {
   document.getElementById('mediaSize').value = 80;
   document.getElementById('posX').value = 50;
   document.getElementById('posY').value = 50;
-  updateLabels(8, 2.5, 80, 50, 50);
+  document.getElementById('volume').value = 100;
+  document.getElementById('opacity').value = 100;
+  updateLabels(8, 2.5, 80, 50, 50, 100, 100);
 };
 
 // Enregistrement du raccourci clavier
@@ -187,6 +213,8 @@ window.saveOptions = async function () {
     mediaSize:   parseInt(document.getElementById('mediaSize').value, 10),
     posX:        parseInt(document.getElementById('posX').value, 10),
     posY:        parseInt(document.getElementById('posY').value, 10),
+    volume:      parseInt(document.getElementById('volume').value, 10),
+    opacity:     parseInt(document.getElementById('opacity').value, 10),
     shortcut:    document.getElementById('shortcut').value.trim(),
   };
 
