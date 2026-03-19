@@ -16,6 +16,8 @@ const SERVER_URL = process.env.SERVER_URL || 'http://localhost:3000';
 const TOKEN      = process.env.DISCORD_TOKEN;
 const REPUTATION_CHANNEL_ID = process.env.REPUTATION_CHANNEL_ID;
 
+console.log(`[BordelBox Bot] SERVER_URL configuré sur : ${SERVER_URL}`);
+
 if (!TOKEN) {
   console.error('❌  DISCORD_TOKEN manquant dans .env');
   process.exit(1);
