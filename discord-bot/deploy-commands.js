@@ -60,7 +60,10 @@ const commands = [
          { name: 'Négatif', value: 'invert' },
          { name: 'Flou', value: 'blur' },
          { name: 'Contraste Élevé', value: 'contrast' },
-         { name: 'Saturation Max', value: 'saturate' }
+         { name: 'Saturation Max', value: 'saturate' },
+         { name: 'Pixelisé (Retro)', value: 'pixelate' },
+         { name: 'Psychédélique', value: 'hue-rotate' },
+         { name: 'Lueur (Glow)', value: 'brightness' }
        ))
     .addStringOption(o =>
       o.setName('police')
@@ -74,7 +77,9 @@ const commands = [
          { name: 'Courier New (Machine à écrire)', value: '"Courier New"' },
          { name: 'Arial', value: 'Arial' },
          { name: 'Georgia', value: 'Georgia' },
-         { name: 'Trebuchet MS', value: '"Trebuchet MS"' }
+         { name: 'Bangers (Comics)', value: 'Bangers' },
+         { name: 'Oswald (Gras)', value: 'Oswald' },
+         { name: 'Cinzel (Épique)', value: 'Cinzel' }
        ))
     .addStringOption(o =>
       o.setName('animation')
@@ -90,7 +95,10 @@ const commands = [
          { name: 'Zoom', value: 'zoom' },
          { name: 'Rotation (Spin)', value: 'spin' },
          { name: 'Tremblement (Shake)', value: 'shake' },
-         { name: 'Chute (Drop)', value: 'drop' }
+         { name: 'Chute (Drop)', value: 'drop' },
+         { name: 'Swing', value: 'swing' },
+         { name: 'Wobble', value: 'wobble' },
+         { name: 'Flip', value: 'flip' }
        ))
     .addStringOption(o =>
       o.setName('effet')
@@ -104,7 +112,10 @@ const commands = [
          { name: 'Particules', value: 'particules' },
          { name: 'Étoiles', value: 'etoiles' },
          { name: 'Confetti', value: 'confetti' },
-         { name: 'Feu', value: 'feu' }
+         { name: 'Feu', value: 'feu' },
+         { name: 'Pluie', value: 'pluie' },
+         { name: 'Bulles', value: 'bulles' },
+         { name: 'Éclairs', value: 'eclairs' }
        )),
 
   new SlashCommandBuilder()
@@ -144,7 +155,10 @@ const commands = [
          { name: 'Négatif', value: 'invert' },
          { name: 'Flou', value: 'blur' },
          { name: 'Contraste Élevé', value: 'contrast' },
-         { name: 'Saturation Max', value: 'saturate' }
+         { name: 'Saturation Max', value: 'saturate' },
+         { name: 'Pixelisé (Retro)', value: 'pixelate' },
+         { name: 'Psychédélique', value: 'hue-rotate' },
+         { name: 'Lueur (Glow)', value: 'brightness' }
        ))
     .addStringOption(o =>
       o.setName('police')
@@ -158,7 +172,9 @@ const commands = [
          { name: 'Courier New (Machine à écrire)', value: '"Courier New"' },
          { name: 'Arial', value: 'Arial' },
          { name: 'Georgia', value: 'Georgia' },
-         { name: 'Trebuchet MS', value: '"Trebuchet MS"' }
+         { name: 'Bangers (Comics)', value: 'Bangers' },
+         { name: 'Oswald (Gras)', value: 'Oswald' },
+         { name: 'Cinzel (Épique)', value: 'Cinzel' }
        ))
     .addStringOption(o =>
       o.setName('animation')
@@ -174,7 +190,10 @@ const commands = [
          { name: 'Zoom', value: 'zoom' },
          { name: 'Rotation (Spin)', value: 'spin' },
          { name: 'Tremblement (Shake)', value: 'shake' },
-         { name: 'Chute (Drop)', value: 'drop' }
+         { name: 'Chute (Drop)', value: 'drop' },
+         { name: 'Swing', value: 'swing' },
+         { name: 'Wobble', value: 'wobble' },
+         { name: 'Flip', value: 'flip' }
        ))
     .addStringOption(o =>
       o.setName('effet')
@@ -188,7 +207,10 @@ const commands = [
          { name: 'Particules', value: 'particules' },
          { name: 'Étoiles', value: 'etoiles' },
          { name: 'Confetti', value: 'confetti' },
-         { name: 'Feu', value: 'feu' }
+         { name: 'Feu', value: 'feu' },
+         { name: 'Pluie', value: 'pluie' },
+         { name: 'Bulles', value: 'bulles' },
+         { name: 'Éclairs', value: 'eclairs' }
        )),
 
   new SlashCommandBuilder()
@@ -227,7 +249,9 @@ const commands = [
          { name: 'Courier New (Machine à écrire)', value: '"Courier New"' },
          { name: 'Arial', value: 'Arial' },
          { name: 'Georgia', value: 'Georgia' },
-         { name: 'Trebuchet MS', value: '"Trebuchet MS"' }
+         { name: 'Bangers (Comics)', value: 'Bangers' },
+         { name: 'Oswald (Gras)', value: 'Oswald' },
+         { name: 'Cinzel (Épique)', value: 'Cinzel' }
        ))
     .addStringOption(o =>
       o.setName('animation')
@@ -243,7 +267,10 @@ const commands = [
          { name: 'Zoom', value: 'zoom' },
          { name: 'Rotation (Spin)', value: 'spin' },
          { name: 'Tremblement (Shake)', value: 'shake' },
-         { name: 'Chute (Drop)', value: 'drop' }
+         { name: 'Chute (Drop)', value: 'drop' },
+         { name: 'Swing', value: 'swing' },
+         { name: 'Wobble', value: 'wobble' },
+         { name: 'Flip', value: 'flip' }
        ))
     .addStringOption(o =>
       o.setName('effet')
@@ -257,7 +284,10 @@ const commands = [
          { name: 'Particules', value: 'particules' },
          { name: 'Étoiles', value: 'etoiles' },
          { name: 'Confetti', value: 'confetti' },
-         { name: 'Feu', value: 'feu' }
+         { name: 'Feu', value: 'feu' },
+         { name: 'Pluie', value: 'pluie' },
+         { name: 'Bulles', value: 'bulles' },
+         { name: 'Éclairs', value: 'eclairs' }
        )),
 
   new SlashCommandBuilder()

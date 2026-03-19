@@ -90,13 +90,19 @@ function applyConfig(cfg) {
   document.documentElement.style.setProperty('--caption-size', `${CONFIG.captionSize}vw`);
   document.documentElement.style.setProperty('--media-size', CONFIG.mediaSize);
 
-  // Application des positions
+  // Application des positions et opacité
   const px = (CONFIG.posX !== undefined) ? CONFIG.posX : 50;
   const py = (CONFIG.posY !== undefined) ? CONFIG.posY : 50;
+  const opacity = (CONFIG.opacity !== undefined) ? CONFIG.opacity : 100;
 
-  // Conversion 0-100 en flex/margin ou translate. Le plus simple est le padding ou l'alignement flex, mais transform: translate est plus propre
   document.documentElement.style.setProperty('--pos-x', `${px}%`);
   document.documentElement.style.setProperty('--pos-y', `${py}%`);
+  document.documentElement.style.setProperty('--overlay-opacity', opacity / 100);
+
+  // Mettre à jour le volume si les médias sont en cours de lecture (s'ils existent)
+  const vol = (CONFIG.volume !== undefined) ? (CONFIG.volume / 100) : 1;
+  if (mediaVideo) mediaVideo.volume = vol;
+  if (audioPlayer) audioPlayer.volume = vol;
 
   // Badge mute
   muteBadge.classList.toggle('visible', !!CONFIG.muted);
@@ -282,6 +288,9 @@ function applyStyle(payload, textElement, effectsElement) {
     else if (style.animation === 'drop') textElement.style.animation = 'msg-drop 0.5s cubic-bezier(0.25, 1, 0.5, 1) both';
     else if (style.animation === 'glitch') textElement.style.animation = 'msg-glitch 0.4s infinite linear both';
     else if (style.animation === 'pulse') textElement.style.animation = 'msg-pulse 1s infinite ease-in-out both';
+    else if (style.animation === 'swing') textElement.style.animation = 'msg-swing 1s ease-in-out both';
+    else if (style.animation === 'wobble') textElement.style.animation = 'msg-wobble 1s ease-in-out both';
+    else if (style.animation === 'flip') textElement.style.animation = 'msg-flip 0.6s ease-out both';
     else if (style.animation === 'typewriter') {
       textElement.style.animation = 'none';
       textElement.classList.add('typewriter-text');
@@ -309,13 +318,15 @@ function applyStyle(payload, textElement, effectsElement) {
   // Appliquer les particules dans le conteneur cible (s'il y en a un)
   if (effectsElement) {
     effectsElement.innerHTML = '';
-    const effectTypes = ['particules', 'etoiles', 'confetti', 'feu', 'neige', 'coeurs', 'matrix'];
+    const effectTypes = ['particules', 'etoiles', 'confetti', 'feu', 'neige', 'coeurs', 'matrix', 'pluie', 'bulles', 'eclairs'];
     if (effectTypes.includes(style.effect)) {
       const effectType = style.effect;
       let count = 50;
       if (effectType === 'etoiles' || effectType === 'confetti') count = 30;
-      else if (effectType === 'neige' || effectType === 'matrix') count = 80;
+      else if (effectType === 'neige' || effectType === 'matrix' || effectType === 'pluie') count = 80;
       else if (effectType === 'coeurs') count = 20;
+      else if (effectType === 'bulles') count = 40;
+      else if (effectType === 'eclairs') count = 5;
 
       for (let i = 0; i < count; i++) {
         const el = document.createElement('div');
@@ -325,6 +336,9 @@ function applyStyle(payload, textElement, effectsElement) {
         else if (effectType === 'feu') el.className = 'fire';
         else if (effectType === 'neige') el.className = 'snow';
         else if (effectType === 'coeurs') el.className = 'heart';
+        else if (effectType === 'pluie') el.className = 'rain';
+        else if (effectType === 'bulles') el.className = 'bubble';
+        else if (effectType === 'eclairs') el.className = 'lightning';
         else if (effectType === 'matrix') {
           el.className = 'matrix-char';
           el.textContent = String.fromCharCode(0x30A0 + Math.random() * 96);
@@ -337,6 +351,8 @@ function applyStyle(payload, textElement, effectsElement) {
         else if (effectType === 'feu') size = Math.random() * 20 + 10;
         else if (effectType === 'neige') size = Math.random() * 6 + 2;
         else if (effectType === 'matrix') size = Math.random() * 16 + 10;
+        else if (effectType === 'bulles') size = Math.random() * 25 + 10;
+        else if (effectType === 'eclairs') size = 100; // La taille sera gérée en css/pourcentages
 
         el.style.width = `${size}px`;
         el.style.height = `${size}px`;
@@ -344,18 +360,35 @@ function applyStyle(payload, textElement, effectsElement) {
         // Position relative stricte à la zone du texte
         el.style.left = `${Math.random() * 100}%`;
 
-        if (effectType === 'feu') {
-           el.style.top = `${Math.random() * 20 + 80}%`; // Le feu commence plus bas
+        if (effectType === 'feu' || effectType === 'bulles') {
+           el.style.top = `${Math.random() * 20 + 80}%`; // Commence plus bas
+        } else if (effectType === 'pluie') {
+           el.style.top = `-${Math.random() * 50}%`; // Commence plus haut
+        } else if (effectType === 'eclairs') {
+           el.style.top = `0%`;
+           el.style.left = `${Math.random() * 80 + 10}%`;
         } else {
            el.style.top = `${Math.random() * 100}%`;
         }
 
-        el.style.animationDelay = `${Math.random() * 2}s`;
-        el.style.animationDuration = `${Math.random() * 2 + 1.5}s`;
+        if (effectType === 'pluie') {
+          el.style.animationDelay = `${Math.random()}s`;
+          el.style.animationDuration = `${Math.random() * 0.5 + 0.5}s`;
+          el.style.width = '2px';
+          el.style.height = `${Math.random() * 20 + 20}px`;
+        } else if (effectType === 'eclairs') {
+          el.style.animationDelay = `${Math.random() * 4}s`;
+          el.style.animationDuration = `0.2s`;
+        } else {
+          el.style.animationDelay = `${Math.random() * 2}s`;
+          el.style.animationDuration = `${Math.random() * 2 + 1.5}s`;
+        }
 
         if (effectType === 'feu') {
           // Si c'est du feu, les couleurs vont du jaune au rouge, ou on utilise la custom color
           el.style.background = style.color ? style.color : (Math.random() > 0.5 ? '#ff5500' : '#ffaa00');
+        } else if (effectType === 'pluie') {
+          el.style.background = style.color ? style.color : '#a0c4ff';
         } else if (effectType === 'confetti') {
           // Confettis ont des couleurs aléatoires si l'user n'a pas défini de couleur
           const colors = ['#ff0', '#0f0', '#00f', '#f00', '#f0f', '#0ff'];
@@ -384,6 +417,9 @@ function getCssFilter(filterName) {
     case 'blur': return 'blur(5px)';
     case 'contrast': return 'contrast(200%)';
     case 'saturate': return 'saturate(300%)';
+    case 'pixelate': return 'url(#pixelate-filter)'; // Necessite SVG filter dans index.html
+    case 'hue-rotate': return 'hue-rotate(90deg)';
+    case 'brightness': return 'brightness(200%) contrast(150%)'; // Glow effect hack
     default: return '';
   }
 }
@@ -398,10 +434,12 @@ function getPlayableUrl(url) {
 
 function handleFile(payload) {
   const { url, fileType } = payload;
+  const vol = (CONFIG.volume !== undefined) ? (CONFIG.volume / 100) : 1;
 
   if (fileType === 'audio') {
     if (CONFIG.muted) { socket.emit('media_ended'); return; }
     audioPlayer.src = getPlayableUrl(url);
+    audioPlayer.volume = vol;
     audioPlayer.play()
       .then(() => startVisualizer())
       .catch((err) => {
@@ -432,7 +470,7 @@ function handleFile(payload) {
     mediaImage.style.display = 'none';
     mediaVideo.src = url;
     mediaVideo.muted = !!CONFIG.muted;
-    mediaVideo.volume = 1;
+    mediaVideo.volume = vol;
 
     if (payload.greenscreen) {
       mediaVideo.classList.add('greenscreen');
@@ -449,7 +487,7 @@ function handleFile(payload) {
     mediaContainer.classList.add('visible');
 
     if (payload.ttsUrl && !CONFIG.muted) {
-      mediaVideo.volume = 0.2;
+      mediaVideo.volume = vol * 0.2;
     }
 
     if (payload.caption) {
@@ -539,6 +577,7 @@ function handleMessage(payload) {
 }
 
 function handleMedia(payload) {
+  const vol = (CONFIG.volume !== undefined) ? (CONFIG.volume / 100) : 1;
   if (mediaProgressContainer) {
     mediaProgressContainer.classList.add('visible');
     mediaVideo.ontimeupdate = () => updateProgress(mediaVideo.currentTime, mediaVideo.duration);
@@ -548,7 +587,7 @@ function handleMedia(payload) {
   mediaImage.style.display = 'none';
   mediaVideo.src    = src;
   mediaVideo.muted  = !!CONFIG.muted;
-  mediaVideo.volume = 1;
+  mediaVideo.volume = vol;
 
   if (payload.greenscreen) {
     mediaVideo.classList.add('greenscreen');
@@ -565,7 +604,7 @@ function handleMedia(payload) {
 
   // Si TTS est joué, baisser le volume de la vidéo
   if (payload.ttsUrl && !CONFIG.muted) {
-    mediaVideo.volume = 0.2;
+    mediaVideo.volume = vol * 0.2;
   }
 
   // Caption optionnelle
@@ -622,7 +661,9 @@ function showItem(item) {
 
   // Si un son TTS est fourni, on le met en route via audioPlayer (seulement si non mute)
   if (payload.ttsUrl && !CONFIG.muted) {
+    const vol = (CONFIG.volume !== undefined) ? (CONFIG.volume / 100) : 1;
     audioPlayer.src = getPlayableUrl(payload.ttsUrl);
+    audioPlayer.volume = vol;
     audioPlayer.play().then(() => startVisualizer()).catch(() => {});
   }
 
