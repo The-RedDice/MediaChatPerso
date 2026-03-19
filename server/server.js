@@ -1028,14 +1028,6 @@ app.get('/dashboard/*path', (_req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'dashboard', 'index.html'));
 });
 
-// Route API pour le dashboard: récupérer ses propres mèmes
-router.get('/me/memes', requireAuth, (req, res) => {
-  const userId = req.user?.id;
-  if (!userId) return res.status(401).json({ error: 'Non authentifié.' });
-  const memes = getUserMemes(userId);
-  res.json({ memes });
-});
-
 // ─── Panel Web ───────────────────────────────────────────────────────────────
 
 // Auth basique pour le panel
