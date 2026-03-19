@@ -342,6 +342,10 @@ function downloadMedia(url) {
 
 const router = express.Router();
 
+// S'assurer que le routeur gère les corps JSON (bien qu'il l'hérite de app)
+router.use(express.json());
+router.use(express.urlencoded({ extended: false }));
+
 // GET /api/clients — liste des connectés
 router.get('/clients', (_req, res) => {
   res.json({ clients: getClientList() });
@@ -1011,6 +1015,12 @@ router.post('/message', requireAuth, async (req, res) => {
 // pour éviter que ça ne tombe dans les fallbacks HTML du panel ou dashboard
 router.use((req, res) => {
   res.status(404).json({ error: 'Endpoint API introuvable' });
+});
+
+// Middleware de gestion d'erreurs global spécifique pour l'API
+router.use((err, req, res, next) => {
+  console.error('[API Error]', err);
+  res.status(500).json({ error: 'Erreur interne du serveur.', details: err.message });
 });
 
 app.use('/api', router);
