@@ -74,6 +74,11 @@ function recordAction(userId, username, type) {
       stats[userId].bordelCoins = stats[userId].reputation;
       delete stats[userId].reputation;
     }
+
+    // Empêcher les BordelCoins d'être négatifs (suite à l'ancien système de réputation)
+    if (stats[userId].bordelCoins < 0) {
+      stats[userId].bordelCoins = 0;
+    }
   }
 
   if (type === 'media') {
@@ -111,6 +116,10 @@ function recordSkip(userId) {
  * Obtenir les stats d'un utilisateur
  */
 function getUserStats(userId) {
+  if (stats[userId] && stats[userId].bordelCoins < 0) {
+    stats[userId].bordelCoins = 0;
+    saveStats();
+  }
   return stats[userId] || null;
 }
 
@@ -171,6 +180,11 @@ function updateReputation(targetId, targetUsername, value, voterId, messageId) {
   // Appliquer le vote
   stats[voterId].votesGiven[messageId] = value;
   stats[targetId].bordelCoins += value;
+
+  // Empêcher les BordelCoins d'être négatifs
+  if (stats[targetId].bordelCoins < 0) {
+    stats[targetId].bordelCoins = 0;
+  }
 
   saveStats();
 
