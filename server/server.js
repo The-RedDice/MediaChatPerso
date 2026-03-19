@@ -343,10 +343,6 @@ function downloadMedia(url) {
 const router = express.Router();
 
 // GET /api/clients — liste des connectés
-app.get('/api/clients', (_req, res) => {
-  res.json({ clients: getClientList() });
-});
-
 router.get('/clients', (_req, res) => {
   res.json({ clients: getClientList() });
 });
@@ -493,7 +489,7 @@ function requireAuth(req, res, next) {
 }
 
 // L'endpoint qui reçoit le fichier de la page upload (l'auth DOIT se faire avant multer)
-app.post('/api/upload', requireAuth, uploadMiddleware.single('file'), async (req, res) => {
+router.post('/upload', requireAuth, uploadMiddleware.single('file'), async (req, res) => {
   const file = req.file;
   if (!file) {
     return res.status(400).json({ error: 'Aucun fichier uploadé.' });
@@ -1009,6 +1005,12 @@ router.post('/message', requireAuth, async (req, res) => {
   if (userId) recordAction(userId, senderName, 'message');
   io.emit('panel_log', { msg: `${senderName || 'Discord'} a envoyé un message texte → ${target}`, type: 'ok' });
   res.json({ ok: true, ttsUrl });
+});
+
+// Si une requête arrive sur /api mais n'a matché aucune route ci-dessus, on renvoie une erreur JSON
+// pour éviter que ça ne tombe dans les fallbacks HTML du panel ou dashboard
+router.use((req, res) => {
+  res.status(404).json({ error: 'Endpoint API introuvable' });
 });
 
 app.use('/api', router);
