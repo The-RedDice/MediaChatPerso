@@ -59,7 +59,7 @@ function recordAction(userId, username, type) {
       totalCount: 0,
       firstAction: Date.now(),
       lastAction: Date.now(),
-      reputation: 0,
+      bordelCoins: 0,
       votesGiven: {}
     };
   } else {
@@ -68,6 +68,11 @@ function recordAction(userId, username, type) {
     // Retrocompatibilité : si firstAction n'existe pas, on l'initialise
     if (!stats[userId].firstAction) {
       stats[userId].firstAction = stats[userId].lastAction || Date.now();
+    }
+    // Rétrocompatibilité : migration reputation -> bordelCoins
+    if (stats[userId].reputation !== undefined) {
+      stats[userId].bordelCoins = stats[userId].reputation;
+      delete stats[userId].reputation;
     }
   }
 
@@ -127,11 +132,15 @@ function updateReputation(targetId, targetUsername, value, voterId, messageId) {
       username: 'Unknown',
       mediaCount: 0, fileCount: 0, messageCount: 0, totalCount: 0,
       lastAction: Date.now(),
-      reputation: 0,
+      bordelCoins: 0,
       votesGiven: {}
     };
-  } else if (!stats[voterId].votesGiven) {
-    stats[voterId].votesGiven = {};
+  } else {
+    if (!stats[voterId].votesGiven) stats[voterId].votesGiven = {};
+    if (stats[voterId].reputation !== undefined) {
+      stats[voterId].bordelCoins = stats[voterId].reputation;
+      delete stats[voterId].reputation;
+    }
   }
 
   // Vérifier si l'utilisateur a déjà voté pour ce message
@@ -145,23 +154,82 @@ function updateReputation(targetId, targetUsername, value, voterId, messageId) {
       username: targetUsername,
       mediaCount: 0, fileCount: 0, messageCount: 0, totalCount: 0,
       lastAction: Date.now(),
-      reputation: 0,
+      bordelCoins: 0,
       votesGiven: {}
     };
   } else {
     stats[targetId].username = targetUsername;
-    if (typeof stats[targetId].reputation !== 'number') {
-      stats[targetId].reputation = 0;
+    if (stats[targetId].reputation !== undefined) {
+      stats[targetId].bordelCoins = stats[targetId].reputation;
+      delete stats[targetId].reputation;
+    }
+    if (typeof stats[targetId].bordelCoins !== 'number') {
+      stats[targetId].bordelCoins = 0;
     }
   }
 
   // Appliquer le vote
   stats[voterId].votesGiven[messageId] = value;
-  stats[targetId].reputation += value;
+  stats[targetId].bordelCoins += value;
 
   saveStats();
 
-  return { success: true, newScore: stats[targetId].reputation };
+  return { success: true, newScore: stats[targetId].bordelCoins };
+}
+
+/**
+ * Déduire des BordelCoins d'un utilisateur
+ * @returns {boolean} true si succès, false si fonds insuffisants
+ */
+function spendCoins(userId, amount) {
+  if (!stats[userId] || stats[userId].bordelCoins === undefined) {
+    if (stats[userId] && stats[userId].reputation !== undefined) {
+      stats[userId].bordelCoins = stats[userId].reputation;
+      delete stats[userId].reputation;
+    } else {
+      return false;
+    }
+  }
+
+  if (stats[userId].bordelCoins >= amount) {
+    stats[userId].bordelCoins -= amount;
+    saveStats();
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Ajouter des éléments débloqués au profil de l'utilisateur
+ */
+function unlockStyleItem(userId, type, itemValue) {
+  if (!stats[userId]) return false;
+
+  if (!stats[userId].unlockedStyles) {
+    stats[userId].unlockedStyles = {
+      font: [],
+      animation: [],
+      effect: []
+    };
+  }
+
+  if (!stats[userId].unlockedStyles[type]) {
+    stats[userId].unlockedStyles[type] = [];
+  }
+
+  if (!stats[userId].unlockedStyles[type].includes(itemValue)) {
+    stats[userId].unlockedStyles[type].push(itemValue);
+    saveStats();
+  }
+  return true;
+}
+
+/**
+ * Récupérer les éléments débloqués
+ */
+function getUnlockedStyles(userId) {
+  if (!stats[userId]) return { font: [], animation: [], effect: [] };
+  return stats[userId].unlockedStyles || { font: [], animation: [], effect: [] };
 }
 
 /**
@@ -177,10 +245,10 @@ function getLeaderboard(type = 'media', limit = 10) {
         const aFlop = a.skippedCount || 0;
         const bFlop = b.skippedCount || 0;
         return bFlop - aFlop;
-      } else if (type === 'rep') {
-        const aRep = a.reputation || 0;
-        const bRep = b.reputation || 0;
-        return bRep - aRep;
+      } else if (type === 'coins') {
+        const aCoins = a.bordelCoins !== undefined ? a.bordelCoins : (a.reputation || 0);
+        const bCoins = b.bordelCoins !== undefined ? b.bordelCoins : (b.reputation || 0);
+        return bCoins - aCoins;
       } else {
         // type === 'media'
         const aMedia = (a.mediaCount || 0) + (a.fileCount || 0);
@@ -204,11 +272,15 @@ function saveUserProfile(userId, username, profileData) {
       messageCount: 0,
       totalCount: 0,
       lastAction: Date.now(),
-      reputation: 0,
+      bordelCoins: 0,
       votesGiven: {}
     };
   } else {
     stats[userId].username = username;
+    if (stats[userId].reputation !== undefined) {
+      stats[userId].bordelCoins = stats[userId].reputation;
+      delete stats[userId].reputation;
+    }
   }
 
   stats[userId].profile = profileData;
@@ -229,5 +301,8 @@ module.exports = {
   getLeaderboard,
   saveUserProfile,
   getUserProfile,
-  updateReputation
+  updateReputation,
+  spendCoins,
+  unlockStyleItem,
+  getUnlockedStyles
 };

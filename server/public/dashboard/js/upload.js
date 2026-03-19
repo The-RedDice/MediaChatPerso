@@ -46,6 +46,9 @@ async function checkAuthStatus() {
 
       // Init Socket.io pour avoir les clients connectés
       initSocket();
+
+      // Load Memes for Soundboard
+      loadMemes();
     } else {
       document.getElementById('login-card').classList.remove('hidden');
       document.getElementById('upload-form').classList.add('hidden');
@@ -60,10 +63,109 @@ async function checkAuthStatus() {
   }
 }
 
+async function loadMemes() {
+  const grid = document.getElementById('memes-grid');
+  try {
+    const res = await fetch('/api/me/memes');
+    if (!res.ok) throw new Error('Failed to load memes');
+    const data = await res.json();
+    const memes = data.memes || {};
+
+    grid.innerHTML = '';
+    const memeNames = Object.keys(memes);
+
+    if (memeNames.length === 0) {
+      grid.innerHTML = '<div style="color: #aaa; text-align: center; grid-column: 1 / -1; padding: 20px;">Vous n\'avez aucun mème sauvegardé.</div>';
+      return;
+    }
+
+    memeNames.forEach(name => {
+      const meme = memes[name];
+      const btn = document.createElement('div');
+      btn.className = 'meme-btn';
+
+      let icon = '🖼️';
+      if (meme.type === 'video') icon = '🎬';
+      if (meme.type === 'audio') icon = '🎵';
+
+      btn.innerHTML = `
+        <div class="meme-icon">${icon}</div>
+        <div class="meme-name">${name}</div>
+      `;
+
+      btn.onclick = () => sendMeme(name, meme);
+      grid.appendChild(btn);
+    });
+  } catch (err) {
+    console.error("Erreur loadMemes:", err);
+    grid.innerHTML = '<div style="color: #ff3c6e; text-align: center; grid-column: 1 / -1; padding: 20px;">Erreur lors du chargement des mèmes.</div>';
+  }
+}
+
+async function sendMeme(name, memeData) {
+  const targetRadio = document.querySelector('input[name="target"]:checked');
+  if (!targetRadio) {
+    alert("Veuillez sélectionner une cible d'abord.");
+    return;
+  }
+  const target = targetRadio.value;
+
+  // Create a temporary notification/toast
+  const notif = document.createElement('div');
+  notif.style.position = 'fixed';
+  notif.style.bottom = '20px';
+  notif.style.right = '20px';
+  notif.style.background = '#5865F2';
+  notif.style.color = 'white';
+  notif.style.padding = '10px 20px';
+  notif.style.borderRadius = '8px';
+  notif.style.zIndex = '9999';
+  notif.style.boxShadow = '0 4px 12px rgba(0,0,0,0.5)';
+  notif.style.transition = 'opacity 0.3s ease';
+  notif.textContent = `Envoi de "${name}"...`;
+  document.body.appendChild(notif);
+
+  try {
+    // Send via API - similar to how Discord Bot /meme play works
+    const payload = {
+      fileUrl: memeData.url,
+      fileType: memeData.type || 'video',
+      target: target,
+      caption: memeData.caption || '',
+      greenscreen: memeData.greenscreen || false,
+      filter: memeData.filter || ''
+    };
+
+    // We don't have user styling/TTS straight from the dashboard yet, but the backend requireAuth handles identity
+    const res = await fetch('/api/sendfile', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    if (res.ok) {
+      notif.style.background = 'var(--color-success)';
+      notif.textContent = `✅ "${name}" envoyé à ${target === 'all' ? 'tout le monde' : target} !`;
+    } else {
+      const errData = await res.json();
+      notif.style.background = 'var(--color-danger)';
+      notif.textContent = `❌ Erreur : ${errData.error || res.statusText}`;
+    }
+  } catch (err) {
+    notif.style.background = 'var(--color-danger)';
+    notif.textContent = `❌ Erreur réseau`;
+  }
+
+  setTimeout(() => {
+    notif.style.opacity = '0';
+    setTimeout(() => notif.remove(), 300);
+  }, 3000);
+}
+
 async function logout() {
   try {
     await fetch('/auth/logout', { method: 'POST' });
-    window.location.href = '/upload'; // Recharge pour virer le querystring
+    window.location.href = '/dashboard'; // Recharge pour virer le querystring
   } catch (err) {
     console.error("Erreur logout:", err);
   }

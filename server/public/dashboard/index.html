@@ -3,17 +3,72 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>BordelBox — Upload</title>
+  <title>BordelBox — Dashboard</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;800&family=Space+Grotesk:wght@400;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/panel/css/panel.css"> <!-- We reuse panel CSS for base styles -->
+  <link rel="stylesheet" href="/panel/css/panel.css">
   <link rel="stylesheet" href="css/upload.css">
+  <style>
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+      gap: 15px;
+      margin-top: 20px;
+    }
+    .meme-btn {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 12px;
+      padding: 15px;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      transition: all 0.2s;
+    }
+    .meme-btn:hover {
+      background: rgba(255,60,110,0.2);
+      border-color: #ff3c6e;
+      transform: translateY(-2px);
+    }
+    .meme-icon {
+      font-size: 2rem;
+    }
+    .meme-name {
+      color: #fff;
+      font-weight: bold;
+      text-align: center;
+      word-break: break-word;
+      font-size: 0.9rem;
+    }
+    .tabs {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    .tab {
+      padding: 10px 20px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      color: #ccc;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: bold;
+      transition: all 0.2s;
+    }
+    .tab.active {
+      background: #5865F2;
+      color: #fff;
+      border-color: #5865F2;
+    }
+  </style>
 </head>
 <body>
   <div class="scanlines"></div>
 
   <header>
-    <div class="logo">🤖 <span>BORDELBOX UPLOAD</span></div>
+    <div class="logo">🤖 <span>BORDELBOX DASHBOARD</span></div>
     <div class="status-bar" id="auth-status">
       <span class="dot"></span>
       <span id="auth-label">Vérification...</span>
@@ -27,7 +82,7 @@
       <div class="card hidden" id="login-card" style="text-align: center; width: 100%; box-sizing: border-box;">
         <h2 style="font-size: 2rem; margin-bottom: 20px;">Connexion Requise</h2>
         <p style="margin: 0 auto 30px auto; color: #aaa; font-size: 1.1rem; max-width: 400px; line-height: 1.5;">
-          Vous devez être connecté avec Discord et membre du serveur autorisé pour envoyer des fichiers.
+          Vous devez être connecté avec Discord et membre du serveur autorisé pour accéder au Dashboard.
         </p>
         <button class="btn btn-primary" onclick="window.location.href='/auth/discord'" style="font-size: 1.2rem; padding: 15px 30px; width: 100%; max-width: 300px;">
           Se connecter avec Discord
@@ -57,7 +112,22 @@
           </div>
         </div>
 
-        <div class="card">
+        <div class="tabs">
+          <div class="tab active" id="tab-soundboard" onclick="switchTab('soundboard')">🎛️ Mes Mèmes</div>
+          <div class="tab" id="tab-upload" onclick="switchTab('upload')">📎 Upload Fichier</div>
+        </div>
+
+        <!-- Soundboard Tab -->
+        <div class="card" id="content-soundboard">
+          <h3>🎛️ Soundboard (Mèmes Personnels)</h3>
+          <p style="color: #888; font-size: 0.9rem; margin-bottom: 10px;">Cliquez sur un mème pour l'envoyer instantanément sur la cible sélectionnée.</p>
+          <div class="dashboard-grid" id="memes-grid">
+            <div style="color: #aaa; text-align: center; grid-column: 1 / -1; padding: 20px;">Chargement des mèmes...</div>
+          </div>
+        </div>
+
+        <!-- Upload Tab -->
+        <div class="card" id="content-upload" style="display: none;">
           <h3>📎 Fichier à envoyer</h3>
           <div class="input-row" style="flex-direction: column; align-items: flex-start; gap: 15px;">
             <input type="file" id="file-input" accept="image/*,video/*,audio/*" style="width: 100%; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 6px; color: #fff; cursor: pointer;">
@@ -95,5 +165,16 @@
 
   <script src="/socket.io/socket.io.js"></script>
   <script src="js/upload.js"></script>
+  <script>
+    function switchTab(tabName) {
+      document.getElementById('tab-soundboard').classList.remove('active');
+      document.getElementById('tab-upload').classList.remove('active');
+      document.getElementById('content-soundboard').style.display = 'none';
+      document.getElementById('content-upload').style.display = 'none';
+
+      document.getElementById('tab-' + tabName).classList.add('active');
+      document.getElementById('content-' + tabName).style.display = 'block';
+    }
+  </script>
 </body>
 </html>

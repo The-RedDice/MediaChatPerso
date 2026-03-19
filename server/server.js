@@ -21,6 +21,11 @@ const DiscordStrategy = require('passport-discord').Strategy;
 const { getAvailableModels, generateTTS } = require('./tts');
 const { recordAction, recordSkip, getUserStats, getLeaderboard, getUserProfile, saveUserProfile, updateReputation } = require('./stats');
 const { addMeme, getUserMemes, removeMeme } = require('./memes');
+const { initAI, generateResponse } = require('./ai');
+const { startEvent, interactEvent, getActiveEvent } = require('./events');
+
+// Initialiser l'API IA
+initAI();
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 
@@ -359,12 +364,12 @@ function checkIfRankOne(userId) {
   if (!userId) return false;
   const mediaLb = getLeaderboard('media', 1);
   const flopLb = getLeaderboard('flop', 1);
-  const repLb = getLeaderboard('rep', 1);
+  const coinsLb = getLeaderboard('coins', 1);
 
   return (
     (mediaLb.length > 0 && mediaLb[0].userId === userId) ||
     (flopLb.length > 0 && flopLb[0].userId === userId && (flopLb[0].skippedCount || 0) > 0) ||
-    (repLb.length > 0 && repLb[0].userId === userId && (repLb[0].reputation || 0) !== 0)
+    (coinsLb.length > 0 && coinsLb[0].userId === userId && (coinsLb[0].bordelCoins || 0) !== 0)
   );
 }
 
@@ -419,23 +424,23 @@ app.get('/auth/discord', passport.authenticate('discord'));
 
 // Retour de Discord
 app.get('/auth/discord/callback', passport.authenticate('discord', {
-  failureRedirect: '/upload?error=auth_failed'
+  failureRedirect: '/dashboard?error=auth_failed'
 }), (req, res) => {
   // Vérifie que l'utilisateur est dans la guild
   const guildId = process.env.DISCORD_GUILD_ID;
   if (!guildId) {
-    return res.redirect('/upload'); // pas de vérification de serveur si non défini
+    return res.redirect('/dashboard'); // pas de vérification de serveur si non défini
   }
 
   const inGuild = req.user.guilds.some(g => g.id === guildId);
   if (!inGuild) {
     req.logout((err) => {
-      res.redirect('/upload?error=not_in_guild');
+      res.redirect('/dashboard?error=not_in_guild');
     });
     return;
   }
 
-  res.redirect('/upload');
+  res.redirect('/dashboard');
 });
 
 // Statut d'authentification pour le front
@@ -552,9 +557,9 @@ router.get('/stats/:userId', (req, res) => {
   const rankFlopIdx = flopLb.findIndex(u => u.userId === userId && (u.skippedCount || 0) > 0);
   responseData.rankFlop = rankFlopIdx !== -1 ? rankFlopIdx + 1 : null;
 
-  const repLb = getLeaderboard('rep', 1000);
-  const rankRepIdx = repLb.findIndex(u => u.userId === userId);
-  responseData.rankRep = rankRepIdx !== -1 ? rankRepIdx + 1 : null;
+  const coinsLb = getLeaderboard('coins', 1000);
+  const rankCoinsIdx = coinsLb.findIndex(u => u.userId === userId);
+  responseData.rankCoins = rankCoinsIdx !== -1 ? rankCoinsIdx + 1 : null;
 
   // Include user profile for style information
   const userProfile = getUserProfile(userId);
@@ -574,8 +579,28 @@ router.get('/leaderboard', (req, res) => {
 
 router.get('/style/:userId', (req, res) => {
   const data = getUserProfile(req.params.userId);
-  if (!data) return res.json({ profile: {} });
-  res.json({ profile: data });
+  const unlocked = getUnlockedStyles(req.params.userId);
+  if (!data) return res.json({ profile: {}, unlocked });
+  res.json({ profile: data, unlocked });
+});
+
+router.post('/shop/buy', requireAuth, (req, res) => {
+  const { userId, type, itemValue, price } = req.body;
+  if (!userId || !type || !itemValue || !price) {
+    return res.status(400).json({ error: 'Paramètres manquants' });
+  }
+
+  const unlocked = getUnlockedStyles(userId);
+  if (unlocked[type] && unlocked[type].includes(itemValue)) {
+    return res.status(400).json({ error: 'Vous possédez déjà cet élément.' });
+  }
+
+  if (spendCoins(userId, parseInt(price))) {
+    unlockStyleItem(userId, type, itemValue);
+    res.json({ ok: true });
+  } else {
+    res.status(400).json({ error: 'BordelCoins insuffisants.' });
+  }
 });
 
 // ─── API Memes ───────────────────────────────────────────────────────────────
@@ -883,6 +908,82 @@ router.post('/voteskip', (req, res) => {
   res.json({ skipped: false, currentVotes, requiredVotes });
 });
 
+// POST /api/ai
+router.post('/ai', requireAuth, async (req, res) => {
+  const { prompt, target = 'all', senderName, avatarUrl, ttsVoice, greenscreen, userId, color, font, animation, effect } = req.body;
+
+  if (!prompt) return res.status(400).json({ error: 'prompt requis' });
+
+  try {
+    const text = await generateResponse(prompt);
+
+    let ttsUrl = '';
+    if (ttsVoice && text) {
+      const ttsFilename = `tts_${Date.now()}.wav`;
+      const ttsOutPath = path.join(MEDIA_DIR, ttsFilename);
+      const generated = await generateTTS(text, ttsVoice, ttsOutPath);
+      if (generated) ttsUrl = `${SERVER_URL}/media/${ttsFilename}`;
+    }
+
+    const payloadStyle = { color, font, animation, effect };
+    const isRankOne = checkIfRankOne(userId);
+
+    const result = enqueue(target, {
+      type: 'message',
+      payload: { text, senderName: senderName || '', avatarUrl: avatarUrl || '', ttsUrl, greenscreen: !!greenscreen, style: payloadStyle, userId, isRankOne },
+    });
+
+    if (result?.error) return res.status(404).json(result);
+    if (userId) recordAction(userId, senderName, 'message');
+    io.emit('panel_log', { msg: `${senderName || 'Discord'} a généré par IA un message → ${target}`, type: 'ok' });
+
+    res.json({ ok: true, text, ttsUrl });
+
+  } catch (err) {
+    console.error('[AI Error]', err);
+    res.status(500).json({ error: err.message || 'Erreur serveur.' });
+  }
+});
+
+// ─── API Événements ──────────────────────────────────────────────────────────
+
+// POST /api/event/start
+router.post('/event/start', requireAuth, (req, res) => {
+  const { type, name, hp, image, question, choices, duration } = req.body;
+  if (!type || (type !== 'boss' && type !== 'sondage')) {
+    return res.status(400).json({ error: 'Type d\'événement invalide (boss ou sondage).' });
+  }
+
+  const result = startEvent(io, { type, name, hp, image, question, choices, duration });
+
+  if (result.error) {
+    return res.status(400).json(result);
+  }
+
+  res.json({ ok: true, event: result.event });
+});
+
+// POST /api/event/interact
+router.post('/event/interact', (req, res) => {
+  const { eventId, userId, choiceIndex } = req.body;
+
+  if (!eventId || !userId) {
+    return res.status(400).json({ error: 'Paramètres manquants.' });
+  }
+
+  const result = interactEvent(io, { eventId, userId, choiceIndex });
+  if (result.error) {
+    return res.status(400).json({ error: result.error });
+  }
+
+  res.json({ ok: true, damage: result.damage, defeated: result.defeated });
+});
+
+// GET /api/event/active
+router.get('/event/active', (_req, res) => {
+  res.json({ event: getActiveEvent() });
+});
+
 // POST /api/message
 router.post('/message', requireAuth, async (req, res) => {
   const { text, target = 'all', senderName, avatarUrl, ttsVoice, greenscreen, userId, color, font, animation, effect } = req.body;
@@ -917,10 +1018,22 @@ app.use('/api', router);
 app.use('/panel/css', express.static(path.join(__dirname, 'public', 'css')));
 app.use('/panel/js', express.static(path.join(__dirname, 'public', 'js')));
 
-// Route publique pour la page d'upload
-app.use('/upload', express.static(path.join(__dirname, 'public', 'upload')));
-app.get('/upload/*path', (_req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'upload', 'index.html'));
+// Route publique pour la page d'upload (rétrocompatibilité) et dashboard
+app.get('/upload', (req, res) => res.redirect('/dashboard'));
+app.use('/dashboard', express.static(path.join(__dirname, 'public', 'dashboard')));
+app.get('/dashboard', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'dashboard', 'index.html'));
+});
+app.get('/dashboard/*path', (_req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'dashboard', 'index.html'));
+});
+
+// Route API pour le dashboard: récupérer ses propres mèmes
+router.get('/me/memes', requireAuth, (req, res) => {
+  const userId = req.user?.id;
+  if (!userId) return res.status(401).json({ error: 'Non authentifié.' });
+  const memes = getUserMemes(userId);
+  res.json({ memes });
 });
 
 // ─── Panel Web ───────────────────────────────────────────────────────────────
