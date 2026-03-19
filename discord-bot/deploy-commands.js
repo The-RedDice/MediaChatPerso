@@ -214,6 +214,102 @@ const commands = [
        )),
 
   new SlashCommandBuilder()
+    .setName('event')
+    .setDescription('Lance un événement interactif (Boss ou Sondage) sur l\'overlay')
+    .addSubcommand(subcommand =>
+      subcommand
+        .setName('boss')
+        .setDescription('Fait apparaître un Boss à vaincre')
+        .addStringOption(option => option.setName('nom').setDescription('Nom du Boss').setRequired(true))
+        .addIntegerOption(option => option.setName('hp').setDescription('Points de vie (ex: 500)').setRequired(true))
+        .addAttachmentOption(option => option.setName('image').setDescription('Image du Boss').setRequired(false)))
+    .addSubcommand(subcommand =>
+      subcommand
+        .setName('sondage')
+        .setDescription('Affiche un sondage en temps réel')
+        .addStringOption(option => option.setName('question').setDescription('La question').setRequired(true))
+        .addStringOption(option => option.setName('choix1').setDescription('Choix 1').setRequired(true))
+        .addStringOption(option => option.setName('choix2').setDescription('Choix 2').setRequired(true))
+        .addStringOption(option => option.setName('choix3').setDescription('Choix 3 (optionnel)').setRequired(false))
+        .addStringOption(option => option.setName('choix4').setDescription('Choix 4 (optionnel)').setRequired(false))),
+
+  new SlashCommandBuilder()
+    .setName('ai')
+    .setDescription('Génère un message IA fun et l\'affiche sur l\'écran d\'un PC')
+    .addStringOption(o =>
+      o.setName('prompt')
+       .setDescription('Le sujet du message (ex: "Raconte une blague sur les chats")')
+       .setRequired(true))
+    .addUserOption(o =>
+      o.setName('cible')
+       .setDescription('Utilisateur du PC ciblé (laisser vide = tout le monde)')
+       .setRequired(false))
+    .addStringOption(o =>
+      o.setName('tts')
+       .setDescription('Nom de la voix TTS (ex: "mario", "robot"). Laissez vide pour aucun.')
+       .setRequired(false))
+    .addBooleanOption(o =>
+      o.setName('greenscreen')
+       .setDescription('Applique un filtre green screen pour enlever le fond vert')
+       .setRequired(false))
+    .addStringOption(o =>
+      o.setName('couleur')
+       .setDescription('Override la couleur (ex: red)')
+       .setRequired(false))
+    .addStringOption(o =>
+      o.setName('police')
+       .setDescription('Override la police')
+       .setRequired(false)
+       .addChoices(
+         { name: 'Pixel (Retro)', value: '"Press Start 2P"' },
+         { name: 'Horreur', value: 'Creepster' },
+         { name: 'Impact (Meme)', value: 'Impact' },
+         { name: 'Comic Sans MS (Troll)', value: '"Comic Sans MS"' },
+         { name: 'Courier New (Machine à écrire)', value: '"Courier New"' },
+         { name: 'Arial', value: 'Arial' },
+         { name: 'Georgia', value: 'Georgia' },
+         { name: 'Bangers (Comics)', value: 'Bangers' },
+         { name: 'Oswald (Gras)', value: 'Oswald' },
+         { name: 'Cinzel (Épique)', value: 'Cinzel' }
+       ))
+    .addStringOption(o =>
+      o.setName('animation')
+       .setDescription('Override l\'animation')
+       .setRequired(false)
+       .addChoices(
+         { name: 'Glitch', value: 'glitch' },
+         { name: 'Machine à écrire', value: 'typewriter' },
+         { name: 'Pulse', value: 'pulse' },
+         { name: 'Fondu (Fade)', value: 'fade' },
+         { name: 'Glissement (Slide)', value: 'slide' },
+         { name: 'Rebond (Bounce)', value: 'bounce' },
+         { name: 'Zoom', value: 'zoom' },
+         { name: 'Rotation (Spin)', value: 'spin' },
+         { name: 'Tremblement (Shake)', value: 'shake' },
+         { name: 'Chute (Drop)', value: 'drop' },
+         { name: 'Swing', value: 'swing' },
+         { name: 'Wobble', value: 'wobble' },
+         { name: 'Flip', value: 'flip' }
+       ))
+    .addStringOption(o =>
+      o.setName('effet')
+       .setDescription('Override l\'effet')
+       .setRequired(false)
+       .addChoices(
+         { name: 'Aucun', value: 'aucun' },
+         { name: 'Neige', value: 'neige' },
+         { name: 'Cœurs', value: 'coeurs' },
+         { name: 'Matrix', value: 'matrix' },
+         { name: 'Particules', value: 'particules' },
+         { name: 'Étoiles', value: 'etoiles' },
+         { name: 'Confetti', value: 'confetti' },
+         { name: 'Feu', value: 'feu' },
+         { name: 'Pluie', value: 'pluie' },
+         { name: 'Bulles', value: 'bulles' },
+         { name: 'Éclairs', value: 'eclairs' }
+       )),
+
+  new SlashCommandBuilder()
     .setName('message')
     .setDescription('Affiche un message en gros sur l\'écran d\'un PC')
     .addStringOption(o =>
@@ -344,7 +440,7 @@ const commands = [
        .setDescription('Le type de classement à afficher')
        .setRequired(false)
        .addChoices(
-         { name: 'Top Réputation', value: 'rep' },
+         { name: 'Top BordelCoins', value: 'coins' },
          { name: 'Top Médias Envoyés', value: 'media' },
          { name: 'Top Flop (Skip)', value: 'flop' }
        )),
@@ -360,6 +456,10 @@ const commands = [
   new SlashCommandBuilder()
     .setName('style')
     .setDescription('Ouvre un menu interactif pour personnaliser l\'affichage de vos envois (couleur, animation, police)'),
+
+  new SlashCommandBuilder()
+    .setName('shop')
+    .setDescription('Ouvre la boutique pour acheter des polices, animations et effets avec vos BordelCoins'),
 
   new SlashCommandBuilder()
     .setName('download')

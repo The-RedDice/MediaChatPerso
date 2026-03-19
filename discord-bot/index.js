@@ -102,7 +102,7 @@ async function sendReputationLog(interaction, title, description, thumbnail, mem
       .setTitle(title)
       .setDescription(description)
       .setAuthor({ name: interaction.user.displayName || interaction.user.username, iconURL: interaction.user.displayAvatarURL({ size: 64, extension: 'png' }) })
-      .setFooter({ text: `Réputation: 0` });
+      .setFooter({ text: `BordelCoins: 0` });
 
     if (thumbnail) embed.setThumbnail(thumbnail);
 
@@ -223,7 +223,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
         if (res && res.ok) {
           // Mise à jour de l'embed pour afficher le nouveau score
           if (embed) {
-            const newEmbed = EmbedBuilder.from(embed).setFooter({ text: `Réputation: ${res.newScore > 0 ? '+' : ''}${res.newScore}` });
+            const newEmbed = EmbedBuilder.from(embed).setFooter({ text: `BordelCoins: ${res.newScore > 0 ? '+' : ''}${res.newScore}` });
             await interaction.update({ embeds: [newEmbed] });
           } else {
             await interaction.reply({ content: `✅ Vote enregistré ! (${res.newScore > 0 ? '+' : ''}${res.newScore})`, ephemeral: true });
@@ -268,6 +268,44 @@ client.on(Events.InteractionCreate, async (interaction) => {
       return;
     }
 
+    // Gérer les interactions Boss
+    if (customId.startsWith('event_boss_hit_')) {
+      const eventId = customId.replace('event_boss_hit_', '');
+
+      try {
+        const res = await apiPost('/event/interact', { eventId, userId: interaction.user.id });
+        if (res.error) {
+          await interaction.reply({ content: `❌ ${res.error}`, ephemeral: true });
+        } else {
+          let msg = `💥 Tu as infligé **${res.damage}** dégâts !`;
+          if (res.defeated) msg += `\n🎉 **LE BOSS EST VAINCU !**`;
+          await interaction.reply({ content: msg, ephemeral: true });
+        }
+      } catch (err) {
+        await interaction.reply({ content: `❌ Erreur de connexion au serveur.`, ephemeral: true });
+      }
+      return;
+    }
+
+    // Gérer les interactions Sondage
+    if (customId.startsWith('event_sondage_vote_')) {
+      const parts = customId.split('_');
+      const choiceIndex = parseInt(parts.pop(), 10);
+      const eventId = parts.slice(3).join('_'); // recomposer event_id s'il contenait des underscores
+
+      try {
+        const res = await apiPost('/event/interact', { eventId, userId: interaction.user.id, choiceIndex });
+        if (res.error) {
+          await interaction.reply({ content: `❌ ${res.error}`, ephemeral: true });
+        } else {
+          await interaction.reply({ content: `✅ Ton vote a été enregistré !`, ephemeral: true });
+        }
+      } catch (err) {
+        await interaction.reply({ content: `❌ Erreur de connexion au serveur.`, ephemeral: true });
+      }
+      return;
+    }
+
     // Gérer les boutons "Vider la file" et "Skip actuel"
     if (customId.startsWith('clear_')) {
       const target = customId.replace('clear_', '');
@@ -305,6 +343,24 @@ client.on(Events.InteractionCreate, async (interaction) => {
       if (customId === 'select_font') payload.font = selectedValue;
       if (customId === 'select_anim') payload.animation = selectedValue;
       if (customId === 'select_effect') payload.effect = selectedValue;
+
+      // Gérer les achats dans la boutique
+      if (customId === 'shop_select_font' || customId === 'shop_select_anim' || customId === 'shop_select_effect') {
+        let type = customId.replace('shop_select_', '');
+        let price = type === 'effect' ? 50 : 20; // 50 pour effet, 20 pour le reste
+
+        try {
+          const res = await apiPost('/shop/buy', { userId, type, itemValue: selectedValue, price });
+          if (res.error) {
+            await interaction.reply({ content: `❌ ${res.error}`, ephemeral: true });
+          } else {
+            await interaction.reply({ content: `✅ Achat réussi ! Vous avez débloqué un nouvel élément. Utilisez \`/style\` pour l'équiper.`, ephemeral: true });
+          }
+        } catch (err) {
+          await interaction.reply({ content: `❌ Erreur lors de l'achat.`, ephemeral: true });
+        }
+        return;
+      }
     } else if (interaction.isModalSubmit() && customId === 'modal_color') {
       let colorValue = interaction.fields.getTextInputValue('color_input').trim();
       payload.color = colorValue || null;
@@ -391,7 +447,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
   const { commandName } = interaction;
 
   // Réponse différée pour les commandes longues
-  if (commandName === 'sendurl' || commandName === 'sendfile' || commandName === 'message' || commandName === 'online' || commandName === 'profile' || commandName === 'leaderboard' || commandName === 'queue' || commandName === 'download' || commandName === 'meme') {
+  if (commandName === 'sendurl' || commandName === 'sendfile' || commandName === 'message' || commandName === 'ai' || commandName === 'online' || commandName === 'profile' || commandName === 'leaderboard' || commandName === 'queue' || commandName === 'download' || commandName === 'meme' || commandName === 'event') {
     await interaction.deferReply();
   } else if (commandName === 'tuto' || commandName === 'style' || commandName === 'upload') {
     await interaction.deferReply({ ephemeral: true });
@@ -543,12 +599,12 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
         const totalMedia = (data.mediaCount || 0) + (data.fileCount || 0);
         const flops = data.skippedCount || 0;
-        const reputation = data.reputation || 0;
+        const bordelCoins = data.bordelCoins !== undefined ? data.bordelCoins : (data.reputation || 0);
         const profileData = data.profile || {};
 
         const rankMediaStr = data.rankMedia ? ` *(#${data.rankMedia})*` : '';
         const rankFlopStr = data.rankFlop ? ` *(#${data.rankFlop})*` : '';
-        const rankRepStr = data.rankRep ? ` *(#${data.rankRep})*` : '';
+        const rankCoinsStr = data.rankCoins ? ` *(#${data.rankCoins})*` : '';
 
         const embedColor = profileData.color && profileData.color.startsWith('#')
           ? profileData.color.toUpperCase()
@@ -560,7 +616,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
           .setColor(embedColor)
           .addFields(
             { name: '📊 Statistiques d\'envoi', value: `**Médias :** ${totalMedia}${rankMediaStr}\n**Messages Texte :** ${data.messageCount || 0}\n**Total :** ${data.totalCount}\n**Flops (Skips) :** ${flops}${rankFlopStr}`, inline: true },
-            { name: '⭐ Réputation', value: `**Score :** ${reputation}${rankRepStr}`, inline: true },
+            { name: '💰 BordelCoins', value: `**Solde :** ${bordelCoins}${rankCoinsStr}`, inline: true },
             { name: '\u200B', value: '\u200B' } // Espacement
           );
 
@@ -606,8 +662,9 @@ client.on(Events.InteractionCreate, async (interaction) => {
           let valueStr = '';
           if (type === 'flop') {
             valueStr = `${user.skippedCount || 0} flops`;
-          } else if (type === 'rep') {
-            valueStr = `${user.reputation || 0} réputation`;
+          } else if (type === 'coins') {
+            const coins = user.bordelCoins !== undefined ? user.bordelCoins : (user.reputation || 0);
+            valueStr = `${coins} pièces`;
           } else {
             const totalMedia = (user.mediaCount || 0) + (user.fileCount || 0);
             valueStr = `${totalMedia} médias`;
@@ -617,7 +674,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
         let title = '🏆 **TOP MÉDIAS BORDELBOX** 🏆';
         if (type === 'flop') title = '🏆 **TOP FLOP BORDELBOX (Médias Skippés)** 🏆';
-        if (type === 'rep') title = '🏆 **TOP RÉPUTATION BORDELBOX** 🏆';
+        if (type === 'coins') title = '🏆 **TOP BORDELCOINS** 🏆';
         await interaction.editReply(`${title}\n\n${list}`);
         break;
       }
@@ -627,85 +684,201 @@ client.on(Events.InteractionCreate, async (interaction) => {
         const userId = interaction.user.id;
         const data = await apiGet(`/style/${userId}`);
         const p = data.profile || {};
+        const unlocked = data.unlocked || { font: [], animation: [], effect: [] };
 
         let msg = `🎨 **Configuration de votre profil visuel**\n\n`;
         msg += `> **Couleur** : \`${p.color || 'Par défaut'}\`\n`;
         msg += `> **Police** : \`${p.font || 'Par défaut'}\`\n`;
         msg += `> **Animation** : \`${p.animation || 'Par défaut'}\`\n`;
         msg += `> **Effet** : \`${p.effect || 'Aucun'}\`\n\n`;
-        msg += `Utilisez les menus ci-dessous pour modifier votre style :`;
+        msg += `Utilisez les menus ci-dessous pour modifier votre style. *(Utilisez \`/shop\` pour débloquer de nouveaux éléments)*`;
 
-        const fontMenu = new ActionRowBuilder().addComponents(
-          new StringSelectMenuBuilder()
-            .setCustomId('select_font')
-            .setPlaceholder('Choisir une police...')
-            .addOptions([
-              { label: 'Par défaut', value: 'default' },
-              { label: 'Pixel (Retro)', value: '"Press Start 2P"' },
-              { label: 'Horreur', value: 'Creepster' },
-              { label: 'Impact (Meme)', value: 'Impact' },
-              { label: 'Comic Sans MS (Troll)', value: '"Comic Sans MS"' },
-              { label: 'Courier New (Machine à écrire)', value: '"Courier New"' },
-              { label: 'Arial (Classique)', value: 'Arial' },
-              { label: 'Georgia (Sérieux)', value: 'Georgia' },
-              { label: 'Bangers (Comics)', value: 'Bangers' },
-              { label: 'Oswald (Gras)', value: 'Oswald' },
-              { label: 'Cinzel (Épique)', value: 'Cinzel' }
-            ])
-        );
+        // Construire les options en fonction de ce qui est débloqué
+        const allFonts = [
+          { label: 'Par défaut', value: 'default', free: true },
+          { label: 'Pixel (Retro)', value: '"Press Start 2P"' },
+          { label: 'Horreur', value: 'Creepster' },
+          { label: 'Impact (Meme)', value: 'Impact' },
+          { label: 'Comic Sans MS (Troll)', value: '"Comic Sans MS"' },
+          { label: 'Courier New (Machine à écrire)', value: '"Courier New"' },
+          { label: 'Arial (Classique)', value: 'Arial' },
+          { label: 'Georgia (Sérieux)', value: 'Georgia' },
+          { label: 'Bangers (Comics)', value: 'Bangers' },
+          { label: 'Oswald (Gras)', value: 'Oswald' },
+          { label: 'Cinzel (Épique)', value: 'Cinzel' }
+        ];
 
-        const animMenu = new ActionRowBuilder().addComponents(
-          new StringSelectMenuBuilder()
-            .setCustomId('select_anim')
-            .setPlaceholder('Choisir une animation...')
-            .addOptions([
-              { label: 'Par défaut', value: 'default' },
-              { label: 'Glitch', value: 'glitch' },
-              { label: 'Machine à écrire', value: 'typewriter' },
-              { label: 'Pulse', value: 'pulse' },
-              { label: 'Fondu (Fade)', value: 'fade' },
-              { label: 'Glissement (Slide)', value: 'slide' },
-              { label: 'Rebond (Bounce)', value: 'bounce' },
-              { label: 'Zoom', value: 'zoom' },
-              { label: 'Rotation (Spin)', value: 'spin' },
-              { label: 'Tremblement (Shake)', value: 'shake' },
-              { label: 'Chute (Drop)', value: 'drop' },
-              { label: 'Swing', value: 'swing' },
-              { label: 'Wobble', value: 'wobble' },
-              { label: 'Flip', value: 'flip' }
-            ])
-        );
+        const allAnims = [
+          { label: 'Par défaut', value: 'default', free: true },
+          { label: 'Fondu (Fade)', value: 'fade', free: true },
+          { label: 'Glitch', value: 'glitch' },
+          { label: 'Machine à écrire', value: 'typewriter' },
+          { label: 'Pulse', value: 'pulse' },
+          { label: 'Glissement (Slide)', value: 'slide' },
+          { label: 'Rebond (Bounce)', value: 'bounce' },
+          { label: 'Zoom', value: 'zoom' },
+          { label: 'Rotation (Spin)', value: 'spin' },
+          { label: 'Tremblement (Shake)', value: 'shake' },
+          { label: 'Chute (Drop)', value: 'drop' },
+          { label: 'Swing', value: 'swing' },
+          { label: 'Wobble', value: 'wobble' },
+          { label: 'Flip', value: 'flip' }
+        ];
 
-        const effectMenu = new ActionRowBuilder().addComponents(
-          new StringSelectMenuBuilder()
-            .setCustomId('select_effect')
-            .setPlaceholder('Choisir un effet visuel...')
-            .addOptions([
-              { label: 'Aucun', value: 'aucun' },
-              { label: 'Neige', value: 'neige' },
-              { label: 'Cœurs', value: 'coeurs' },
-              { label: 'Matrix', value: 'matrix' },
-              { label: 'Particules', value: 'particules' },
-              { label: 'Étoiles', value: 'etoiles' },
-              { label: 'Confettis', value: 'confetti' },
-              { label: 'Feu', value: 'feu' },
-              { label: 'Pluie', value: 'pluie' },
-              { label: 'Bulles', value: 'bulles' },
-              { label: 'Éclairs', value: 'eclairs' }
-            ])
-        );
+        const allEffects = [
+          { label: 'Aucun', value: 'aucun', free: true },
+          { label: 'Neige', value: 'neige' },
+          { label: 'Cœurs', value: 'coeurs' },
+          { label: 'Matrix', value: 'matrix' },
+          { label: 'Particules', value: 'particules' },
+          { label: 'Étoiles', value: 'etoiles' },
+          { label: 'Confettis', value: 'confetti' },
+          { label: 'Feu', value: 'feu' },
+          { label: 'Pluie', value: 'pluie' },
+          { label: 'Bulles', value: 'bulles' },
+          { label: 'Éclairs', value: 'eclairs' }
+        ];
+
+        const availableFonts = allFonts.filter(f => f.free || unlocked.font.includes(f.value));
+        const availableAnims = allAnims.filter(a => a.free || unlocked.animation.includes(a.value));
+        const availableEffects = allEffects.filter(e => e.free || unlocked.effect.includes(e.value));
+
+        const components = [];
+
+        if (availableFonts.length > 0) {
+          components.push(new ActionRowBuilder().addComponents(
+            new StringSelectMenuBuilder()
+              .setCustomId('select_font')
+              .setPlaceholder('Choisir une police...')
+              .addOptions(availableFonts)
+          ));
+        }
+
+        if (availableAnims.length > 0) {
+          components.push(new ActionRowBuilder().addComponents(
+            new StringSelectMenuBuilder()
+              .setCustomId('select_anim')
+              .setPlaceholder('Choisir une animation...')
+              .addOptions(availableAnims)
+          ));
+        }
+
+        if (availableEffects.length > 0) {
+          components.push(new ActionRowBuilder().addComponents(
+            new StringSelectMenuBuilder()
+              .setCustomId('select_effect')
+              .setPlaceholder('Choisir un effet visuel...')
+              .addOptions(availableEffects)
+          ));
+        }
 
         const colorBtnRow = new ActionRowBuilder().addComponents(
           new ButtonBuilder()
             .setCustomId('btn_color')
-            .setLabel('Modifier la Couleur')
+            .setLabel('Modifier la Couleur (Gratuit)')
             .setStyle(ButtonStyle.Primary)
         );
+        components.push(colorBtnRow);
 
         await interaction.editReply({
           content: msg,
-          components: [fontMenu, animMenu, effectMenu, colorBtnRow]
+          components: components
         });
+        break;
+      }
+
+      // ── /shop ──────────────────────────────────────────
+      case 'shop': {
+        const userId = interaction.user.id;
+        const data = await apiGet(`/style/${userId}`);
+        const unlocked = data.unlocked || { font: [], animation: [], effect: [] };
+
+        const statsData = await apiGet(`/stats/${userId}`);
+        const coins = (statsData && statsData.bordelCoins !== undefined) ? statsData.bordelCoins : (statsData && statsData.reputation) || 0;
+
+        let msg = `🛒 **Boutique BordelBox**\n\n`;
+        msg += `> **Votre solde :** 💰 \`${coins} BordelCoins\`\n\n`;
+        msg += `Sélectionnez un élément ci-dessous pour l'acheter. (20 💰 pour Polices/Animations, 50 💰 pour Effets)`;
+
+        const allFonts = [
+          { label: 'Pixel (Retro)', value: '"Press Start 2P"' },
+          { label: 'Horreur', value: 'Creepster' },
+          { label: 'Impact (Meme)', value: 'Impact' },
+          { label: 'Comic Sans MS (Troll)', value: '"Comic Sans MS"' },
+          { label: 'Courier New (Machine)', value: '"Courier New"' },
+          { label: 'Arial', value: 'Arial' },
+          { label: 'Georgia', value: 'Georgia' },
+          { label: 'Bangers (Comics)', value: 'Bangers' },
+          { label: 'Oswald (Gras)', value: 'Oswald' },
+          { label: 'Cinzel (Épique)', value: 'Cinzel' }
+        ];
+
+        const allAnims = [
+          { label: 'Glitch', value: 'glitch' },
+          { label: 'Machine à écrire', value: 'typewriter' },
+          { label: 'Pulse', value: 'pulse' },
+          { label: 'Glissement (Slide)', value: 'slide' },
+          { label: 'Rebond (Bounce)', value: 'bounce' },
+          { label: 'Zoom', value: 'zoom' },
+          { label: 'Rotation (Spin)', value: 'spin' },
+          { label: 'Tremblement (Shake)', value: 'shake' },
+          { label: 'Chute (Drop)', value: 'drop' },
+          { label: 'Swing', value: 'swing' },
+          { label: 'Wobble', value: 'wobble' },
+          { label: 'Flip', value: 'flip' }
+        ];
+
+        const allEffects = [
+          { label: 'Neige', value: 'neige' },
+          { label: 'Cœurs', value: 'coeurs' },
+          { label: 'Matrix', value: 'matrix' },
+          { label: 'Particules', value: 'particules' },
+          { label: 'Étoiles', value: 'etoiles' },
+          { label: 'Confettis', value: 'confetti' },
+          { label: 'Feu', value: 'feu' },
+          { label: 'Pluie', value: 'pluie' },
+          { label: 'Bulles', value: 'bulles' },
+          { label: 'Éclairs', value: 'eclairs' }
+        ];
+
+        const buyableFonts = allFonts.filter(f => !unlocked.font.includes(f.value));
+        const buyableAnims = allAnims.filter(a => !unlocked.animation.includes(a.value));
+        const buyableEffects = allEffects.filter(e => !unlocked.effect.includes(e.value));
+
+        const components = [];
+
+        if (buyableFonts.length > 0) {
+          components.push(new ActionRowBuilder().addComponents(
+            new StringSelectMenuBuilder()
+              .setCustomId('shop_select_font')
+              .setPlaceholder('Acheter une police (20 💰)...')
+              .addOptions(buyableFonts)
+          ));
+        }
+
+        if (buyableAnims.length > 0) {
+          components.push(new ActionRowBuilder().addComponents(
+            new StringSelectMenuBuilder()
+              .setCustomId('shop_select_anim')
+              .setPlaceholder('Acheter une animation (20 💰)...')
+              .addOptions(buyableAnims)
+          ));
+        }
+
+        if (buyableEffects.length > 0) {
+          components.push(new ActionRowBuilder().addComponents(
+            new StringSelectMenuBuilder()
+              .setCustomId('shop_select_effect')
+              .setPlaceholder('Acheter un effet (50 💰)...')
+              .addOptions(buyableEffects)
+          ));
+        }
+
+        if (components.length === 0) {
+          msg += `\n\n🎉 **Vous avez tout débloqué !** Il n'y a plus rien à acheter.`;
+        }
+
+        await interaction.editReply({ content: msg, components: components });
         break;
       }
 
@@ -802,6 +975,114 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
           await interaction.editReply({ embeds: [embed] });
         }
+        break;
+      }
+
+      // ── /event ─────────────────────────────────────────
+      case 'event': {
+        const subCmd = interaction.options.getSubcommand();
+        const userId = interaction.user.id;
+
+        if (subCmd === 'boss') {
+          const name = interaction.options.getString('nom', true);
+          const hp = interaction.options.getInteger('hp', true);
+          const imageOpt = interaction.options.getAttachment('image');
+          const image = imageOpt ? imageOpt.url : null;
+
+          const res = await apiPost('/event/start', { type: 'boss', name, hp, image, duration: 60000 });
+
+          if (res.error) {
+            await interaction.editReply(`❌ Erreur : ${res.error}`);
+            return;
+          }
+
+          const embed = new EmbedBuilder()
+            .setColor(0xED4245)
+            .setTitle(`⚔️ Un Boss est apparu !`)
+            .setDescription(`**${name}** a **${hp} HP**.\n\nSpammez le bouton pour l'attaquer ! (60 secondes)`);
+
+          if (image) embed.setThumbnail(image);
+
+          const row = new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+              .setCustomId(`event_boss_hit_${res.event.id}`)
+              .setLabel('🗡️ Attaquer !')
+              .setStyle(ButtonStyle.Danger)
+          );
+
+          await interaction.editReply({ embeds: [embed], components: [row] });
+        }
+        else if (subCmd === 'sondage') {
+          const question = interaction.options.getString('question', true);
+          const c1 = interaction.options.getString('choix1', true);
+          const c2 = interaction.options.getString('choix2', true);
+          const c3 = interaction.options.getString('choix3');
+          const c4 = interaction.options.getString('choix4');
+
+          const choices = [c1, c2];
+          if (c3) choices.push(c3);
+          if (c4) choices.push(c4);
+
+          const res = await apiPost('/event/start', { type: 'sondage', question, choices, duration: 60000 });
+
+          if (res.error) {
+            await interaction.editReply(`❌ Erreur : ${res.error}`);
+            return;
+          }
+
+          const embed = new EmbedBuilder()
+            .setColor(0x5865F2)
+            .setTitle(`📊 Sondage en direct !`)
+            .setDescription(`**${question}**\n\nVotez avec les boutons ci-dessous ! (60 secondes)`);
+
+          const row = new ActionRowBuilder();
+          choices.forEach((c, index) => {
+            row.addComponents(
+              new ButtonBuilder()
+                .setCustomId(`event_sondage_vote_${res.event.id}_${index}`)
+                .setLabel(c.substring(0, 80))
+                .setStyle(ButtonStyle.Primary)
+            );
+          });
+
+          await interaction.editReply({ embeds: [embed], components: [row] });
+        }
+        break;
+      }
+
+      // ── /ai ────────────────────────────────────────────
+      case 'ai': {
+        const prompt   = interaction.options.getString('prompt', true);
+        const targetUser = interaction.options.getUser('cible');
+        const target  = targetUser ? targetUser.username : 'all';
+        const ttsVoice = interaction.options.getString('tts') || '';
+        const greenscreen = interaction.options.getBoolean('greenscreen') || false;
+
+        const senderName = interaction.user.displayName || interaction.user.username;
+        const avatarUrl  = interaction.user.displayAvatarURL({ size: 64, extension: 'png' });
+        const userId     = interaction.user.id;
+
+        // Récupérer le profil et override
+        const profileData = await apiGet(`/style/${userId}`);
+        const profile = profileData.profile || {};
+        const color = interaction.options.getString('couleur') || profile.color;
+        const font = interaction.options.getString('police') || profile.font;
+        const animation = interaction.options.getString('animation') || profile.animation;
+        const effect = interaction.options.getString('effet') || profile.effect;
+
+        await interaction.editReply(`🤖 Génération de la réponse IA pour "${prompt}"...`);
+
+        const data = await apiPost('/ai', { prompt, target, senderName, avatarUrl, ttsVoice, greenscreen, userId, color, font, animation, effect });
+
+        if (data.error) {
+          await interaction.editReply(`❌ Erreur IA : ${data.error}`);
+          return;
+        }
+
+        await interaction.editReply(
+          `🤖 Message IA envoyé à **${target === 'all' ? 'tout le monde' : target}** :\n> ${data.text}`
+        );
+        await sendReputationLog(interaction, 'Nouveau Message IA Envoyé', `**Cible :** ${target === 'all' ? 'Tout le monde' : target}\n**Prompt :** ${prompt}\n**Réponse :** ${data.text}`);
         break;
       }
 
@@ -1020,7 +1301,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
           .addFields(
             {
               name: '🚀 Commandes d\'Envoi',
-              value: '`/sendurl` : Envoie une vidéo YouTube, TikTok ou un lien direct (mp4, mp3, image).\n`/sendfile` : Uploade directement un fichier (image, vidéo, audio, max 250 Mo).\n`/message` : Affiche un gros texte animé sur les écrans.'
+              value: '`/sendurl` : Envoie une vidéo YouTube, TikTok ou un lien direct (mp4, mp3, image).\n`/sendfile` : Uploade directement un fichier (image, vidéo, audio, max 250 Mo).\n`/message` : Affiche un gros texte animé sur les écrans.\n`/ai` : Génère un message fun avec l\'IA Gemini.'
             },
             {
               name: '⚙️ Options d\'Envoi',
@@ -1031,8 +1312,8 @@ client.on(Events.InteractionCreate, async (interaction) => {
               value: 'Sauvegardez vos médias favoris avec le bouton **💾 Mème** dans le salon de réputation.\n`/meme play <nom>` : Lance un de vos mèmes\n`/meme list` : Affiche vos mèmes sauvegardés\n`/meme remove <nom>` : Supprime un mème'
             },
             {
-              name: '⭐ Réputation & Statistiques',
-              value: 'Chaque envoi génère un vote 👍/👎 dans le salon de réputation.\n`/profile` : Affiche vos statistiques, réputation et style visuel.\n`/leaderboard` : Classement global (Médias, Flop, Réputation).'
+              name: '⭐ BordelCoins & Statistiques',
+              value: 'Chaque envoi génère un vote 👍/👎 dans le salon de réputation, qui vous fait gagner ou perdre des BordelCoins.\n`/profile` : Affiche vos statistiques, solde et style visuel.\n`/leaderboard` : Classement global (Médias, Flop, BordelCoins).'
             },
             {
               name: '🔧 Utilitaires & Gestion',
