@@ -281,20 +281,66 @@ client.on(Events.InteractionCreate, async (interaction) => {
           await interaction.reply({ content: `❌ ${res.error}`, ephemeral: true });
         } else {
           let msg = `💥 Tu as infligé **${res.damage}** dégâts !`;
-          if (res.defeated) {
-            msg += `\n🎉 **LE BOSS EST VAINCU !**`;
 
-            // Check if user got rewards
-            if (res.rewards) {
-              const userRewardEntry = res.rewards.find(r => r[0] === interaction.user.id);
-              if (userRewardEntry) {
-                msg += `\n💰 Tu as gagné **${userRewardEntry[1]} BordelCoins** pour ta participation !`;
+          if (res.defeated) {
+            // Check if user got rewards for their personal notification
+            let userRewardMsg = '';
+            if (res.participantsStats) {
+              const userStats = res.participantsStats.find(p => p.userId === interaction.user.id);
+              if (userStats && userStats.reward > 0) {
+                userRewardMsg = `\n💰 Tu as gagné **${userStats.reward} BordelCoins** (${userStats.percent}% des dégâts) !`;
               } else {
-                msg += `\n*(Tu n'as pas gagné de BordelCoins car ton overlay n'était pas connecté.)*`;
+                userRewardMsg = `\n*(Tu n'as pas gagné de BordelCoins car ton overlay n'était pas connecté.)*`;
               }
             }
+
+            await interaction.reply({ content: msg + `\n🎉 **LE BOSS EST VAINCU !**` + userRewardMsg, ephemeral: true });
+
+            // Broadcast the public notification in the channel
+            const channel = interaction.channel;
+            if (channel) {
+              const embed = new EmbedBuilder()
+                .setColor(0xED4245)
+                .setTitle('🎉 LE BOSS EST VAINCU ! 🎉')
+                .setDescription(`Le Boss a été terrassé grâce à l'effort combiné de nos héros !\n**Cagnotte totale : ${res.prizePool} pièces**`)
+                .setThumbnail('https://cdn-icons-png.flaticon.com/512/1004/1004305.png');
+
+              let participantsList = '';
+              if (res.participantsStats && res.participantsStats.length > 0) {
+                // Top 3 gets special medals
+                const medals = ['🥇', '🥈', '🥉'];
+
+                const topParticipants = res.participantsStats.slice(0, 10);
+
+                topParticipants.forEach((p, index) => {
+                  const rank = index < 3 ? medals[index] : `**#${index + 1}**`;
+                  participantsList += `${rank} **${p.username}** — ${p.damage} dégâts (${p.percent}%) ➡️ **+${p.reward} pièces**\n`;
+                });
+
+                if (res.participantsStats.length > 10) {
+                  participantsList += `\n*... et ${res.participantsStats.length - 10} autres héros ont combattu !*`;
+                }
+              } else {
+                participantsList = '*Aucun héros n\'a survécu pour réclamer la prime...*';
+              }
+
+              embed.addFields({ name: '🏆 Tableau des scores', value: participantsList });
+
+              // We try to edit the original message that contains the boss
+              if (interaction.message && interaction.message.editable) {
+                const oldEmbed = EmbedBuilder.from(interaction.message.embeds[0]);
+                oldEmbed.setTitle('☠️ Le Boss a été vaincu !');
+                oldEmbed.setColor(0x36393F); // Dark color for defeated
+                // Remove the button
+                await interaction.message.edit({ embeds: [oldEmbed], components: [] });
+              }
+
+              await channel.send({ embeds: [embed] });
+            }
+
+          } else {
+            await interaction.reply({ content: msg, ephemeral: true });
           }
-          await interaction.reply({ content: msg, ephemeral: true });
         }
       } catch (err) {
         await interaction.reply({ content: `❌ Erreur de connexion au serveur.`, ephemeral: true });

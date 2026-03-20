@@ -32,6 +32,7 @@ function startEvent(io, eventData) {
       greenscreen: eventData.greenscreen || false,
       filter: eventData.filter || 'aucun',
       effect: eventData.effect || 'aucun',
+      connectedIds: eventData.connectedIds || [],
       startTime: now,
       participants: new Map()
     };
@@ -86,25 +87,57 @@ function interactEvent(io, interactionData) {
       const serializableEvent = { ...activeEvent, participants: Array.from(activeEvent.participants.keys()) };
       io.emit('event_update', serializableEvent);
 
-      const wonCoins = new Map();
       const stats = require('./stats');
 
-      // Récompenser tous les joueurs qui ont participé
+      // Calcul de la cagnotte dynamique en fonction des PC connectés
+      let totalConnectedPlayers = 1;
+      try {
+        const { getClientList } = require('./server');
+        const clients = getClientList();
+        totalConnectedPlayers = clients.length > 0 ? clients.length : 1;
+      } catch(e) {
+        // Fallback sécurisé
+        totalConnectedPlayers = activeEvent.connectedIds.length || 1;
+      }
+      const totalPrizePool = totalConnectedPlayers * 15;
+
+      let totalDamage = 0;
+      for (const pData of activeEvent.participants.values()) {
+        totalDamage += pData.damage;
+      }
+
+      // Distribution des récompenses en fonction des dégâts
+      const participantsStats = [];
+      const wonCoins = new Map();
+
       for (const [pId, pData] of activeEvent.participants.entries()) {
-        const reward = Math.floor(Math.random() * 16) + 5; // Entre 5 et 20 coins
-        stats.addCoins(pId, reward);
-        wonCoins.set(pId, reward);
+        const damagePercent = totalDamage > 0 ? (pData.damage / totalDamage) : 0;
+        // On arrondit pour avoir des pièces entières
+        const reward = Math.round(damagePercent * totalPrizePool);
+
+        if (reward > 0) {
+          stats.addCoins(pId, reward);
+          wonCoins.set(pId, reward);
+        }
+
+        participantsStats.push({
+          userId: pId,
+          username: pData.username,
+          damage: pData.damage,
+          percent: Math.round(damagePercent * 100),
+          reward: reward
+        });
       }
 
       // Trier les participants par dégâts décroissants
-      const sortedParticipants = Array.from(activeEvent.participants.values()).sort((a, b) => b.damage - a.damage);
-      // Prendre les 3 meilleurs
-      const top3Names = sortedParticipants.slice(0, 3).map(p => p.username).join(', ');
+      participantsStats.sort((a, b) => b.damage - a.damage);
+      // Prendre les 3 meilleurs pour le nom "killer" (garder pour compatibilité)
+      const top3Names = participantsStats.slice(0, 3).map(p => p.username).join(', ');
 
       const killerName = top3Names || 'Un héros';
 
       endEvent(io, { reason: 'defeated', killer: killerName, participants: Array.from(activeEvent.participants.keys()), coinsMap: Array.from(wonCoins.entries()) });
-      return { ok: true, damage: damageDealt, defeated: true, eventId: activeEvent.id, rewards: Array.from(wonCoins.entries()) };
+      return { ok: true, damage: damageDealt, defeated: true, eventId: activeEvent.id, rewards: Array.from(wonCoins.entries()), participantsStats, prizePool: totalPrizePool };
     }
     updated = true;
   }

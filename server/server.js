@@ -996,7 +996,14 @@ router.post('/event/interact', (req, res) => {
     return res.status(400).json({ error: result.error });
   }
 
-  res.json({ ok: true, damage: result.damage, defeated: result.defeated });
+  // Si c'est un événement boss et qu'il vient d'être vaincu, result contiendra participantsStats et prizePool
+  res.json({
+    ok: true,
+    damage: result.damage,
+    defeated: result.defeated,
+    participantsStats: result.participantsStats,
+    prizePool: result.prizePool
+  });
 });
 
 // GET /api/event/active

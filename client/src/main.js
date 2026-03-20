@@ -974,13 +974,6 @@ function connectSocket() {
       const killer = (event.result && event.result.killer) ? event.result.killer : 'Un héros';
       document.getElementById('boss-hp-text').textContent = `VAINCU PAR ${killer} !`;
 
-      const notificationContainer = document.getElementById('top-notification');
-      if (notificationContainer) {
-        notificationContainer.textContent = `🎉 Le Boss ${event.name} a été vaincu par ${killer} ! 🎉`;
-        notificationContainer.classList.add('visible');
-        setTimeout(() => notificationContainer.classList.remove('visible'), 5000);
-      }
-
       setTimeout(() => {
         eventContainer.classList.remove('visible');
       }, 5000);
