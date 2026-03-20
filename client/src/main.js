@@ -724,6 +724,11 @@ window.hideAll = function hideAll() {
     voteskipContainer.classList.remove('visible');
     if (voteskipCount) voteskipCount.textContent = '0/0';
   }
+
+  const eventContainer = document.getElementById('event-container');
+  if (eventContainer) {
+    eventContainer.classList.remove('visible');
+  }
 }
 
 window.updateOverlayBadge = function updateOverlayBadge() {
