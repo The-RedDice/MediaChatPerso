@@ -33,7 +33,7 @@ function startEvent(io, eventData) {
       filter: eventData.filter || 'aucun',
       effect: eventData.effect || 'aucun',
       startTime: now,
-      participants: new Set()
+      participants: new Map()
     };
   } else if (eventData.type === 'sondage') {
     activeEvent = {
@@ -49,7 +49,7 @@ function startEvent(io, eventData) {
   }
 
   const serializableEvent = { ...activeEvent };
-  if (serializableEvent.participants) serializableEvent.participants = Array.from(serializableEvent.participants);
+  if (serializableEvent.participants) serializableEvent.participants = Array.from(serializableEvent.participants.keys());
   if (serializableEvent.voters) serializableEvent.voters = Array.from(serializableEvent.voters);
   io.emit('event_start', serializableEvent);
 
@@ -71,35 +71,39 @@ function interactEvent(io, interactionData) {
   let damageDealt = null;
 
   if (activeEvent.type === 'boss') {
-    if (!activeEvent.participants) activeEvent.participants = new Set();
-    activeEvent.participants.add(interactionData.userId);
+    if (!activeEvent.participants) activeEvent.participants = new Map();
 
     damageDealt = Math.floor(Math.random() * 10) + 5;
     activeEvent.currentHp -= damageDealt;
 
+    const currentData = activeEvent.participants.get(interactionData.userId) || { username: interactionData.username, damage: 0 };
+    currentData.damage += damageDealt;
+    activeEvent.participants.set(interactionData.userId, currentData);
+
     if (activeEvent.currentHp <= 0) {
       activeEvent.currentHp = 0;
       updated = true;
-      const serializableEvent = { ...activeEvent, participants: Array.from(activeEvent.participants) };
+      const serializableEvent = { ...activeEvent, participants: Array.from(activeEvent.participants.keys()) };
       io.emit('event_update', serializableEvent);
 
       const wonCoins = new Map();
       const stats = require('./stats');
-      const { getConnectedDiscordIds } = require('./server');
 
-      // Obtenir la liste *actuelle* des IDs Discord connectés à l'overlay
-      const connectedNow = getConnectedDiscordIds();
-
-      // Récompenser les joueurs connectés qui ont participé
-      for (const pId of activeEvent.participants) {
-        if (connectedNow.has(pId)) {
-          const reward = Math.floor(Math.random() * 16) + 5; // Entre 5 et 20 coins
-          stats.addCoins(pId, reward);
-          wonCoins.set(pId, reward);
-        }
+      // Récompenser tous les joueurs qui ont participé
+      for (const [pId, pData] of activeEvent.participants.entries()) {
+        const reward = Math.floor(Math.random() * 16) + 5; // Entre 5 et 20 coins
+        stats.addCoins(pId, reward);
+        wonCoins.set(pId, reward);
       }
 
-      endEvent(io, { reason: 'defeated', killer: interactionData.username, participants: Array.from(activeEvent.participants), coinsMap: Array.from(wonCoins.entries()) });
+      // Trier les participants par dégâts décroissants
+      const sortedParticipants = Array.from(activeEvent.participants.values()).sort((a, b) => b.damage - a.damage);
+      // Prendre les 3 meilleurs
+      const top3Names = sortedParticipants.slice(0, 3).map(p => p.username).join(', ');
+
+      const killerName = top3Names || 'Un héros';
+
+      endEvent(io, { reason: 'defeated', killer: killerName, participants: Array.from(activeEvent.participants.keys()), coinsMap: Array.from(wonCoins.entries()) });
       return { ok: true, damage: damageDealt, defeated: true, eventId: activeEvent.id, rewards: Array.from(wonCoins.entries()) };
     }
     updated = true;
@@ -123,7 +127,7 @@ function interactEvent(io, interactionData) {
 
   if (updated) {
     const serializableEvent = { ...activeEvent };
-    if (serializableEvent.participants) serializableEvent.participants = Array.from(serializableEvent.participants);
+    if (serializableEvent.participants) serializableEvent.participants = Array.from(serializableEvent.participants.keys());
     if (serializableEvent.voters) serializableEvent.voters = Array.from(serializableEvent.voters);
     io.emit('event_update', serializableEvent);
   }
@@ -140,7 +144,7 @@ function endEvent(io, result) {
   }
 
   const serializableEvent = { ...activeEvent, result };
-  if (serializableEvent.participants) serializableEvent.participants = Array.from(serializableEvent.participants);
+  if (serializableEvent.participants) serializableEvent.participants = Array.from(serializableEvent.participants.keys());
   if (serializableEvent.voters) serializableEvent.voters = Array.from(serializableEvent.voters);
   io.emit('event_end', serializableEvent);
 
