@@ -275,7 +275,8 @@ client.on(Events.InteractionCreate, async (interaction) => {
       const eventId = customId.replace('event_boss_hit_', '');
 
       try {
-        const res = await apiPost('/event/interact', { eventId, userId: interaction.user.id });
+        const username = interaction.member?.displayName || interaction.user.username;
+        const res = await apiPost('/event/interact', { eventId, userId: interaction.user.id, username });
         if (res.error) {
           await interaction.reply({ content: `❌ ${res.error}`, ephemeral: true });
         } else {
@@ -1001,8 +1002,11 @@ client.on(Events.InteractionCreate, async (interaction) => {
           const name = interaction.options.getString('nom', true);
           const imageOpt = interaction.options.getAttachment('image');
           const image = imageOpt ? imageOpt.url : null;
+          const greenscreen = interaction.options.getBoolean('greenscreen') || false;
+          const filter = interaction.options.getString('filter') || 'aucun';
+          const effect = interaction.options.getString('effet') || 'aucun';
 
-          const res = await apiPost('/event/start', { type: 'boss', name, image, duration: 60000 });
+          const res = await apiPost('/event/start', { type: 'boss', name, image, duration: 60000, greenscreen, filter, effect });
 
           if (res.error) {
             await interaction.editReply(`❌ Erreur : ${res.error}`);

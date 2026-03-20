@@ -919,7 +919,30 @@ function connectSocket() {
       const faces = document.querySelectorAll('#boss-cube .face');
       faces.forEach(face => {
         face.style.backgroundImage = `url(${imageUrl})`;
+
+        // Appliquer greenscreen s'il y a lieu
+        if (event.greenscreen) {
+          face.style.filter = 'url(#chroma-key)';
+        } else {
+          face.style.filter = '';
+        }
+
+        // Appliquer les filtres visuels supplémentaires s'il y en a un (et pas déjà de greenscreen SVG)
+        if (event.filter && event.filter !== 'aucun') {
+           const cssFilt = getCssFilter(event.filter);
+           if (!event.greenscreen) face.style.filter = cssFilt; // Greenscreen et filter simple peuvent mal interagir selon les navigateurs
+        }
       });
+
+      // Appliquer les effets de particules si demandés
+      const cubeScene = document.querySelector('.cube-scene');
+      // On retire les anciens effets s'il y en a
+      const oldEffects = cubeScene.querySelectorAll('.particle, .snow, .heart, .matrix-char, .star, .confetti, .fire, .rain, .bubble, .lightning');
+      oldEffects.forEach(e => e.remove());
+
+      if (event.effect && event.effect !== 'aucun') {
+        applyStyle({ style: { effect: event.effect } }, null, cubeScene); // Réutilise applyStyle qui gère l'injection des particules !
+      }
 
       updateBossHp(event.currentHp, event.hp);
     }
@@ -943,10 +966,19 @@ function connectSocket() {
   socket.on('event_end', (event) => {
     const eventContainer = document.getElementById('event-container');
     if (event.type === 'boss' && event.currentHp <= 0) {
-      document.getElementById('boss-hp-text').textContent = 'VAINCU !';
+      const killer = (event.result && event.result.killer) ? event.result.killer : 'Un héros';
+      document.getElementById('boss-hp-text').textContent = `VAINCU PAR ${killer} !`;
+
+      const notificationContainer = document.getElementById('top-notification');
+      if (notificationContainer) {
+        notificationContainer.textContent = `🎉 Le Boss ${event.name} a été vaincu par ${killer} ! 🎉`;
+        notificationContainer.classList.add('visible');
+        setTimeout(() => notificationContainer.classList.remove('visible'), 5000);
+      }
+
       setTimeout(() => {
         eventContainer.classList.remove('visible');
-      }, 3000);
+      }, 5000);
     } else {
       eventContainer.classList.remove('visible');
     }

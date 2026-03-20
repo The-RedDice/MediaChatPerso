@@ -221,7 +221,31 @@ const commands = [
         .setName('boss')
         .setDescription('Fait apparaître un Boss à vaincre')
         .addStringOption(option => option.setName('nom').setDescription('Nom du Boss').setRequired(true))
-        .addAttachmentOption(option => option.setName('image').setDescription('Image du Boss').setRequired(false)))
+        .addAttachmentOption(option => option.setName('image').setDescription('Image du Boss').setRequired(false))
+        .addBooleanOption(o => o.setName('greenscreen').setDescription('Enlever le fond vert ? (si fond vert)').setRequired(false))
+        .addStringOption(o => o.setName('filter').setDescription('Appliquer un filtre visuel').setRequired(false).addChoices(
+          { name: 'Aucun', value: 'aucun' },
+          { name: 'N&B', value: 'grayscale' },
+          { name: 'Sépia', value: 'sepia' },
+          { name: 'Inverser', value: 'invert' },
+          { name: 'Flou', value: 'blur' },
+          { name: 'Contraste', value: 'contrast' },
+          { name: 'Pixel', value: 'pixelate' },
+          { name: 'Hue', value: 'hue' }
+        ))
+        .addStringOption(o => o.setName('effet').setDescription('Appliquer un effet').setRequired(false).addChoices(
+          { name: 'Aucun', value: 'aucun' },
+          { name: 'Neige', value: 'neige' },
+          { name: 'Cœurs', value: 'coeurs' },
+          { name: 'Matrix', value: 'matrix' },
+          { name: 'Particules', value: 'particules' },
+          { name: 'Étoiles', value: 'etoiles' },
+          { name: 'Confetti', value: 'confetti' },
+          { name: 'Feu', value: 'feu' },
+          { name: 'Pluie', value: 'pluie' },
+          { name: 'Bulles', value: 'bulles' },
+          { name: 'Éclairs', value: 'eclairs' }
+        )))
     .addSubcommand(subcommand =>
       subcommand
         .setName('sondage')

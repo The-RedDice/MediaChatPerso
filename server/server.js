@@ -961,7 +961,7 @@ router.post('/ai', requireAuth, async (req, res) => {
 
 // POST /api/event/start
 router.post('/event/start', requireAuth, (req, res) => {
-  const { type, name, image, question, choices, duration } = req.body;
+  const { type, name, image, question, choices, duration, greenscreen, filter, effect } = req.body;
   if (!type || (type !== 'boss' && type !== 'sondage')) {
     return res.status(400).json({ error: 'Type d\'événement invalide (boss ou sondage).' });
   }
@@ -974,7 +974,7 @@ router.post('/event/start', requireAuth, (req, res) => {
   }
 
   // We need to pass the list of connected IDs to the event system to reward players later
-  const result = startEvent(io, { type, name, hp, image, question, choices, duration, connectedIds: Array.from(connectedIds) });
+  const result = startEvent(io, { type, name, hp, image, question, choices, duration, connectedIds: Array.from(connectedIds), greenscreen, filter, effect });
 
   if (result.error) {
     return res.status(400).json(result);
@@ -985,13 +985,13 @@ router.post('/event/start', requireAuth, (req, res) => {
 
 // POST /api/event/interact
 router.post('/event/interact', (req, res) => {
-  const { eventId, userId, choiceIndex } = req.body;
+  const { eventId, userId, username, choiceIndex } = req.body;
 
   if (!eventId || !userId) {
     return res.status(400).json({ error: 'Paramètres manquants.' });
   }
 
-  const result = interactEvent(io, { eventId, userId, choiceIndex });
+  const result = interactEvent(io, { eventId, userId, username, choiceIndex });
   if (result.error) {
     return res.status(400).json({ error: result.error });
   }

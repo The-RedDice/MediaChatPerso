@@ -29,6 +29,9 @@ function startEvent(io, eventData) {
       hp: eventData.hp || 100,
       currentHp: eventData.hp || 100,
       image: eventData.image,
+      greenscreen: eventData.greenscreen || false,
+      filter: eventData.filter || 'aucun',
+      effect: eventData.effect || 'aucun',
       startTime: now,
       participants: new Set()
     };
@@ -65,13 +68,14 @@ function interactEvent(io, interactionData) {
   }
 
   let updated = false;
+  let damageDealt = null;
 
   if (activeEvent.type === 'boss') {
     if (!activeEvent.participants) activeEvent.participants = new Set();
     activeEvent.participants.add(interactionData.userId);
 
-    const damage = Math.floor(Math.random() * 10) + 5;
-    activeEvent.currentHp -= damage;
+    damageDealt = Math.floor(Math.random() * 10) + 5;
+    activeEvent.currentHp -= damageDealt;
 
     if (activeEvent.currentHp <= 0) {
       activeEvent.currentHp = 0;
@@ -95,8 +99,8 @@ function interactEvent(io, interactionData) {
         }
       }
 
-      endEvent(io, { reason: 'defeated', participants: Array.from(activeEvent.participants), coinsMap: Array.from(wonCoins.entries()) });
-      return { ok: true, damage, defeated: true, eventId: activeEvent.id, rewards: Array.from(wonCoins.entries()) };
+      endEvent(io, { reason: 'defeated', killer: interactionData.username, participants: Array.from(activeEvent.participants), coinsMap: Array.from(wonCoins.entries()) });
+      return { ok: true, damage: damageDealt, defeated: true, eventId: activeEvent.id, rewards: Array.from(wonCoins.entries()) };
     }
     updated = true;
   }
@@ -124,7 +128,7 @@ function interactEvent(io, interactionData) {
     io.emit('event_update', serializableEvent);
   }
 
-  return { ok: true, eventId: activeEvent.id, damage: (interactionData.damage || null) };
+  return { ok: true, eventId: activeEvent.id, damage: damageDealt };
 }
 
 function endEvent(io, result) {
