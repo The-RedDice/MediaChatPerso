@@ -87,12 +87,12 @@ Exemples de ton :
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
-          'HTTP-Referer': 'https://github.com/The-RedDice/MediaChatPerso', // OpenRouter require un referer
+          'HTTP-Referer': 'https://github.com/The-RedDice/MediaChatPerso', // OpenRouter requiert un referer
           'X-Title': 'BordelBox',
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          model: 'google/gemini-2.0-flash-lite-preview-02-05:free', // Modèle Gemini rapide et gratuit sur OpenRouter
+          model: 'google/gemini-2.0-flash-exp:free', // Modèle le plus stable des Gemini gratuits sur OpenRouter
           messages: [
             { role: 'system', content: systemPrompt },
             { role: 'user', content: prompt }
