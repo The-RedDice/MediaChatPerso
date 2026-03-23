@@ -40,22 +40,31 @@ async function generateResponse(prompt) {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          model: 'llama3-8b-8192', // Modèle très rapide et généreux sur Groq
+          model: 'llama-3.1-8b-instant', // Modèle officiel actuel de Groq
           messages: [
             { role: 'system', content: systemPrompt },
             { role: 'user', content: prompt }
           ],
-          max_tokens: 100,
+          max_tokens: 150,
           temperature: 0.8
         })
       });
+
       const data = await res.json();
-      if (data.error) throw new Error(data.error.message || "Erreur Groq");
+      if (!res.ok || data.error) {
+        const errorMsg = data.error ? (data.error.message || JSON.stringify(data.error)) : `HTTP ${res.status}`;
+        throw new Error(`Erreur Groq API: ${errorMsg}`);
+      }
+
       let text = data.choices[0].message.content.replace(/[*_~`]/g, '').trim();
       return text.length > 200 ? text.substring(0, 197) + '...' : text;
     } catch (err) {
-      console.error('[Groq AI] Erreur de génération :', err);
-      const fallbackSarcasm = ["Mon cerveau a crashé.", "Je suis trop occupé pour te répondre.", "Erreur système, utilise un meilleur prompt !"];
+      console.error('[Groq AI] Erreur de génération détaillée :', err.message || err);
+      const fallbackSarcasm = [
+        "Mon cerveau Llama a crashé. Reviens plus tard.",
+        "Les serveurs de Groq sont en pause café.",
+        "Erreur système... Mon créateur ne m'a pas donné les bonnes permissions API !"
+      ];
       return fallbackSarcasm[Math.floor(Math.random() * fallbackSarcasm.length)];
     }
   }
@@ -67,6 +76,8 @@ async function generateResponse(prompt) {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
+          'HTTP-Referer': 'https://github.com/The-RedDice/MediaChatPerso', // OpenRouter require un referer
+          'X-Title': 'BordelBox',
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
@@ -77,13 +88,22 @@ async function generateResponse(prompt) {
           ],
         })
       });
+
       const data = await res.json();
-      if (data.error) throw new Error(data.error.message || "Erreur OpenRouter");
+      if (!res.ok || data.error) {
+        const errorMsg = data.error ? (data.error.message || JSON.stringify(data.error)) : `HTTP ${res.status}`;
+        throw new Error(`Erreur OpenRouter API: ${errorMsg}`);
+      }
+
       let text = data.choices[0].message.content.replace(/[*_~`]/g, '').trim();
       return text.length > 200 ? text.substring(0, 197) + '...' : text;
     } catch (err) {
-      console.error('[OpenRouter AI] Erreur de génération :', err);
-      const fallbackSarcasm = ["Le routeur a sauté.", "Je n'ai plus de réseau neural disponible.", "Connexion à mon intelligence perdue."];
+      console.error('[OpenRouter AI] Erreur de génération détaillée :', err.message || err);
+      const fallbackSarcasm = [
+        "Le routeur a sauté.",
+        "Je n'ai plus de réseau neural disponible.",
+        "Connexion à mon intelligence perdue, le prompt était peut-être trop nul."
+      ];
       return fallbackSarcasm[Math.floor(Math.random() * fallbackSarcasm.length)];
     }
   }
