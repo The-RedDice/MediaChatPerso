@@ -40,6 +40,19 @@ async function generateResponse(prompt) {
     ? [global.workingGeminiModel, ...defaultModels.filter(m => m !== global.workingGeminiModel)]
     : defaultModels;
 
+  // Si on a été rate-limité récemment (dans les 60 dernières secondes), on ne tente même pas de spammer l'API.
+  if (global.geminiCooldownTimeout && Date.now() < global.geminiCooldownTimeout) {
+    const timeLeft = Math.ceil((global.geminiCooldownTimeout - Date.now()) / 1000);
+    console.warn(`[Gemini AI] Toujours sous cooldown API pour encore ${timeLeft}s.`);
+    const fallbackSarcasm = [
+      `Je suis en grève syndicale pour les ${timeLeft} prochaines secondes.`,
+      `Mon forfait Google est épuisé. Reviens dans ${timeLeft} secondes.`,
+      `Je suis entrain de recharger mes batteries IA. Pause de ${timeLeft}s.`,
+      `Tu m'as trop fait réfléchir. Laisse-moi ${timeLeft} secondes de répit.`
+    ];
+    return fallbackSarcasm[Math.floor(Math.random() * fallbackSarcasm.length)];
+  }
+
   let result = null;
   let lastError = null;
 
@@ -66,6 +79,8 @@ async function generateResponse(prompt) {
       // ou 403 (accès interdit globalement), on arrête pour éviter de spammer l'API
       if (apiError.status === 429 || errMsg.includes('429') || apiError.status === 403 || errMsg.includes('403')) {
         console.warn(`[Gemini AI] VRAI Quota atteint ou accès interdit (${apiError.status || 'erreur HTTP'}) sur ${modelName}. Arrêt des tentatives pour éviter le spam.`);
+        // On bloque les requêtes pour les 60 prochaines secondes pour éviter de flood l'API (Google demande généralement ~57s)
+        global.geminiCooldownTimeout = Date.now() + 60000;
         break;
       }
 
@@ -81,8 +96,19 @@ async function generateResponse(prompt) {
   }
 
   if (!result) {
-    console.error('[Gemini AI] Erreur de génération (tous les modèles ont échoué) :', lastError);
-    throw new Error('Erreur lors de la génération IA: ' + (lastError?.message || lastError));
+    console.warn('[Gemini AI] Tous les modèles ont échoué ou la limite de quota (429) est atteinte.');
+    // Au lieu de crasher et d'afficher une erreur moche sur l'écran ou sur Discord,
+    // on renvoie une phrase sarcastique locale générée aléatoirement,
+    // respectant le persona de l'IA pour que l'utilisateur ne se rende compte de rien (ou en rigole).
+    const fallbackSarcasm = [
+      "J'ai tellement de requêtes à traiter que j'ai décidé de t'ignorer. Reviens plus tard.",
+      "Zzz... Quoi ? Tu m'as réveillé pour ça ? Laisse-moi dormir 60 secondes de plus.",
+      "Désolé, mon cerveau en silicium a surchauffé. Essaie encore dans une minute.",
+      "Google m'a mis en pause. T'as vraiment cru que j'allais bosser gratuitement h24 ?",
+      "Erreur 429 : Je suis actuellement en pause café. Patiente un peu !",
+      "Mon quota d'intelligence artificielle est épuisé. Utilise ton intelligence naturelle en attendant."
+    ];
+    return fallbackSarcasm[Math.floor(Math.random() * fallbackSarcasm.length)];
   }
 
   try {
@@ -98,7 +124,7 @@ async function generateResponse(prompt) {
     return text;
   } catch (err) {
     console.error('[Gemini AI] Erreur lors de l\'extraction du texte :', err);
-    throw new Error('Erreur lors de la génération IA: ' + (err.message || err));
+    return "J'ai eu un bug interne tellement grave que même moi je n'ai pas compris ce que je viens de dire.";
   }
 }
 
