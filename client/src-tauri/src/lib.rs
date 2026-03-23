@@ -11,6 +11,10 @@ use tauri::{
 
 #[cfg(target_os = "windows")]
 mod win_clickthrough {
+    use std::sync::atomic::{AtomicIsize, Ordering};
+    use std::sync::Arc;
+    use std::thread;
+    use std::time::Duration;
     use windows::Win32::Foundation::HWND;
     use windows::Win32::UI::WindowsAndMessaging::{
         GetWindowLongPtrW, SetWindowLongPtrW, SetWindowPos,
@@ -18,27 +22,59 @@ mod win_clickthrough {
         WS_EX_TRANSPARENT, WS_EX_TOOLWINDOW,
     };
 
-    pub fn enable(hwnd: isize) {
+    lazy_static::lazy_static! {
+        static ref ACTIVE_HWND: Arc<AtomicIsize> = Arc::new(AtomicIsize::new(0));
+    }
+
+    pub fn start_topmost_loop(hwnd_val: isize) {
+        let prev = ACTIVE_HWND.swap(hwnd_val, Ordering::SeqCst);
+        if prev == 0 && hwnd_val != 0 {
+            // Démarrer la boucle de rafraîchissement si ce n'est pas déjà fait
+            thread::spawn(move || {
+                loop {
+                    let current_hwnd = ACTIVE_HWND.load(Ordering::SeqCst);
+                    if current_hwnd == 0 {
+                        break;
+                    }
+                    unsafe {
+                        let _ = SetWindowPos(
+                            HWND(current_hwnd as *mut _),
+                            HWND_TOPMOST,
+                            0, 0, 0, 0,
+                            SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE
+                        );
+                    }
+                    thread::sleep(Duration::from_millis(500)); // Rafraîchit 2 fois par seconde pour Geometry Dash etc
+                }
+            });
+        }
+    }
+
+    pub fn enable(hwnd_val: isize) {
         unsafe {
-            let hwnd = HWND(hwnd as *mut _);
+            let hwnd = HWND(hwnd_val as *mut _);
             let ex = GetWindowLongPtrW(hwnd, GWL_EXSTYLE);
             // On ajoute aussi WS_EX_TOOLWINDOW pour cacher de l'Alt-Tab et s'assurer
             // que c'est bien une fenêtre "overlay", ce qui aide avec certains jeux en plein écran.
             SetWindowLongPtrW(hwnd, GWL_EXSTYLE,
                 ex | WS_EX_LAYERED.0 as isize | WS_EX_TRANSPARENT.0 as isize | WS_EX_TOOLWINDOW.0 as isize);
 
-            // Force l'affichage en TOPMOST par-dessus le reste
+            // Force l'affichage en TOPMOST par-dessus le reste (fait aussi par le thread)
             let _ = SetWindowPos(
                 hwnd,
                 HWND_TOPMOST,
                 0, 0, 0, 0,
                 SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE
             );
+            start_topmost_loop(hwnd_val);
         }
     }
-    pub fn disable(hwnd: isize) {
+    pub fn disable(hwnd_val: isize) {
+        // Arrête la boucle de rafraîchissement
+        ACTIVE_HWND.store(0, Ordering::SeqCst);
+
         unsafe {
-            let hwnd = HWND(hwnd as *mut _);
+            let hwnd = HWND(hwnd_val as *mut _);
             let ex = GetWindowLongPtrW(hwnd, GWL_EXSTYLE);
             SetWindowLongPtrW(hwnd, GWL_EXSTYLE,
                 ex & !(WS_EX_TRANSPARENT.0 as isize));

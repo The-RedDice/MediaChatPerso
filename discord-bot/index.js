@@ -280,7 +280,8 @@ client.on(Events.InteractionCreate, async (interaction) => {
         if (res.error) {
           await interaction.reply({ content: `❌ ${res.error}`, ephemeral: true });
         } else {
-          let msg = `💥 Tu as infligé **${res.damage}** dégâts !`;
+          // Silent acknowledgment to prevent spam
+          await interaction.deferUpdate();
 
           if (res.defeated) {
             // Check if user got rewards for their personal notification
@@ -288,13 +289,13 @@ client.on(Events.InteractionCreate, async (interaction) => {
             if (res.participantsStats) {
               const userStats = res.participantsStats.find(p => p.userId === interaction.user.id);
               if (userStats && userStats.reward > 0) {
-                userRewardMsg = `\n💰 Tu as gagné **${userStats.reward} BordelCoins** (${userStats.percent}% des dégâts) !`;
+                userRewardMsg = `💰 **${username}**, tu as gagné **${userStats.reward} BordelCoins** (${userStats.percent}% des dégâts) !`;
               } else {
-                userRewardMsg = `\n*(Tu n'as pas gagné de BordelCoins car ton overlay n'était pas connecté.)*`;
+                userRewardMsg = `*(**${username}**, tu n'as pas gagné de BordelCoins car ton overlay n'était pas connecté.)*`;
               }
+              // Send the personal reward notification as an ephemeral follow-up
+              await interaction.followUp({ content: `🎉 **LE BOSS EST VAINCU !**\n${userRewardMsg}`, ephemeral: true });
             }
-
-            await interaction.reply({ content: msg + `\n🎉 **LE BOSS EST VAINCU !**` + userRewardMsg, ephemeral: true });
 
             // Broadcast the public notification in the channel
             const channel = interaction.channel;
@@ -326,24 +327,20 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
               embed.addFields({ name: '🏆 Tableau des scores', value: participantsList });
 
-              // We try to edit the original message that contains the boss
-              if (interaction.message && interaction.message.editable) {
-                const oldEmbed = EmbedBuilder.from(interaction.message.embeds[0]);
-                oldEmbed.setTitle('☠️ Le Boss a été vaincu !');
-                oldEmbed.setColor(0x36393F); // Dark color for defeated
-                // Remove the button
-                await interaction.message.edit({ embeds: [oldEmbed], components: [] });
+              // We try to delete the original message that contains the boss
+              if (interaction.message && interaction.message.deletable) {
+                await interaction.message.delete();
               }
 
               await channel.send({ embeds: [embed] });
             }
 
-          } else {
-            await interaction.reply({ content: msg, ephemeral: true });
           }
         }
       } catch (err) {
-        await interaction.reply({ content: `❌ Erreur de connexion au serveur.`, ephemeral: true });
+        if (!interaction.deferred && !interaction.replied) {
+          await interaction.reply({ content: `❌ Erreur de connexion au serveur.`, ephemeral: true });
+        }
       }
       return;
     }
@@ -691,11 +688,65 @@ client.on(Events.InteractionCreate, async (interaction) => {
         }
 
         // Style visuel
+        const allFonts = {
+          '"Press Start 2P"': 'Pixel (Retro)',
+          'Creepster': 'Horreur',
+          'Impact': 'Impact (Meme)',
+          '"Comic Sans MS"': 'Comic Sans MS (Troll)',
+          '"Courier New"': 'Courier New (Machine à écrire)',
+          'Arial': 'Arial (Classique)',
+          'Georgia': 'Georgia (Sérieux)',
+          'Bangers': 'Bangers (Comics)',
+          'Oswald': 'Oswald (Gras)',
+          'Cinzel': 'Cinzel (Épique)'
+        };
+
+        const allAnims = {
+          'fade': 'Fondu (Fade)',
+          'glitch': 'Glitch',
+          'typewriter': 'Machine à écrire',
+          'pulse': 'Pulse',
+          'slide': 'Glissement (Slide)',
+          'bounce': 'Rebond (Bounce)',
+          'zoom': 'Zoom',
+          'spin': 'Rotation (Spin)',
+          'shake': 'Tremblement (Shake)',
+          'drop': 'Chute (Drop)',
+          'swing': 'Swing',
+          'wobble': 'Wobble',
+          'flip': 'Flip'
+        };
+
+        const allEffects = {
+          'neige': 'Neige',
+          'coeurs': 'Cœurs',
+          'matrix': 'Matrix',
+          'particules': 'Particules',
+          'etoiles': 'Étoiles',
+          'confetti': 'Confettis',
+          'feu': 'Feu',
+          'pluie': 'Pluie',
+          'bulles': 'Bulles',
+          'eclairs': 'Éclairs'
+        };
+
         const styleParts = [];
         if (profileData.color) styleParts.push(`**Couleur :** ${profileData.color}`);
-        if (profileData.font) styleParts.push(`**Police :** ${profileData.font}`);
-        if (profileData.animation) styleParts.push(`**Animation :** ${profileData.animation}`);
-        if (profileData.effect) styleParts.push(`**Effet :** ${profileData.effect}`);
+
+        if (profileData.font) {
+          const fontName = allFonts[profileData.font] || profileData.font;
+          styleParts.push(`**Police :** ${fontName}`);
+        }
+
+        if (profileData.animation) {
+          const animName = allAnims[profileData.animation] || profileData.animation;
+          styleParts.push(`**Animation :** ${animName}`);
+        }
+
+        if (profileData.effect) {
+          const effectName = allEffects[profileData.effect] || profileData.effect;
+          styleParts.push(`**Effet :** ${effectName}`);
+        }
 
         if (styleParts.length > 0) {
           embed.addFields({ name: '🎨 Style Visuel Actuel', value: styleParts.join('\n'), inline: false });

@@ -942,7 +942,7 @@ router.post('/ai', requireAuth, async (req, res) => {
 
     const result = enqueue(target, {
       type: 'message',
-      payload: { text, senderName: senderName || '', avatarUrl: avatarUrl || '', ttsUrl, greenscreen: !!greenscreen, style: payloadStyle, userId, isRankOne },
+      payload: { text, senderName: senderName || '', avatarUrl: avatarUrl || '', ttsUrl, greenscreen: !!greenscreen, style: payloadStyle, userId, isRankOne, isAi: true },
     });
 
     if (result?.error) return res.status(404).json(result);
