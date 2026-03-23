@@ -20,33 +20,49 @@ async function generateResponse(prompt) {
     throw new Error("L'API Gemini n'est pas configurée sur ce serveur.");
   }
 
-  try {
-    // Some API keys/regions might not have access to 'gemini-1.5-flash' yet,
-    // or the name could be slightly different depending on the account tier.
-    // 'gemini-pro' (1.0) is widely available as a reliable fallback.
-    let model;
-    try {
-        model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-    } catch (e) {
-        model = genAI.getGenerativeModel({ model: 'gemini-pro' });
-    }
+  const systemPrompt = `Tu es une IA sarcastique, fun et très brève qui s'affiche en gros caractères sur l'écran d'un utilisateur. Ton message doit être très court (maximum 150 caractères) car il sera lu très vite. Ne mets pas de formatage Markdown (pas d'astérisques ou gras), juste du texte brut. Le prompt de l'utilisateur qui te commande est le suivant : "${prompt}"`;
 
-    const systemPrompt = `Tu es une IA sarcastique, fun et très brève qui s'affiche en gros caractères sur l'écran d'un utilisateur. Ton message doit être très court (maximum 150 caractères) car il sera lu très vite. Ne mets pas de formatage Markdown (pas d'astérisques ou gras), juste du texte brut. Le prompt de l'utilisateur qui te commande est le suivant : "${prompt}"`;
+  // Liste des modèles à essayer par ordre de préférence.
+  // Les modèles plus récents ou avec un nom alternatif sont essayés en premier,
+  // car certains comptes peuvent ne pas avoir accès aux alias standards ou aux modèles deprecates.
+  const modelsToTry = [
+    'gemini-2.0-flash',
+    'gemini-1.5-flash-latest',
+    'gemini-1.5-flash',
+    'gemini-flash-latest',
+    'gemini-1.0-pro-latest',
+    'gemini-1.0-pro',
+    'gemini-pro'
+  ];
 
-    let result;
+  let result = null;
+  let lastError = null;
+
+  for (const modelName of modelsToTry) {
     try {
-        result = await model.generateContent(systemPrompt);
+      const model = genAI.getGenerativeModel({ model: modelName });
+      result = await model.generateContent(systemPrompt);
+      // Si on arrive ici, le modèle a fonctionné
+      console.log(`[Gemini AI] Modèle utilisé avec succès : ${modelName}`);
+      break;
     } catch (apiError) {
-        // If 1.5-flash fails (e.g. 404 Not Found), fallback to gemini-pro
-        if (apiError.status === 404 || (apiError.message && apiError.message.includes('404'))) {
-            console.warn('[Gemini AI] gemini-1.5-flash not found, falling back to gemini-pro...');
-            model = genAI.getGenerativeModel({ model: 'gemini-pro' });
-            result = await model.generateContent(systemPrompt);
-        } else {
-            throw apiError;
-        }
+      lastError = apiError;
+      // Si l'erreur est un 404 (modèle introuvable ou non supporté), on essaie le modèle suivant
+      if (apiError.status === 404 || (apiError.message && apiError.message.includes('404'))) {
+        console.warn(`[Gemini AI] Modèle ${modelName} non trouvé (404), tentative avec le suivant...`);
+        continue;
+      }
+      // Pour toute autre erreur (ex: clé invalide, quota dépassé), on arrête immédiatement
+      break;
     }
+  }
 
+  if (!result) {
+    console.error('[Gemini AI] Erreur de génération (tous les modèles ont échoué) :', lastError);
+    throw new Error('Erreur lors de la génération IA: ' + (lastError?.message || lastError));
+  }
+
+  try {
     const response = await result.response;
     let text = response.text();
 
@@ -58,7 +74,7 @@ async function generateResponse(prompt) {
 
     return text;
   } catch (err) {
-    console.error('[Gemini AI] Erreur de génération :', err);
+    console.error('[Gemini AI] Erreur lors de l\'extraction du texte :', err);
     throw new Error('Erreur lors de la génération IA: ' + (err.message || err));
   }
 }
