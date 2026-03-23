@@ -23,16 +23,10 @@ async function generateResponse(prompt) {
   const systemPrompt = `Tu es une IA sarcastique, fun et très brève qui s'affiche en gros caractères sur l'écran d'un utilisateur. Ton message doit être très court (maximum 150 caractères) car il sera lu très vite. Ne mets pas de formatage Markdown (pas d'astérisques ou gras), juste du texte brut. Le prompt de l'utilisateur qui te commande est le suivant : "${prompt}"`;
 
   // Liste des modèles à essayer par ordre de préférence.
-  // Les modèles plus récents ou avec un nom alternatif sont essayés en premier,
-  // car certains comptes peuvent ne pas avoir accès aux alias standards ou aux modèles deprecates.
+  // Restreint à 2 modèles pour éviter de saturer l'API et de générer trop de requêtes (ex: 89) en cas de limite de quota
   const modelsToTry = [
     'gemini-2.0-flash',
-    'gemini-1.5-flash-latest',
-    'gemini-1.5-flash',
-    'gemini-flash-latest',
-    'gemini-1.0-pro-latest',
-    'gemini-1.0-pro',
-    'gemini-pro'
+    'gemini-1.5-flash'
   ];
 
   let result = null;

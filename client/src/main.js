@@ -550,6 +550,9 @@ function handleMessage(payload) {
 
   if (payload.isAi) {
     textToDisplay = `🤖\n${textToDisplay}`;
+    if (payload.prompt) {
+      textToDisplay += `\n\n[Prompt: ${payload.prompt}]`;
+    }
   }
 
   messageText.textContent = textToDisplay;
@@ -563,14 +566,21 @@ function handleMessage(payload) {
   applyStyle(payload, messageText, messageEffects);
 
   // Override style for AI if default
-  if (payload.isAi && (!payload.style || !payload.style.font)) {
-    messageText.style.fontFamily = 'monospace, "Courier New"';
-    messageText.style.color = '#0ff';
-    messageText.style.textShadow = '0 0 10px #0ff, 0 0 20px #0ff, 4px 4px 0 #000';
+  if (payload.isAi) {
+    if (!payload.style || !payload.style.font) {
+      messageText.style.fontFamily = 'monospace, "Courier New"';
+      messageText.style.color = '#0ff';
+      messageText.style.textShadow = '0 0 10px #0ff, 0 0 20px #0ff, 4px 4px 0 #000';
+    }
+    // Diminuer la taille du texte de l'IA spécifiquement
+    messageText.style.fontSize = 'calc(var(--message-size) * 0.4)';
+  } else {
+    // Reset en cas de texte normal
+    messageText.style.fontSize = '';
   }
   messageContainer.classList.add('visible');
 
-  let duration = Math.min(8000, Math.max(3000, payload.text.length * 60));
+  let duration = Math.min(20000, Math.max(6000, payload.text.length * 100));
   let endedEmitted = false;
 
   const endMsg = () => {
@@ -634,7 +644,7 @@ function handleMedia(payload) {
   mediaVideo.onerror = () => { hideAll(); socket.emit('media_ended'); };
 }
 
-function showItem(item) {
+window.showItem = function showItem(item) {
   // Overlay désactivé → skip immédiat
   if (!overlayEnabled) {
     socket.emit('media_ended');

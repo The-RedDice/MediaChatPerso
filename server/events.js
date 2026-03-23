@@ -6,14 +6,13 @@
 let activeEvent = null;
 let eventTimeout = null;
 let lastEventTime = 0;
-const EVENT_COOLDOWN = 5 * 60 * 1000; // 5 minutes
+
+// Le cooldown de boss est retiré pour pouvoir spam, mais les récompenses sont limitées
+const REWARD_COOLDOWN = 5 * 60 * 1000; // 5 minutes
+const userRewardCooldowns = new Map();
 
 function startEvent(io, eventData) {
   const now = Date.now();
-  if (now - lastEventTime < EVENT_COOLDOWN) {
-    const timeLeft = Math.ceil((EVENT_COOLDOWN - (now - lastEventTime)) / 1000);
-    return { error: `Veuillez patienter encore ${timeLeft} secondes avant de lancer un autre événement.` };
-  }
 
   if (activeEvent) {
     return { error: 'Un événement est déjà en cours.' };
@@ -110,14 +109,22 @@ function interactEvent(io, interactionData) {
       const participantsStats = [];
       const wonCoins = new Map();
 
+      const now = Date.now();
       for (const [pId, pData] of activeEvent.participants.entries()) {
         const damagePercent = totalDamage > 0 ? (pData.damage / totalDamage) : 0;
         // On arrondit pour avoir des pièces entières
-        const reward = Math.round(damagePercent * totalPrizePool);
+        let reward = Math.round(damagePercent * totalPrizePool);
+
+        // Verification du cooldown de récompense par utilisateur
+        const lastReward = userRewardCooldowns.get(pId) || 0;
+        if (now - lastReward < REWARD_COOLDOWN) {
+          reward = 0; // Pas de récompense s'il a déjà gagné récemment
+        }
 
         if (reward > 0) {
           stats.addCoins(pId, reward);
           wonCoins.set(pId, reward);
+          userRewardCooldowns.set(pId, now); // Enregistrer le temps du dernier gain
         }
 
         participantsStats.push({

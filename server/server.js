@@ -19,7 +19,7 @@ const session        = require('express-session');
 const passport       = require('passport');
 const DiscordStrategy = require('passport-discord').Strategy;
 const { getAvailableModels, generateTTS } = require('./tts');
-const { recordAction, recordSkip, getUserStats, getLeaderboard, getUserProfile, saveUserProfile, updateReputation } = require('./stats');
+const { recordAction, recordSkip, getUserStats, getLeaderboard, getUserProfile, saveUserProfile, updateReputation, spendCoins, unlockStyleItem, getUnlockedStyles } = require('./stats');
 const { addMeme, getUserMemes, removeMeme } = require('./memes');
 const { initAI, generateResponse } = require('./ai');
 const { startEvent, interactEvent, getActiveEvent } = require('./events');
@@ -942,7 +942,7 @@ router.post('/ai', requireAuth, async (req, res) => {
 
     const result = enqueue(target, {
       type: 'message',
-      payload: { text, senderName: senderName || '', avatarUrl: avatarUrl || '', ttsUrl, greenscreen: !!greenscreen, style: payloadStyle, userId, isRankOne, isAi: true },
+      payload: { text, prompt, senderName: senderName || '', avatarUrl: avatarUrl || '', ttsUrl, greenscreen: !!greenscreen, style: payloadStyle, userId, isRankOne, isAi: true },
     });
 
     if (result?.error) return res.status(404).json(result);

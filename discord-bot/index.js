@@ -327,12 +327,17 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
               embed.addFields({ name: '🏆 Tableau des scores', value: participantsList });
 
+              await channel.send({ embeds: [embed] });
+
               // We try to delete the original message that contains the boss
               if (interaction.message && interaction.message.deletable) {
-                await interaction.message.delete();
+                try {
+                  await interaction.message.delete();
+                } catch (e) {
+                  console.error('[Event] Impossible de supprimer le message de boss', e);
+                }
               }
 
-              await channel.send({ embeds: [embed] });
             }
 
           }
@@ -1196,7 +1201,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
         }
 
         await interaction.editReply(
-          `🤖 Message IA envoyé à **${target === 'all' ? 'tout le monde' : target}** :\n> ${data.text}`
+          `🤖 Message IA généré pour "${prompt}" envoyé à **${target === 'all' ? 'tout le monde' : target}** :\n> ${data.text}`
         );
         await sendReputationLog(interaction, 'Nouveau Message IA Envoyé', `**Cible :** ${target === 'all' ? 'Tout le monde' : target}\n**Prompt :** ${prompt}\n**Réponse :** ${data.text}`);
         break;
