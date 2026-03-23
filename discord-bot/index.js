@@ -501,6 +501,21 @@ client.on(Events.InteractionCreate, async (interaction) => {
         // En cas d'erreur d'API, on ne peut pas répondre avec l'autocomplétion
         await interaction.respond([]);
       }
+    } else if (['sendurl', 'sendfile', 'message', 'ai'].includes(interaction.commandName)) {
+      const focusedOption = interaction.options.getFocused(true);
+      if (focusedOption.name === 'tts') {
+        try {
+          const data = await apiGet('/tts/models');
+          const models = data.models || [];
+          const filtered = models.filter(name => name.toLowerCase().includes(focusedOption.value.toLowerCase()));
+
+          await interaction.respond(
+            filtered.slice(0, 25).map(name => ({ name: name, value: name }))
+          );
+        } catch (err) {
+          await interaction.respond([]);
+        }
+      }
     }
     return;
   }
