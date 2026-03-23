@@ -546,7 +546,13 @@ function handleFile(payload) {
 }
 
 function handleMessage(payload) {
-  messageText.textContent = payload.text;
+  let textToDisplay = payload.text;
+
+  if (payload.isAi) {
+    textToDisplay = `🤖\n${textToDisplay}`;
+  }
+
+  messageText.textContent = textToDisplay;
 
   if (payload.greenscreen) {
     messageText.classList.add('greenscreen');
@@ -555,6 +561,13 @@ function handleMessage(payload) {
   }
 
   applyStyle(payload, messageText, messageEffects);
+
+  // Override style for AI if default
+  if (payload.isAi && (!payload.style || !payload.style.font)) {
+    messageText.style.fontFamily = 'monospace, "Courier New"';
+    messageText.style.color = '#0ff';
+    messageText.style.textShadow = '0 0 10px #0ff, 0 0 20px #0ff, 4px 4px 0 #000';
+  }
   messageContainer.classList.add('visible');
 
   let duration = Math.min(8000, Math.max(3000, payload.text.length * 60));
@@ -908,6 +921,8 @@ function connectSocket() {
   }
 
   socket.on('event_start', (event) => {
+    if (!overlayEnabled) return;
+
     const eventContainer = document.getElementById('event-container');
     const eventBoss = document.getElementById('event-boss');
     const eventSondage = document.getElementById('event-sondage');
@@ -961,6 +976,8 @@ function connectSocket() {
   });
 
   socket.on('event_update', (event) => {
+    if (!overlayEnabled) return;
+
     if (event.type === 'boss') {
       updateBossHp(event.currentHp, event.hp);
     } else if (event.type === 'sondage') {
@@ -969,6 +986,8 @@ function connectSocket() {
   });
 
   socket.on('event_end', (event) => {
+    if (!overlayEnabled) return;
+
     const eventContainer = document.getElementById('event-container');
     if (event.type === 'boss' && event.currentHp <= 0) {
       const killer = (event.result && event.result.killer) ? event.result.killer : 'Un héros';
