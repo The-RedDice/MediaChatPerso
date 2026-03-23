@@ -1,9 +1,17 @@
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 let genAI = null;
+let useGroq = false;
+let useOpenRouter = false;
 
 function initAI() {
-  if (process.env.GEMINI_API_KEY) {
+  if (process.env.GROQ_API_KEY) {
+    useGroq = true;
+    console.log('✅ Groq API initialisée (Alternative très rapide et gratuite à Gemini)');
+  } else if (process.env.OPENROUTER_API_KEY) {
+    useOpenRouter = true;
+    console.log('✅ OpenRouter API initialisée');
+  } else if (process.env.GEMINI_API_KEY) {
     try {
       genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
       console.log('✅ Google Gemini API initialisée');
@@ -11,16 +19,77 @@ function initAI() {
       console.error('❌ Erreur lors de l\'initialisation de Gemini :', err.message);
     }
   } else {
-    console.log('⚠️  GEMINI_API_KEY non définie, les fonctionnalités IA seront désactivées.');
+    console.log('⚠️  Aucune clé d\'API IA (GROQ_API_KEY, OPENROUTER_API_KEY ou GEMINI_API_KEY) n\'est définie, les fonctionnalités IA seront désactivées.');
   }
 }
 
 async function generateResponse(prompt) {
-  if (!genAI) {
-    throw new Error("L'API Gemini n'est pas configurée sur ce serveur.");
+  if (!genAI && !useGroq && !useOpenRouter) {
+    throw new Error("Aucune API IA n'est configurée sur ce serveur.");
   }
 
-  const systemPrompt = `Tu es une IA sarcastique, fun et très brève qui s'affiche en gros caractères sur l'écran d'un utilisateur. Ton message doit être très court (maximum 150 caractères) car il sera lu très vite. Ne mets pas de formatage Markdown (pas d'astérisques ou gras), juste du texte brut. Le prompt de l'utilisateur qui te commande est le suivant : "${prompt}"`;
+  const systemPrompt = `Tu es une IA sarcastique, fun et très brève qui s'affiche en gros caractères sur l'écran d'un utilisateur. Ton message doit être très court (maximum 150 caractères) car il sera lu très vite. Ne mets pas de formatage Markdown (pas d'astérisques ou gras), juste du texte brut.`;
+
+  // ─── ALTERNATIVE: GROQ (Llama 3, gratuit, extrêmement rapide, peu de limites) ───
+  if (useGroq) {
+    try {
+      const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${process.env.GROQ_API_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          model: 'llama3-8b-8192', // Modèle très rapide et généreux sur Groq
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: prompt }
+          ],
+          max_tokens: 100,
+          temperature: 0.8
+        })
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error.message || "Erreur Groq");
+      let text = data.choices[0].message.content.replace(/[*_~`]/g, '').trim();
+      return text.length > 200 ? text.substring(0, 197) + '...' : text;
+    } catch (err) {
+      console.error('[Groq AI] Erreur de génération :', err);
+      const fallbackSarcasm = ["Mon cerveau a crashé.", "Je suis trop occupé pour te répondre.", "Erreur système, utilise un meilleur prompt !"];
+      return fallbackSarcasm[Math.floor(Math.random() * fallbackSarcasm.length)];
+    }
+  }
+
+  // ─── ALTERNATIVE: OPENROUTER (Permet d'utiliser des modèles gratuits au choix) ───
+  if (useOpenRouter) {
+    try {
+      const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          model: 'mistralai/mistral-7b-instruct:free', // Modèle toujours gratuit sur OpenRouter
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: prompt }
+          ],
+        })
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error.message || "Erreur OpenRouter");
+      let text = data.choices[0].message.content.replace(/[*_~`]/g, '').trim();
+      return text.length > 200 ? text.substring(0, 197) + '...' : text;
+    } catch (err) {
+      console.error('[OpenRouter AI] Erreur de génération :', err);
+      const fallbackSarcasm = ["Le routeur a sauté.", "Je n'ai plus de réseau neural disponible.", "Connexion à mon intelligence perdue."];
+      return fallbackSarcasm[Math.floor(Math.random() * fallbackSarcasm.length)];
+    }
+  }
+
+  // ─── GOOGLE GEMINI (Legacy / Original) ───
+  const fullPromptGemini = `${systemPrompt} Le prompt de l'utilisateur qui te commande est le suivant : "${prompt}"`;
 
   // Liste des modèles à essayer par ordre de préférence.
   // Cache en mémoire du dernier modèle qui a fonctionné pour cette clé API
@@ -59,7 +128,7 @@ async function generateResponse(prompt) {
   for (const modelName of modelsToTry) {
     try {
       const model = genAI.getGenerativeModel({ model: modelName });
-      result = await model.generateContent(systemPrompt);
+      result = await model.generateContent(fullPromptGemini);
       // Si on arrive ici, le modèle a fonctionné
       console.log(`[Gemini AI] Modèle utilisé avec succès : ${modelName}`);
       global.workingGeminiModel = modelName; // Enregistrer le modèle pour les prochains appels
