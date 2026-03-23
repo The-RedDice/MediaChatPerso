@@ -92,11 +92,13 @@ Exemples de ton :
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          model: 'cognitivecomputations/dolphin-mistral-24b-venice-edition:free', // Modèle gratuit extrêmement stable et rapide sur OpenRouter
+          model: 'google/gemini-2.0-flash-lite-preview-02-05:free', // Modèle gratuit extrêmement stable et rapide sur OpenRouter
           messages: [
             { role: 'system', content: systemPrompt },
             { role: 'user', content: prompt }
           ],
+          max_tokens: 150,
+          temperature: 0.8
         })
       });
 
