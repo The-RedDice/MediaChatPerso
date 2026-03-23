@@ -41,7 +41,8 @@ const commands = [
     .addStringOption(o =>
       o.setName('tts')
        .setDescription('Nom de la voix TTS (ex: "mario", "robot"). Laissez vide pour aucun.')
-       .setRequired(false))
+       .setRequired(false)
+       .setAutocomplete(true))
     .addBooleanOption(o =>
       o.setName('greenscreen')
        .setDescription('Applique un filtre green screen pour enlever le fond vert')
@@ -136,7 +137,8 @@ const commands = [
     .addStringOption(o =>
       o.setName('tts')
        .setDescription('Nom de la voix TTS (ex: "mario", "robot"). Laissez vide pour aucun.')
-       .setRequired(false))
+       .setRequired(false)
+       .setAutocomplete(true))
     .addBooleanOption(o =>
       o.setName('greenscreen')
        .setDescription('Applique un filtre green screen pour enlever le fond vert')
@@ -270,7 +272,8 @@ const commands = [
     .addStringOption(o =>
       o.setName('tts')
        .setDescription('Nom de la voix TTS (ex: "mario", "robot"). Laissez vide pour aucun.')
-       .setRequired(false))
+       .setRequired(false)
+       .setAutocomplete(true))
     .addBooleanOption(o =>
       o.setName('greenscreen')
        .setDescription('Applique un filtre green screen pour enlever le fond vert')
@@ -347,7 +350,8 @@ const commands = [
     .addStringOption(o =>
       o.setName('tts')
        .setDescription('Nom de la voix TTS (ex: "mario", "robot"). Laissez vide pour aucun.')
-       .setRequired(false))
+       .setRequired(false)
+       .setAutocomplete(true))
     .addBooleanOption(o =>
       o.setName('greenscreen')
        .setDescription('Applique un filtre green screen pour enlever le fond vert')
