@@ -92,7 +92,7 @@ Exemples de ton :
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          model: 'google/gemini-2.0-flash-lite-preview-02-05:free', // Modèle gratuit extrêmement stable et rapide sur OpenRouter
+          model: 'nousresearch/hermes-3-llama-3.1-405b:free', // Modèle gratuit extrêmement stable et rapide sur OpenRouter
           messages: [
             { role: 'system', content: systemPrompt },
             { role: 'user', content: prompt }
