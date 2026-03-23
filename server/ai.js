@@ -134,7 +134,7 @@ Exemples de ton :
   }
 
 // ─── GOOGLE GEMINI (Optimisé pour ne pas spammer l'API) ───
-  const modelName = 'gemini-1.5-flash'; 
+  const modelName = 'gemini-3.0-flash';
   const fullPromptGemini = `${systemPrompt}\n\nLe prompt de l'utilisateur qui te commande est le suivant : "${prompt}"`;
 
   // Vérification du cooldown
