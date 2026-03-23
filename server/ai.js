@@ -21,11 +21,32 @@ async function generateResponse(prompt) {
   }
 
   try {
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    // Some API keys/regions might not have access to 'gemini-1.5-flash' yet,
+    // or the name could be slightly different depending on the account tier.
+    // 'gemini-pro' (1.0) is widely available as a reliable fallback.
+    let model;
+    try {
+        model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    } catch (e) {
+        model = genAI.getGenerativeModel({ model: 'gemini-pro' });
+    }
 
     const systemPrompt = `Tu es une IA sarcastique, fun et très brève qui s'affiche en gros caractères sur l'écran d'un utilisateur. Ton message doit être très court (maximum 150 caractères) car il sera lu très vite. Ne mets pas de formatage Markdown (pas d'astérisques ou gras), juste du texte brut. Le prompt de l'utilisateur qui te commande est le suivant : "${prompt}"`;
 
-    const result = await model.generateContent(systemPrompt);
+    let result;
+    try {
+        result = await model.generateContent(systemPrompt);
+    } catch (apiError) {
+        // If 1.5-flash fails (e.g. 404 Not Found), fallback to gemini-pro
+        if (apiError.status === 404 || (apiError.message && apiError.message.includes('404'))) {
+            console.warn('[Gemini AI] gemini-1.5-flash not found, falling back to gemini-pro...');
+            model = genAI.getGenerativeModel({ model: 'gemini-pro' });
+            result = await model.generateContent(systemPrompt);
+        } else {
+            throw apiError;
+        }
+    }
+
     const response = await result.response;
     let text = response.text();
 
