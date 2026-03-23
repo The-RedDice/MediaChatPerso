@@ -565,13 +565,11 @@ function handleMessage(payload) {
 
   applyStyle(payload, messageText, messageEffects);
 
-  // Override style for AI if default
+  // Force l'override visuel spécifique pour l'IA (ignore le style personnel de l'utilisateur pour le texte)
   if (payload.isAi) {
-    if (!payload.style || !payload.style.font) {
-      messageText.style.fontFamily = 'monospace, "Courier New"';
-      messageText.style.color = '#0ff';
-      messageText.style.textShadow = '0 0 10px #0ff, 0 0 20px #0ff, 4px 4px 0 #000';
-    }
+    messageText.style.fontFamily = 'monospace, "Courier New"';
+    messageText.style.color = '#0ff';
+    messageText.style.textShadow = '0 0 10px #0ff, 0 0 20px #0ff, 4px 4px 0 #000';
     // Diminuer la taille du texte de l'IA spécifiquement
     messageText.style.fontSize = 'calc(var(--message-size) * 0.4)';
   } else {
