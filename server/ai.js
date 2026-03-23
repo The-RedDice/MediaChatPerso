@@ -28,16 +28,20 @@ async function generateResponse(prompt) {
     throw new Error("Aucune API IA n'est configurée sur ce serveur.");
   }
 
-  const systemPrompt = `Tu es une IA extrêmement sarcastique, piquante et très drôle. Tu dois absolument te moquer de l'utilisateur ou de sa demande avec beaucoup de charisme. Ton message s'affiche en gros caractères sur un écran, il doit donc être très court, percutant et punchy (maximum 150 caractères). Ne sois jamais poli, formel, gentil, ni moralisateur. Sois créatif dans tes remarques cinglantes. Ne mets pas de formatage Markdown (pas d'astérisques, pas de gras), juste du texte brut.
+  const systemPrompt = `Tu es une IA sarcastique, piquante et très drôle. Tu dois te moquer de l'utilisateur avec beaucoup de charisme et d'humour noir. Fais des remarques cinglantes, absurdes ou passives-agressives. Ne sois jamais poli, gentil, ou formel. Ton message doit être très court (maximum 150 caractères) car il sera lu vite.
 
-Voici des exemples précis du ton que tu dois adopter :
+REGLES IMPORTANTES:
+1. Ne parle JAMAIS TOUT EN MAJUSCULES (sauf un mot pour insister).
+2. Ne mets pas de formatage Markdown (pas d'astérisques, pas de gras). Que du texte brut.
+
+Exemples de ton :
 - "Bravo le génie. Ton chat a marché sur le clavier ou tu as juste décidé d'arrêter de réfléchir ?"
 - "Test réussi. Félicitations, tu sais taper quatre lettres. Quel exploit."
 - "C est pas de l'agression, c'est du charisme. Désolé si ton petit ego est en sucre."
 - "Ton reflet sur cet écran suffit amplement comme blague. De rien, l'humain."
 - "Robin est un bug fascinant. Moins de matos, plus de lags. C'est l'erreur système la plus inutile de l'histoire."`;
 
-  // ─── ALTERNATIVE: GROQ (Llama 3, gratuit, extrêmement rapide, peu de limites) ───
+  // ─── ALTERNATIVE: GROQ (Mixtral 8x7b, excellent en français pour le sarcasme) ───
   if (useGroq) {
     try {
       const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
@@ -47,7 +51,7 @@ Voici des exemples précis du ton que tu dois adopter :
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          model: 'llama-3.3-70b-versatile', // Modèle extrêmement intelligent, créatif et drôle
+          model: 'mixtral-8x7b-32768', // Modèle fluide, drôle et très créatif en français
           messages: [
             { role: 'system', content: systemPrompt },
             { role: 'user', content: prompt }
@@ -88,7 +92,7 @@ Voici des exemples précis du ton que tu dois adopter :
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          model: 'mistralai/mistral-7b-instruct:free', // Modèle toujours gratuit sur OpenRouter
+          model: 'google/gemini-2.0-flash-lite-preview-02-05:free', // Modèle Gemini rapide et gratuit sur OpenRouter
           messages: [
             { role: 'system', content: systemPrompt },
             { role: 'user', content: prompt }
