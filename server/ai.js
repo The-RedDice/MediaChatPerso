@@ -92,7 +92,7 @@ Exemples de ton :
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          model: 'qwen/qwen3-next-80b-a3b-instruct:free', // Modèle gratuit extrêmement stable et rapide sur OpenRouter
+          model: 'cognitivecomputations/dolphin-mistral-24b-venice-edition:free', // Modèle gratuit extrêmement stable et rapide sur OpenRouter
           messages: [
             { role: 'system', content: systemPrompt },
             { role: 'user', content: prompt }
