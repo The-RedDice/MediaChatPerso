@@ -300,44 +300,44 @@
     "F_COD": {
       "name": "Morue",
       "rarity": "commun",
-      "value": 5
+      "value": 4
     },
     "F_SALMON": {
       "name": "Saumon",
       "rarity": "rare",
-      "value": 15
+      "value": 12
     },
     "F_TUNA": {
       "name": "Thon",
       "rarity": "epique",
-      "value": 40
+      "value": 35
     },
     "F_SHARK": {
       "name": "Requin",
       "rarity": "legendaire",
-      "value": 150
+      "value": 120
     },
     "F_KRAKEN": {
       "name": "Tentacule du Kraken",
       "rarity": "mythique",
-      "value": 500
+      "value": 400
     }
   },
   "baits": {
     "BAIT_WORM": {
       "name": "Ver de terre",
       "rarity": "commun",
-      "price": 2
+      "price": 3
     },
     "BAIT_SHRIMP": {
       "name": "Crevette",
       "rarity": "rare",
-      "price": 10
+      "price": 12
     },
     "BAIT_SQUID": {
       "name": "Calamar",
       "rarity": "epique",
-      "price": 30
+      "price": 35
     }
   }
 }

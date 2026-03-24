@@ -892,6 +892,43 @@ function fish(userId, baitId, rodId) {
   return result;
 }
 
+function sellFish(userId, fishId) {
+  if (!stats[userId]) return { error: 'Utilisateur inconnu.' };
+  ensureInventoryExists(userId);
+
+  const inv = stats[userId].inventory;
+  let coinsGained = 0;
+  let amountSold = 0;
+
+  if (fishId) {
+     if (!itemsDb.fishes[fishId]) return { error: 'Poisson invalide.' };
+     const count = inv[fishId] || 0;
+     if (count <= 0) return { ok: true, amountSold: 0, coinsGained: 0 };
+
+     const value = itemsDb.fishes[fishId].value || 0;
+     coinsGained = value * count;
+     amountSold = count;
+     delete inv[fishId];
+  } else {
+     for (const id in itemsDb.fishes) {
+        const count = inv[id] || 0;
+        if (count > 0) {
+           const value = itemsDb.fishes[id].value || 0;
+           coinsGained += value * count;
+           amountSold += count;
+           delete inv[id];
+        }
+     }
+  }
+
+  if (amountSold > 0) {
+     addCoins(userId, coinsGained);
+     saveStats();
+  }
+
+  return { ok: true, amountSold, coinsGained };
+}
+
 // Slots
 const SLOTS_EMOJIS = ['🍒', '🍋', '🍉', '🍇', '🔔', '💎'];
 function playSlots(userId, amount) {
@@ -909,13 +946,13 @@ function playSlots(userId, amount) {
 
   // All 3 matching
   if (r1 === r2 && r2 === r3) {
-    if (r1 === '💎') { winAmount = amount * 50; isJackpot = true; }
-    else if (r1 === '🔔') winAmount = amount * 20;
-    else winAmount = amount * 10;
+    if (r1 === '💎') { winAmount = amount * 25; isJackpot = true; }
+    else if (r1 === '🔔') winAmount = amount * 15;
+    else winAmount = amount * 5;
   }
   // 2 out of 3 matching
   else if (r1 === r2 || r2 === r3 || r1 === r3) {
-    winAmount = amount * 2;
+    winAmount = Math.floor(amount * 1.5);
   }
 
   if (winAmount > 0) {
@@ -1038,6 +1075,7 @@ function cancelCoinflip(flipId) {
 module.exports.claimDaily = claimDaily;
 module.exports.getCollectionProgress = getCollectionProgress;
 module.exports.fish = fish;
+module.exports.sellFish = sellFish;
 module.exports.playSlots = playSlots;
 module.exports.checkAchievements = checkAchievements;
 module.exports.createCoinflip = createCoinflip;

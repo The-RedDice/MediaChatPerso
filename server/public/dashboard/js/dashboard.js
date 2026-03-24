@@ -52,6 +52,9 @@ async function checkAuthStatus() {
 
       // Load pending trades
       loadTrades(data.user.id);
+
+      // Load user inventory
+      loadInventory(data.user.id);
     } else {
       document.getElementById('login-card').classList.remove('hidden');
       document.getElementById('upload-form').classList.add('hidden');
@@ -211,7 +214,7 @@ async function loadTrades(userId) {
       return;
     }
 
-    trades.forEach(trade => {
+    for (const trade of trades) {
       const isSender = trade.senderId === userId;
       const partnerName = isSender ? trade.receiverName : trade.senderName;
       const statusLabel = isSender ? 'Offre envoyée à' : 'Offre reçue de';
@@ -272,7 +275,7 @@ async function loadTrades(userId) {
         </div>
       `;
       container.appendChild(div);
-    });
+    }
   } catch (err) {
     console.error("Erreur loadTrades:", err);
     container.innerHTML = '<div style="color: #ff3c6e; text-align: center; grid-column: 1 / -1; padding: 20px;">Erreur lors du chargement des offres.</div>';
@@ -403,6 +406,77 @@ async function declineTrade(tradeId, userId) {
     }
   } catch (err) {
     alert('Erreur réseau');
+  }
+}
+
+async function loadInventory(userId) {
+  const container = document.getElementById('inventory-container');
+  try {
+    const [invRes, dbRes] = await Promise.all([
+      fetch(`/api/inventory/${userId}`),
+      fetch(`/api/items_db?userId=${userId}`)
+    ]);
+
+    if (!invRes.ok || !dbRes.ok) throw new Error('Failed to load inventory');
+
+    const inv = await invRes.json();
+    const itemsDb = await dbRes.json();
+
+    container.innerHTML = '';
+
+    if (!inv.items || Object.keys(inv.items).length === 0) {
+      container.innerHTML = '<div style="color: #aaa; text-align: center; grid-column: 1 / -1; padding: 20px;">Votre inventaire est vide.</div>';
+      return;
+    }
+
+    for (const [itemId, count] of Object.entries(inv.items)) {
+      let itemName = itemId;
+      let itemRarity = 'commun';
+      let itemValue = null;
+      let itemEmoji = '';
+
+      for (const cat in itemsDb) {
+        if (itemsDb[cat][itemId]) {
+          const itemInfo = itemsDb[cat][itemId];
+          itemName = itemInfo.name;
+          itemRarity = itemInfo.rarity || 'commun';
+          if (cat === 'colors' && itemInfo.value) itemValue = itemInfo.value;
+          if (itemInfo.emoji) itemEmoji = itemInfo.emoji + ' ';
+          break;
+        }
+      }
+
+      let rarityColor = '#FFFFFF';
+      if (itemRarity === 'commun') rarityColor = '#2ecc71';
+      else if (itemRarity === 'rare') rarityColor = '#3498db';
+      else if (itemRarity === 'epique') rarityColor = '#9b59b6';
+      else if (itemRarity === 'legendaire') rarityColor = '#f1c40f';
+      else if (itemRarity === 'mythique') rarityColor = '#e74c3c';
+      else if (itemRarity === 'transcendant') rarityColor = '#ff00ff';
+
+      const div = document.createElement('div');
+      div.className = 'meme-btn'; // reuse styling
+
+      let previewHtml = `<div style="font-size: 2rem; color: ${rarityColor};">📦</div>`;
+
+      // Render actual gradient/color if it's a visual item
+      if (itemValue) {
+         previewHtml = `<div style="width: 40px; height: 40px; border-radius: 50%; background: ${itemValue}; border: 2px solid #fff; box-shadow: 0 0 10px ${itemValue}; margin-bottom: 10px;"></div>`;
+      }
+
+      div.innerHTML = `
+        ${previewHtml}
+        <div style="color: ${rarityColor}; font-size: 0.7em; text-transform: uppercase; letter-spacing: 1px;">${itemRarity}</div>
+        <div class="meme-name">${itemEmoji}${itemName}</div>
+        <div style="font-size: 0.8em; color: #888;">Quantité: ${count}</div>
+      `;
+
+      container.appendChild(div);
+    }
+
+  } catch (err) {
+    console.error("Erreur loadInventory:", err);
+    container.innerHTML = '<div style="color: #ff3c6e; text-align: center; grid-column: 1 / -1; padding: 20px;">Erreur lors du chargement de l\'inventaire.</div>';
   }
 }
 

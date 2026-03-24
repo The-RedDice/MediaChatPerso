@@ -736,27 +736,24 @@ router.get('/achievements', requireAuth, (req, res) => {
   const inv = getInventory(userId).items;
   const itemsDb = getItemsDb();
 
-  const unlocked = [];
-  for (const itemId in inv) {
-     if (inv[itemId] > 0) {
-        let isUntradeable = false;
-        let itemInfo = null;
-        for (const cat in itemsDb) {
-           if (itemsDb[cat][itemId]) {
-              if (itemsDb[cat][itemId].untradeable) {
-                 isUntradeable = true;
-                 itemInfo = itemsDb[cat][itemId];
-                 break;
-              }
-           }
-        }
-        if (isUntradeable && (itemId.startsWith('T_') || itemId.startsWith('B_'))) {
-           unlocked.push({ name: itemInfo.name, emoji: itemInfo.emoji });
+  const achievements = [];
+
+  for (const cat in itemsDb) {
+     for (const [itemId, itemInfo] of Object.entries(itemsDb[cat])) {
+        // Achievements are represented by untradeable titles and badges
+        if (itemInfo.untradeable && (itemId.startsWith('T_') || itemId.startsWith('B_'))) {
+           const hasEarned = (inv[itemId] && inv[itemId] > 0);
+           achievements.push({
+              id: itemId,
+              name: itemInfo.name,
+              emoji: itemInfo.emoji || '',
+              earned: hasEarned
+           });
         }
      }
   }
 
-  res.json({ ok: true, achievements: unlocked });
+  res.json({ ok: true, achievements });
 });
 
 // ─── DAILY REWARDS ─────────────────────────────────────────────────
@@ -792,6 +789,20 @@ router.post('/fish', requireAuth, (req, res) => {
 
   const result = fish(userId, bait, rodId);
   res.json(result);
+});
+
+router.post('/fish/sell', requireAuth, (req, res) => {
+  const { userId, fishId } = req.body;
+  if (!userId) return res.status(400).json({ error: 'userId manquant' });
+
+  // Si on importe depuis stats.js:
+  const statsMod = require('./stats');
+  if (statsMod.sellFish) {
+     const result = statsMod.sellFish(userId, fishId);
+     return res.json(result);
+  } else {
+     return res.status(500).json({ error: 'Fonction de vente indisponible.' });
+  }
 });
 
 // ─── SLOTS ─────────────────────────────────────────────────────────
@@ -1314,10 +1325,15 @@ app.use('/panel/js', express.static(path.join(__dirname, 'public', 'js')));
 // Route publique pour la page d'upload (rétrocompatibilité) et dashboard
 app.get('/upload', (req, res) => res.redirect('/dashboard'));
 app.use('/dashboard', express.static(path.join(__dirname, 'public', 'dashboard')));
+// L'utilisation de express.static pour un répertoire de même nom masque les routes get sur ce nom sans trailing slash
+// s'il existe un index.html dedans (express envoie un 301).
+// Pour éviter la confusion, on sert index.html explicitement
 app.get('/dashboard', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'dashboard', 'index.html'));
 });
-app.get('/dashboard/*path', (_req, res) => {
+app.get('/dashboard/*', (req, res, next) => {
+  // Ignore requests for static assets (like .js, .css files) to avoid sending html
+  if (req.path.includes('.')) return next();
   res.sendFile(path.join(__dirname, 'public', 'dashboard', 'index.html'));
 });
 

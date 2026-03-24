@@ -607,7 +607,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
   // Réponse différée pour les commandes longues
   if (commandName === 'sendurl' || commandName === 'sendfile' || commandName === 'message' || commandName === 'ai' || commandName === 'online' || commandName === 'profile' || commandName === 'leaderboard' || commandName === 'queue' || commandName === 'download' || commandName === 'meme' || commandName === 'event') {
     await interaction.deferReply();
-  } else if (commandName === 'tuto' || commandName === 'style' || commandName === 'dashboard') {
+  } else if (commandName === 'tuto' || commandName === 'info' || commandName === 'style' || commandName === 'dashboard') {
     await interaction.deferReply({ ephemeral: true });
   } else if (commandName === 'trade' || commandName === 'market' || commandName === 'lootbox' || commandName === 'inventory' || commandName === 'collection' || commandName === 'daily' || commandName === 'fish' || commandName === 'slots' || commandName === 'coinflip' || commandName === 'achievements' || commandName === 'craft') {
         await interaction.deferReply({ ephemeral: false });
@@ -832,8 +832,26 @@ client.on(Events.InteractionCreate, async (interaction) => {
           'eclairs': 'Éclairs'
         };
 
+        // Ajouter les badges et le titre de l'inventaire si équipé
+        const inventoryData = await apiGet(`/inventory/${targetUserId}`);
+
+        let itemsDb = null;
+        try {
+            const dbRes = await apiGet(`/items_db?userId=${targetUserId}`);
+            if (!dbRes.error) itemsDb = dbRes;
+        } catch(e) {}
+
         const styleParts = [];
-        if (profileData.color) styleParts.push(`**Couleur :** ${profileData.color}`);
+
+        if (profileData.color) {
+          let colorName = profileData.color;
+          if (itemsDb && itemsDb.colors) {
+            // Find the color name from the DB using the raw value
+            const colorObj = Object.values(itemsDb.colors).find(c => c.value === profileData.color);
+            if (colorObj) colorName = colorObj.name;
+          }
+          styleParts.push(`**Couleur :** ${colorName}`);
+        }
 
         if (profileData.font) {
           const fontName = allFonts[profileData.font] || profileData.font;
@@ -856,18 +874,9 @@ client.on(Events.InteractionCreate, async (interaction) => {
           embed.addFields({ name: '🎨 Style Visuel Actuel', value: '*Aucun style personnalisé défini.*', inline: false });
         }
 
-        // Ajouter les badges et le titre de l'inventaire si équipé
-        const inventoryData = await apiGet(`/inventory/${targetUserId}`);
         if (inventoryData && inventoryData.equipped) {
            const equippedTitle = inventoryData.equipped.title;
            const equippedBadge = inventoryData.equipped.badge;
-
-           // Fetch itemsDb to get real names and procedurals
-           let itemsDb = null;
-           try {
-               const dbRes = await apiGet(`/items_db?userId=${targetUserId}`);
-               if (!dbRes.error) itemsDb = dbRes;
-           } catch(e) {}
 
            let titleDisplay = equippedTitle || 'Aucun';
            let badgeDisplay = equippedBadge || 'Aucun';
@@ -1670,19 +1679,44 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
       // ── /fish ────────────────────────────────────────────
       case 'fish': {
-        const bait = interaction.options.getString('appat');
-        const res = await apiPost('/fish', { userId: interaction.user.id, bait });
-        if (!res || res.error) {
-          await interaction.editReply('🎣 ' + (res?.error || 'Erreur lors de la pêche.'));
-          break;
+        const subCmd = interaction.options.getSubcommand();
+        const userId = interaction.user.id;
+
+        if (subCmd === 'catch') {
+          const bait = interaction.options.getString('appat', true);
+          const res = await apiPost('/fish', { userId, bait });
+          if (!res || res.error) {
+            await interaction.editReply('🎣 ' + (res?.error || 'Erreur lors de la pêche.'));
+            break;
+          }
+
+          const embed = new EmbedBuilder()
+            .setTitle('🎣 Pêche')
+            .setColor('#3498db')
+            .setDescription('Tu as attrapé :\n\n**' + res.item.name + '** ' + (res.item.emoji ? res.item.emoji : '🐟'));
+
+          await interaction.editReply({ embeds: [embed] });
+        } else if (subCmd === 'sell') {
+          const fishId = interaction.options.getString('poisson');
+          const res = await apiPost('/fish/sell', { userId, fishId });
+
+          if (!res || res.error) {
+            await interaction.editReply('❌ ' + (res?.error || 'Erreur lors de la vente.'));
+            break;
+          }
+
+          if (res.amountSold === 0) {
+             await interaction.editReply('Tu n\'as aucun poisson de ce type à vendre.');
+             break;
+          }
+
+          const embed = new EmbedBuilder()
+            .setTitle('💰 Poissonnerie')
+            .setColor('#f1c40f')
+            .setDescription(`Tu as vendu **${res.amountSold}** poisson(s) pour **${res.coinsGained} BordelCoins** !`);
+
+          await interaction.editReply({ embeds: [embed] });
         }
-
-        const embed = new EmbedBuilder()
-          .setTitle('🎣 Pêche')
-          .setColor('#3498db')
-          .setDescription('Tu as attrapé :\n\n**' + res.item.name + '** ' + (res.item.emoji ? res.item.emoji : '🐟'));
-
-        await interaction.editReply({ embeds: [embed] });
         break;
       }
 
@@ -1761,9 +1795,15 @@ client.on(Events.InteractionCreate, async (interaction) => {
          }
 
          const embed = new EmbedBuilder()
-          .setTitle('🏆 Succès Débloqués')
+          .setTitle('🏆 Liste des Succès')
           .setColor('#f1c40f')
-          .setDescription(res.achievements.length > 0 ? res.achievements.map(a => '- ' + a.name + ' ' + (a.emoji||'')).join('\n') : 'Aucun succès pour le moment.');
+          .setDescription(res.achievements.length > 0
+            ? res.achievements.map(a => {
+                const icon = a.earned ? '✅' : '❌';
+                const nameStyle = a.earned ? `**${a.name}**` : `~~${a.name}~~`;
+                return `${icon} ${nameStyle} ${a.emoji || ''}`;
+              }).join('\n')
+            : 'Aucun succès disponible.');
 
         await interaction.editReply({ embeds: [embed] });
         break;
@@ -1941,27 +1981,59 @@ client.on(Events.InteractionCreate, async (interaction) => {
           .addFields(
             {
               name: '🚀 Commandes d\'Envoi',
-              value: '`/sendurl` : Envoie une vidéo YouTube, TikTok ou un lien direct (mp4, mp3, image).\n`/sendfile` : Uploade directement un fichier (image, vidéo, audio, max 250 Mo).\n`/message` : Affiche un gros texte animé sur les écrans.\n`/ai` : Génère un message fun avec l\'IA Gemini.'
+              value: '`/sendurl` : Envoie une vidéo YouTube ou lien.\n`/sendfile` : Uploade un fichier (max 250 Mo).\n`/message` : Affiche un texte animé.\n`/ai` : Génère un message avec l\'IA.'
             },
             {
-              name: '⚙️ Options d\'Envoi',
-              value: '🔸 **cible** : PC spécifique (vide = tous)\n🔸 **text/texte** : Message d\'accompagnement\n🔸 **tts** : Génère une voix (ex: "mario")\n🔸 **greenscreen** : Supprime le fond vert\n🔸 **filtre** : Applique un effet (grayscale, blur...)\n🔸 **Style** : Override couleur/police/animation'
+              name: '😂 Mèmes & Profils',
+              value: '`/meme play` : Lance un mème enregistré via le bouton "💾 Mème".\n`/profile` : Affiche stats et équipements.'
             },
             {
-              name: '😂 Mèmes Personnels',
-              value: 'Sauvegardez vos médias favoris avec le bouton **💾 Mème** dans le salon de réputation.\n`/meme play <nom>` : Lance un de vos mèmes\n`/meme list` : Affiche vos mèmes sauvegardés\n`/meme remove <nom>` : Supprime un mème'
+              name: '⭐ Économie & Mini-Jeux',
+              value: '`/daily` : Récompense quotidienne\n`/fish` : Pêche des poissons avec des appâts.\n`/slots` : Machine à sous.\n`/coinflip` : Pari contre un autre joueur.\n`/achievements` : Voir vos succès.'
             },
             {
-              name: '⭐ BordelCoins & Statistiques',
-              value: 'Chaque envoi génère un vote 👍/👎 dans le salon de réputation, qui vous fait gagner ou perdre des BordelCoins.\n`/profile` : Affiche vos statistiques, solde et style visuel.\n`/leaderboard` : Classement global (Médias, Flop, BordelCoins).'
+              name: '💼 Inventaire & Marché',
+              value: '`/lootbox` : Acheter et ouvrir des caisses.\n`/inventory` : Gérer vos objets et les équiper.\n`/market` : Vendre et acheter avec les joueurs.\n`/craft` : Créer des cannes à pêche.'
             },
             {
-              name: '🔧 Utilitaires & Gestion',
-              value: '`/queue` : Gère les files d\'attente (Skip, Vider)\n`/style` : Menu interactif pour personnaliser votre profil\n`/online` : Liste des PC connectés\n`/dashboard` : Panel web pour les gros fichiers et marché\n`/download` : Télécharge le client BordelBox\n`/tuto` : Affiche ce guide'
+              name: '🔧 Utilitaires',
+              value: '`/queue`, `/style`, `/dashboard`, `/info <sujet>`'
             }
           )
-          .setFooter({ text: 'Amusez-vous bien ! 🎬' })
+          .setFooter({ text: 'Utilisez /info <sujet> pour plus de détails spécifiques !' })
           .setTimestamp();
+
+        await interaction.editReply({ embeds: [embed] });
+        break;
+      }
+
+      // ── /info ──────────────────────────────────────────
+      case 'info': {
+        const subject = interaction.options.getString('sujet', true);
+        const embed = new EmbedBuilder().setColor(0x0099FF);
+
+        switch (subject) {
+          case 'economy':
+            embed.setTitle('💰 Économie & BordelCoins')
+                 .setDescription('Les **BordelCoins** sont la monnaie de la BordelBox.\n\n**Comment en gagner ?**\n- Les upvotes dans le salon réputation 👍\n- La commande `/daily` tous les jours\n- Vaincre un `/event boss` (nécessite l\'overlay ouvert)\n- La pêche (`/fish`), machine à sous (`/slots`), paris (`/coinflip`)\n- Vendre vos objets sur le `/market`\n\n**Que faire avec ?**\n- Acheter des effets visuels dans le `/shop`\n- Acheter des lootboxes (`/lootbox buy`)\n- Acheter de meilleurs appâts pour `/fish` ou des cannes à pêche (`/craft`)');
+            break;
+          case 'fishing':
+            embed.setTitle('🎣 Guide de la Pêche')
+                 .setDescription('Utilise `/fish <appât>` pour pêcher.\n\n- Les **appâts** (Ver, Crevette, Calamar) coûtent des BordelCoins mais augmentent tes chances d\'attraper des objets rares.\n- Tu peux attraper des déchets (0 💰), des poissons variés, ou même des **Lootboxes** (1% de chance) !\n- Les poissons pêchés vont dans ton `/inventory` et peuvent être vendus.\n- Tu peux réduire le temps d\'attente entre 2 pêches en fabriquant une meilleure canne avec `/craft`.');
+            break;
+          case 'slots':
+            embed.setTitle('🎰 Machine à Sous')
+                 .setDescription('Utilise `/slots <mise>` pour parier tes BordelCoins.\n\n- **2 symboles identiques** = x1.5 ta mise.\n- **3 symboles identiques** = x5 à x25 ta mise selon le symbole (💎 = x25, 🔔 = x15).\n- Aligner 3 💎 déclenche un **JACKPOT**.\n- Gagner plusieurs jackpots de suite débloque des succès secrets et des titres uniques (`/achievements`) !');
+            break;
+          case 'market':
+            embed.setTitle('🛒 Le Marché Communautaire')
+                 .setDescription('Le marché permet aux joueurs d\'échanger leurs objets contre des BordelCoins.\n\n- `/market list` : Voir les objets en vente actuellement.\n- `/market sell <objet> <prix>` : Mettre en vente un objet de ton inventaire. Tu choisis le prix !\n- `/market buy <id>` : Acheter l\'objet correspondant.\n- `/market cancel <id>` : Annuler ta vente et récupérer ton objet.\n\n*(Note : Certains titres/objets liés au compte comme les récompenses de succès ne peuvent pas être vendus).*');
+            break;
+          case 'craft':
+            embed.setTitle('🛠️ Système de Craft')
+                 .setDescription('Le craft te permet de fusionner des BordelCoins avec tes anciens objets pour en créer de meilleurs.\n\n**Cannes à pêche :**\n- Canne en bois = Par défaut (40s cooldown)\n- Canne en fer = Bois + 1000 💰 (30s cooldown)\n- Canne en or = Fer + 5000 💰 (20s cooldown)\n- Canne en diamant = Or + 15000 💰 (15s cooldown)\n\nUtilise `/craft <objet>` pour fabriquer !');
+            break;
+        }
 
         await interaction.editReply({ embeds: [embed] });
         break;

@@ -422,6 +422,21 @@ const commands = [
     .setDescription('Affiche un tutoriel sur le fonctionnement du bot et ses commandes'),
 
   new SlashCommandBuilder()
+    .setName('info')
+    .setDescription('Affiche des informations spécifiques sur un sujet')
+    .addStringOption(option =>
+      option.setName('sujet')
+            .setDescription('Le sujet sur lequel vous voulez des informations')
+            .setRequired(true)
+            .addChoices(
+              { name: 'Économie & BordelCoins', value: 'economy' },
+              { name: 'Pêche', value: 'fishing' },
+              { name: 'Machine à sous (Slots)', value: 'slots' },
+              { name: 'Marché', value: 'market' },
+              { name: 'Craft', value: 'craft' }
+            )),
+
+  new SlashCommandBuilder()
     .setName('meme')
     .setDescription('Gère et joue vos mèmes personnels')
     .addSubcommand(subcommand =>
@@ -591,15 +606,35 @@ const commands = [
   new SlashCommandBuilder()
     .setName('fish')
     .setDescription('Pêcher pour gagner des poissons, déchets, ou lootboxes (coûte des BordelCoins)')
-    .addStringOption(option =>
-       option.setName('appat')
-             .setDescription('L\'appât à utiliser')
-             .setRequired(true)
-             .addChoices(
-               { name: 'Ver de terre (2 BC)', value: 'BAIT_WORM' },
-               { name: 'Crevette (10 BC)', value: 'BAIT_SHRIMP' },
-               { name: 'Calamar (30 BC)', value: 'BAIT_SQUID' }
-             )),
+    .addSubcommand(subcommand =>
+      subcommand
+        .setName('catch')
+        .setDescription('Attraper un poisson avec un appât')
+        .addStringOption(option =>
+           option.setName('appat')
+                 .setDescription('L\'appât à utiliser')
+                 .setRequired(true)
+                 .addChoices(
+                   { name: 'Ver de terre (3 BC)', value: 'BAIT_WORM' },
+                   { name: 'Crevette (12 BC)', value: 'BAIT_SHRIMP' },
+                   { name: 'Calamar (35 BC)', value: 'BAIT_SQUID' }
+                 )))
+    .addSubcommand(subcommand =>
+      subcommand
+        .setName('sell')
+        .setDescription('Vendre un poisson de votre inventaire contre des BordelCoins')
+        .addStringOption(option =>
+           option.setName('poisson')
+                 .setDescription('Le poisson à vendre (Laissez vide pour tout vendre)')
+                 .setRequired(false)
+                 .addChoices(
+                   { name: 'Vielle botte', value: 'F_TRASH' },
+                   { name: 'Morue', value: 'F_COD' },
+                   { name: 'Saumon', value: 'F_SALMON' },
+                   { name: 'Thon', value: 'F_TUNA' },
+                   { name: 'Requin', value: 'F_SHARK' },
+                   { name: 'Tentacule du Kraken', value: 'F_KRAKEN' }
+                 ))),
 
   new SlashCommandBuilder()
     .setName('slots')

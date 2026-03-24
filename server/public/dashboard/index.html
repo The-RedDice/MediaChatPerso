@@ -116,6 +116,16 @@
           <div class="tab active" id="tab-soundboard" onclick="switchTab('soundboard')">🎛️ Mes Mèmes</div>
           <div class="tab" id="tab-upload" onclick="switchTab('upload')">📎 Upload Fichier</div>
           <div class="tab" id="tab-trade" onclick="switchTab('trade')">🤝 Échanges</div>
+          <div class="tab" id="tab-inventory" onclick="switchTab('inventory')">🎒 Inventaire</div>
+        </div>
+
+        <!-- Inventory Tab -->
+        <div class="card" id="content-inventory" style="display: none;">
+          <h3>🎒 Mon Inventaire</h3>
+          <p style="color: #888; font-size: 0.9rem; margin-bottom: 10px;">Vos objets, titres, couleurs, et équipements.</p>
+          <div id="inventory-container" class="dashboard-grid">
+             <div style="color: #aaa; text-align: center; grid-column: 1 / -1; padding: 20px;">Chargement de l'inventaire...</div>
+          </div>
         </div>
 
         <!-- Soundboard Tab -->
@@ -202,10 +212,12 @@
       document.getElementById('tab-soundboard').classList.remove('active');
       document.getElementById('tab-upload').classList.remove('active');
       document.getElementById('tab-trade').classList.remove('active');
+      document.getElementById('tab-inventory').classList.remove('active');
 
       document.getElementById('content-soundboard').style.display = 'none';
       document.getElementById('content-upload').style.display = 'none';
       document.getElementById('content-trade').style.display = 'none';
+      document.getElementById('content-inventory').style.display = 'none';
 
       document.getElementById('tab-' + tabName).classList.add('active');
       document.getElementById('content-' + tabName).style.display = 'block';
