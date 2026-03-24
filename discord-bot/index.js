@@ -830,12 +830,31 @@ client.on(Events.InteractionCreate, async (interaction) => {
            const equippedTitle = inventoryData.equipped.title;
            const equippedBadge = inventoryData.equipped.badge;
 
-           // On va simuler ou fetcher la DB items. Idéalement on la récupère du serveur
-           // Pour l'affichage Discord on va juste montrer l'ID si on a pas le détail.
-           // Mais on peut faire mieux si on passe le détail depuis l'API stats.
+           // Fetch itemsDb to get real names and procedurals
+           let itemsDb = null;
+           try {
+               const dbRes = await apiGet(`/items_db?userId=${targetUserId}`);
+               if (!dbRes.error) itemsDb = dbRes;
+           } catch(e) {}
+
+           let titleDisplay = equippedTitle || 'Aucun';
+           let badgeDisplay = equippedBadge || 'Aucun';
+
+           if (itemsDb) {
+              for (const cat in itemsDb) {
+                 if (equippedTitle && itemsDb[cat][equippedTitle]) {
+                    titleDisplay = itemsDb[cat][equippedTitle].name;
+                 }
+                 if (equippedBadge && itemsDb[cat][equippedBadge]) {
+                    const badgeInfo = itemsDb[cat][equippedBadge];
+                    badgeDisplay = badgeInfo.name;
+                    if (badgeInfo.emoji) badgeDisplay = `${badgeInfo.emoji} ${badgeDisplay}`;
+                 }
+              }
+           }
 
            if (equippedTitle || equippedBadge) {
-              embed.addFields({ name: '🎒 Équipement Spécial', value: `**Titre:** ${equippedTitle || 'Aucun'}\n**Badge:** ${equippedBadge || 'Aucun'}`, inline: false });
+              embed.addFields({ name: '🎒 Équipement Spécial', value: `**Titre:** ${titleDisplay}\n**Badge:** ${badgeDisplay}`, inline: false });
            }
         }
 

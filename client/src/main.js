@@ -670,11 +670,6 @@ window.showItem = function showItem(item) {
   if (payload.senderName) {
     let displayName = payload.senderName;
 
-    // Ajout du badge d'inventaire
-    if (payload.equippedBadge) {
-       displayName = `${payload.equippedBadge} ${displayName}`;
-    }
-
     function escapeHtml(unsafe) {
         return (unsafe || '').toString()
             .replace(/&/g, "&amp;")
@@ -686,14 +681,21 @@ window.showItem = function showItem(item) {
 
     let safeDisplayName = escapeHtml(displayName);
 
+    // Ajout du badge d'inventaire avec style distinct
+    if (payload.equippedBadge) {
+       // Le badge arrive sous forme d'emoji grâce au serveur
+       safeDisplayName = `<span style="margin-right: 0.3em;">${escapeHtml(payload.equippedBadge)}</span>` + safeDisplayName;
+    }
+
     // Ajout du titre d'inventaire
     if (payload.equippedTitle) {
        let safeTitle = escapeHtml(payload.equippedTitle);
-       safeDisplayName += `<br><span style="font-size: 0.8em; opacity: 0.8;">[${safeTitle}]</span>`;
-       senderName.innerHTML = safeDisplayName;
-    } else {
-       senderName.textContent = displayName;
+       // Nettoyer le titre s'il contient des informations de bonus ou de numéro de série inutiles à l'écran
+       // Exemple: "Le Novice" -> OK, "Artefact Maudit du Chaos #1" -> OK.
+       safeDisplayName += `<br><span class="user-title" style="font-size: 0.6em; font-weight: normal; opacity: 0.85; letter-spacing: 1px; display: block; text-transform: uppercase;">[${safeTitle}]</span>`;
     }
+
+    senderName.innerHTML = safeDisplayName;
 
     // Appliquer la couleur spéciale au pseudo
     if (payload.equippedColorHex) {
