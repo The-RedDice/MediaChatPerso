@@ -580,6 +580,66 @@ const commands = [
     .setName('dashboard')
     .setDescription('Obtenir le lien du panel web (upload fichiers, soundboard, inventaire, marché)'),
 
+  new SlashCommandBuilder()
+    .setName('collection')
+    .setDescription('Voir votre progression de collection et réclamer vos récompenses de paliers'),
+
+  new SlashCommandBuilder()
+    .setName('daily')
+    .setDescription('Réclamer votre récompense quotidienne (BordelCoins, lootboxes, titres)'),
+
+  new SlashCommandBuilder()
+    .setName('fish')
+    .setDescription('Pêcher pour gagner des poissons, déchets, ou lootboxes (coûte des BordelCoins)')
+    .addStringOption(option =>
+       option.setName('appat')
+             .setDescription('L\'appât à utiliser')
+             .setRequired(true)
+             .addChoices(
+               { name: 'Ver de terre (2 BC)', value: 'BAIT_WORM' },
+               { name: 'Crevette (10 BC)', value: 'BAIT_SHRIMP' },
+               { name: 'Calamar (30 BC)', value: 'BAIT_SQUID' }
+             )),
+
+  new SlashCommandBuilder()
+    .setName('slots')
+    .setDescription('Jouer à la machine à sous pour tenter de remporter le jackpot !')
+    .addIntegerOption(option =>
+       option.setName('mise')
+             .setDescription('Le montant de votre mise en BordelCoins')
+             .setRequired(true)
+             .setMinValue(1)),
+
+  new SlashCommandBuilder()
+    .setName('coinflip')
+    .setDescription('Lancer un pari (pile ou face) avec un autre joueur (Taxe de 5%)')
+    .addUserOption(option =>
+       option.setName('joueur')
+             .setDescription('Le joueur que vous voulez défier')
+             .setRequired(true))
+    .addIntegerOption(option =>
+       option.setName('mise')
+             .setDescription('La mise en BordelCoins')
+             .setRequired(true)
+             .setMinValue(1)),
+
+  new SlashCommandBuilder()
+    .setName('achievements')
+    .setDescription('Voir vos succès débloqués'),
+
+  new SlashCommandBuilder()
+    .setName('craft')
+    .setDescription('Fabriquer de meilleurs objets (Cannes à pêche)')
+    .addStringOption(option =>
+       option.setName('objet')
+             .setDescription('L\'objet que vous souhaitez fabriquer')
+             .setRequired(true)
+             .addChoices(
+               { name: 'Canne en fer (1000 BC + Canne en bois)', value: 'R_IRON' },
+               { name: 'Canne en or (5000 BC + Canne en fer)', value: 'R_GOLD' },
+               { name: 'Canne en diamant (15000 BC + Canne en or)', value: 'R_DIAMOND' }
+             )),
+
 ].map(cmd => cmd.toJSON());
 
 // ─── Déploiement ─────────────────────────────────────────

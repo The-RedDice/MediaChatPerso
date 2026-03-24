@@ -55,6 +55,19 @@ function updateTradeOffer(tradeId, userId, offerItems, offerCoins) {
       }
       return { error: `Vous n'avez pas assez de ${itemName}.` };
     }
+
+    // Check untradeable
+    let isUntradeable = false;
+    for (const cat in itemsDb) {
+      if (itemsDb[cat][itemId] && itemsDb[cat][itemId].untradeable) {
+         isUntradeable = true;
+         break;
+      }
+    }
+    if (isUntradeable) {
+       return { error: `L'objet sélectionné est lié à votre compte et ne peut pas être échangé.` };
+    }
+
     tempInv[itemId]--;
   }
 
