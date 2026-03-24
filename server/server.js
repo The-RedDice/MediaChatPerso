@@ -1331,7 +1331,7 @@ app.use('/dashboard', express.static(path.join(__dirname, 'public', 'dashboard')
 app.get('/dashboard', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'dashboard', 'index.html'));
 });
-app.get('/dashboard/*', (req, res, next) => {
+app.get('/dashboard/*path', (req, res, next) => {
   // Ignore requests for static assets (like .js, .css files) to avoid sending html
   if (req.path.includes('.')) return next();
   res.sendFile(path.join(__dirname, 'public', 'dashboard', 'index.html'));
