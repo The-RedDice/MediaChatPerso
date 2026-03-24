@@ -22,7 +22,7 @@ const { getAvailableModels, generateTTS } = require('./tts');
 const { recordAction, recordSkip, getUserStats, getLeaderboard, getUserProfile, saveUserProfile, updateReputation, spendCoins, unlockStyleItem, getUnlockedStyles } = require('./stats');
 const { addMeme, getUserMemes, removeMeme } = require('./memes');
 const { initAI, generateResponse } = require('./ai');
-const { getInventory, addLootbox, openLootbox, equipItem, getItemsDb } = require('./stats');
+const { getInventory, addLootbox, openLootbox, equipItem, getItemsDb, claimDaily, getCollectionProgress, fish, playSlots, createCoinflip, acceptCoinflip, cancelCoinflip, craftItem } = require('./stats');
 const { getListings, createListing, buyListing, cancelListing } = require('./market');
 const { createTradeRequest, updateTradeOffer, acceptTrade, declineTrade, getTrade, getPendingTrades } = require('./trade');
 const { startEvent, interactEvent, getActiveEvent } = require('./events');
@@ -725,7 +725,7 @@ router.get('/trades/me', requireAuth, (req, res) => {
 router.get('/collection', requireAuth, (req, res) => {
   const userId = req.query.userId;
   if (!userId) return res.status(400).json({ error: 'userId manquant' });
-  const result = stats.getCollectionProgress(userId);
+  const result = getCollectionProgress(userId);
   res.json(result);
 });
 
@@ -733,8 +733,8 @@ router.get('/achievements', requireAuth, (req, res) => {
   const userId = req.query.userId;
   if (!userId) return res.status(400).json({ error: 'userId manquant' });
 
-  const inv = stats.getInventory(userId).items;
-  const itemsDb = stats.getItemsDb();
+  const inv = getInventory(userId).items;
+  const itemsDb = getItemsDb();
 
   const unlocked = [];
   for (const itemId in inv) {
@@ -763,7 +763,7 @@ router.get('/achievements', requireAuth, (req, res) => {
 router.post('/daily', requireAuth, (req, res) => {
   const userId = req.body.userId;
   if (!userId) return res.status(400).json({ error: 'userId manquant' });
-  const result = stats.claimDaily(userId);
+  const result = claimDaily(userId);
   res.json(result);
 });
 
@@ -772,7 +772,7 @@ router.post('/daily', requireAuth, (req, res) => {
 router.post('/craft', requireAuth, (req, res) => {
   const { userId, targetItemId } = req.body;
   if (!userId || !targetItemId) return res.status(400).json({ error: 'Paramètres manquants' });
-  const result = stats.craftItem(userId, targetItemId);
+  const result = craftItem(userId, targetItemId);
   res.json(result);
 });
 
@@ -782,7 +782,7 @@ router.post('/fish', requireAuth, (req, res) => {
   const { userId, bait } = req.body;
   if (!userId || !bait) return res.status(400).json({ error: 'Paramètres manquants' });
 
-  const inv = stats.getInventory(userId);
+  const inv = getInventory(userId);
   let rodId = 'R_WOOD'; // fallback
   for (const r of ['R_DIAMOND', 'R_GOLD', 'R_IRON', 'R_WOOD']) {
      if (inv.items[r] && inv.items[r] > 0) {
@@ -790,7 +790,7 @@ router.post('/fish', requireAuth, (req, res) => {
      }
   }
 
-  const result = stats.fish(userId, bait, rodId);
+  const result = fish(userId, bait, rodId);
   res.json(result);
 });
 
@@ -798,7 +798,7 @@ router.post('/fish', requireAuth, (req, res) => {
 router.post('/slots', requireAuth, (req, res) => {
   const { userId, amount } = req.body;
   if (!userId || !amount) return res.status(400).json({ error: 'Paramètres manquants' });
-  const result = stats.playSlots(userId, parseInt(amount, 10));
+  const result = playSlots(userId, parseInt(amount, 10));
   res.json(result);
 });
 
@@ -806,21 +806,21 @@ router.post('/slots', requireAuth, (req, res) => {
 router.post('/coinflip/create', requireAuth, (req, res) => {
   const { userId, targetId, amount } = req.body;
   if (!userId || !targetId || !amount) return res.status(400).json({ error: 'Paramètres manquants' });
-  const result = stats.createCoinflip(userId, targetId, parseInt(amount, 10));
+  const result = createCoinflip(userId, targetId, parseInt(amount, 10));
   res.json(result);
 });
 
 router.post('/coinflip/accept', requireAuth, (req, res) => {
   const { flipId, userId } = req.body;
   if (!flipId || !userId) return res.status(400).json({ error: 'Paramètres manquants' });
-  const result = stats.acceptCoinflip(flipId, userId);
+  const result = acceptCoinflip(flipId, userId);
   res.json(result);
 });
 
 router.post('/coinflip/cancel', requireAuth, (req, res) => {
   const { flipId } = req.body;
   if (!flipId) return res.status(400).json({ error: 'Paramètres manquants' });
-  stats.cancelCoinflip(flipId);
+  cancelCoinflip(flipId);
   res.json({ ok: true });
 });
 

@@ -66,5 +66,26 @@
     "reputation": 1,
     "votesGiven": {},
     "firstAction": 1773680161848
+  },
+  "test_user": {
+    "username": "Tester",
+    "mediaCount": 0,
+    "fileCount": 0,
+    "messageCount": 1,
+    "totalCount": 1,
+    "firstAction": 1774368629364,
+    "lastAction": 1774368629364,
+    "bordelCoins": 540,
+    "votesGiven": {},
+    "daily": {
+      "lastClaimDate": "2026-03-24",
+      "streak": 1
+    },
+    "slots": {
+      "jackpots": 0,
+      "consecutiveJackpots": 0
+    },
+    "inventory": {},
+    "lootboxes": 0
   }
 }
