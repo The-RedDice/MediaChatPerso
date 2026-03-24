@@ -405,10 +405,13 @@ const PROCEDURAL_SUFFIXES = ["du Vide", "du Chaos", "de la Lumière", "des Ancie
 function generateProceduralItem(userId, username) {
   // Global counter for transcendant items
   if (!stats['__global__']) {
-    stats['__global__'] = { transcendantCount: 0 };
+    stats['__global__'] = { transcendantCount: 0, proceduralItems: {} };
   }
   if (typeof stats['__global__'].transcendantCount !== 'number') {
     stats['__global__'].transcendantCount = 0;
+  }
+  if (!stats['__global__'].proceduralItems) {
+    stats['__global__'].proceduralItems = {};
   }
 
   stats['__global__'].transcendantCount++;
@@ -618,11 +621,8 @@ function openLootbox(userId) {
     // Generate a unique procedural item
     wonItem = generateProceduralItem(userId, stats[userId].username);
 
-    // Save it to a custom DB inside the user's inventory or global custom items so it can be equipped
-    if (!stats[userId].proceduralItems) {
-      stats[userId].proceduralItems = {};
-    }
-    stats[userId].proceduralItems[wonItem.id] = wonItem;
+    // Save it to the global procedural DB so it can be equipped and traded
+    stats['__global__'].proceduralItems[wonItem.id] = wonItem;
   } else {
     // Filter items by chosen rarity
     const rarityItems = allItems.filter(i => i.rarity === chosenRarity);
@@ -662,7 +662,10 @@ function equipItem(userId, itemId) {
   }
 
   // Check if it's a procedural item
-  if (!category && stats[userId] && stats[userId].proceduralItems && stats[userId].proceduralItems[itemId]) {
+  if (!category && stats['__global__'] && stats['__global__'].proceduralItems && stats['__global__'].proceduralItems[itemId]) {
+    category = stats['__global__'].proceduralItems[itemId].category;
+  } else if (!category && stats[userId] && stats[userId].proceduralItems && stats[userId].proceduralItems[itemId]) {
+    // Fallback for old procedural items (pre-patch)
     category = stats[userId].proceduralItems[itemId].category;
   }
 
@@ -678,17 +681,27 @@ function equipItem(userId, itemId) {
 }
 
 function getItemsDb(userId = null) {
-  if (!userId || !stats[userId] || !stats[userId].proceduralItems) {
-    return itemsDb;
+  // Create a merged DB starting with static items
+  const mergedDb = JSON.parse(JSON.stringify(itemsDb));
+
+  // Merge global procedural items
+  if (stats['__global__'] && stats['__global__'].proceduralItems) {
+    for (const procId in stats['__global__'].proceduralItems) {
+      const procItem = stats['__global__'].proceduralItems[procId];
+      if (!mergedDb[procItem.category]) mergedDb[procItem.category] = {};
+      mergedDb[procItem.category][procId] = procItem;
+    }
   }
 
-  // Create a merged DB for this user so procedural items can be resolved for names/emojis
-  const mergedDb = JSON.parse(JSON.stringify(itemsDb));
-  for (const procId in stats[userId].proceduralItems) {
-    const procItem = stats[userId].proceduralItems[procId];
-    if (!mergedDb[procItem.category]) mergedDb[procItem.category] = {};
-    mergedDb[procItem.category][procId] = procItem;
+  // Merge legacy user-specific procedural items (pre-patch)
+  if (userId && stats[userId] && stats[userId].proceduralItems) {
+    for (const procId in stats[userId].proceduralItems) {
+      const procItem = stats[userId].proceduralItems[procId];
+      if (!mergedDb[procItem.category]) mergedDb[procItem.category] = {};
+      mergedDb[procItem.category][procId] = procItem;
+    }
   }
+
   return mergedDb;
 }
 

@@ -223,9 +223,28 @@ async function loadTrades(userId) {
       div.style.borderRadius = '8px';
       div.style.border = '1px solid var(--color-border)';
 
+      // Fetch full item database to resolve names correctly
+      let itemsDb = null;
+      try {
+        const dbRes = await fetch(`/api/items_db?userId=${userId}`);
+        if (dbRes.ok) itemsDb = await dbRes.json();
+      } catch(e) {}
+
+      const resolveItemNames = (itemIds) => {
+         if (!itemIds || itemIds.length === 0) return 'Aucun objet';
+         return itemIds.map(id => {
+            if (itemsDb) {
+               for (const cat in itemsDb) {
+                  if (itemsDb[cat][id]) return itemsDb[cat][id].name;
+               }
+            }
+            return id;
+         }).join(', ');
+      };
+
       // Show what is being offered by both parties
-      const senderOfferItems = trade.senderOffer.items.length > 0 ? trade.senderOffer.items.join(', ') : 'Aucun objet';
-      const receiverOfferItems = trade.receiverOffer.items.length > 0 ? trade.receiverOffer.items.join(', ') : 'Aucun objet';
+      const senderOfferItems = resolveItemNames(trade.senderOffer.items);
+      const receiverOfferItems = resolveItemNames(trade.receiverOffer.items);
       const senderOfferCoins = trade.senderOffer.coins;
       const receiverOfferCoins = trade.receiverOffer.coins;
 
@@ -272,9 +291,16 @@ async function openTradeEditor(tradeId, userId, isSender) {
 
   // Load user inventory to show options
   try {
-    const res = await fetch(`/api/inventory/${userId}`);
-    if (res.ok) {
-      const inv = await res.json();
+    const [invRes, dbRes] = await Promise.all([
+      fetch(`/api/inventory/${userId}`),
+      fetch(`/api/items_db?userId=${userId}`)
+    ]);
+
+    if (invRes.ok) {
+      const inv = await invRes.json();
+      let itemsDb = null;
+      if (dbRes.ok) itemsDb = await dbRes.json();
+
       const container = document.getElementById('trade-modal-items');
       container.innerHTML = '';
 
@@ -282,11 +308,21 @@ async function openTradeEditor(tradeId, userId, isSender) {
         container.innerHTML = '<div style="color: #ccc;">Aucun objet dans l\'inventaire.</div>';
       } else {
         for (const [itemId, count] of Object.entries(inv.items)) {
+          let itemName = itemId;
+          if (itemsDb) {
+             for (const cat in itemsDb) {
+                if (itemsDb[cat][itemId]) {
+                   itemName = itemsDb[cat][itemId].name;
+                   break;
+                }
+             }
+          }
+
           const div = document.createElement('div');
           div.style.marginBottom = '5px';
           div.innerHTML = `
-            <label style="color: #fff;">
-               <input type="checkbox" value="${itemId}" class="trade-item-checkbox"> ${itemId} (Dispo: ${count})
+            <label style="color: #fff; cursor: pointer; display: block; background: rgba(255,255,255,0.02); padding: 5px; border-radius: 4px;">
+               <input type="checkbox" value="${itemId}" class="trade-item-checkbox" style="margin-right: 10px;"> ${itemName} <span style="color: #888; font-size: 0.9em;">(x${count})</span>
             </label>
           `;
           container.appendChild(div);
