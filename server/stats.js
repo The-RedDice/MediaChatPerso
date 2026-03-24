@@ -900,7 +900,7 @@ function sellFish(userId, fishId, quantityStr) {
   let coinsGained = 0;
   let amountSold = 0;
 
-  if (fishId) {
+  if (fishId && fishId !== 'all') {
      if (!itemsDb.fishes[fishId]) return { error: 'Poisson invalide.' };
      const count = inv[fishId] || 0;
      if (count <= 0) return { ok: true, amountSold: 0, coinsGained: 0 };
@@ -922,7 +922,9 @@ function sellFish(userId, fishId, quantityStr) {
      inv[fishId] -= amountToSell;
      if (inv[fishId] <= 0) delete inv[fishId];
   } else {
+     // Si fishId est 'all' ou non fourni, vendre tous les poissons
      for (const id in itemsDb.fishes) {
+        if (!id.startsWith('F_')) continue; // S'assurer qu'on ne vend que des objets poissons
         const count = inv[id] || 0;
         if (count > 0) {
            const value = itemsDb.fishes[id].value || 0;

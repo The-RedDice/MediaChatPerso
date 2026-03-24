@@ -599,8 +599,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
                const filtered = itemIds.filter(id => id.toLowerCase().includes(focusedOption.value.toLowerCase()));
 
-               await interaction.respond(
-                 filtered.slice(0, 25).map(id => {
+               const options = filtered.slice(0, 24).map(id => {
                    let displayName = id;
                    if (itemsDbRes) {
                      // Recherche du vrai nom dans la base
@@ -612,10 +611,19 @@ client.on(Events.InteractionCreate, async (interaction) => {
                      }
                    }
                    return { name: `${displayName} (x${res.items[id]})`, value: id };
-                 })
-               );
+                 });
+
+               if (interaction.commandName === 'fish' && focusedOption.name === 'poisson') {
+                   options.unshift({ name: '🐟 Tout vendre (Tous les poissons)', value: 'all' });
+               }
+
+               await interaction.respond(options);
             } else {
-               await interaction.respond([]);
+               if (interaction.commandName === 'fish' && focusedOption.name === 'poisson') {
+                   await interaction.respond([{ name: '🐟 Tout vendre (Tous les poissons)', value: 'all' }]);
+               } else {
+                   await interaction.respond([]);
+               }
             }
          } catch(e) {
             console.error('Autocomplete Error:', e);
@@ -1789,14 +1797,22 @@ client.on(Events.InteractionCreate, async (interaction) => {
           }
 
           if (res.amountSold === 0) {
-             await interaction.editReply('Tu n\'as aucun poisson de ce type à vendre.');
+             if (fishId === 'all') {
+                await interaction.editReply('Tu n\'as aucun poisson à vendre dans ton inventaire.');
+             } else {
+                await interaction.editReply('Tu n\'as aucun poisson de ce type à vendre.');
+             }
              break;
           }
+
+          const description = fishId === 'all'
+              ? `Tu as vendu **${res.amountSold}** poisson(s) de tous types pour **${res.coinsGained} BordelCoins** !`
+              : `Tu as vendu **${res.amountSold}** poisson(s) pour **${res.coinsGained} BordelCoins** !`;
 
           const embed = new EmbedBuilder()
             .setTitle('💰 Poissonnerie')
             .setColor('#f1c40f')
-            .setDescription(`Tu as vendu **${res.amountSold}** poisson(s) pour **${res.coinsGained} BordelCoins** !`);
+            .setDescription(description);
 
           await interaction.editReply({ embeds: [embed] });
         }
