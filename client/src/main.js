@@ -547,7 +547,7 @@ function handleFile(payload) {
 
 
 // ─── THREE.JS AI MODEL VARIABLES ───
-let aiScene, aiCamera, aiRenderer, aiMixer, aiClock;
+let aiScene, aiCamera, aiRenderer, aiMixer = null, aiClock;
 let aiModelMesh;
 let isAiModelInitialized = false;
 
@@ -572,15 +572,62 @@ function initAiModel() {
   directionalLight.position.set(1, 1, 2);
   aiScene.add(directionalLight);
 
-  // Fallback: Animated floating cube instead of a GLTF model for now, to ensure it works without assets
-  const geometry = new THREE.BoxGeometry(1.5, 1.5, 1.5);
-  const material = new THREE.MeshStandardMaterial({ color: 0x00ffff, emissive: 0x005555, wireframe: true });
-  aiModelMesh = new THREE.Mesh(geometry, material);
-  aiScene.add(aiModelMesh);
-
   aiClock = new THREE.Clock();
-  isAiModelInitialized = true;
-  animateAiModel();
+
+  // Load external GLTF/GLB model
+  const loader = new THREE.GLTFLoader();
+  loader.load(
+    './ai_model.glb',
+    (gltf) => {
+      aiModelMesh = gltf.scene;
+
+      // Center and scale the model
+      const box = new THREE.Box3().setFromObject(aiModelMesh);
+      const center = box.getCenter(new THREE.Vector3());
+      const size = box.getSize(new THREE.Vector3());
+
+      const maxDim = Math.max(size.x, size.y, size.z);
+      const scale = 2.5 / maxDim; // Normalize scale to fit the view
+      aiModelMesh.scale.setScalar(scale);
+
+      aiModelMesh.position.x = -center.x * scale;
+      aiModelMesh.position.y = -center.y * scale;
+      aiModelMesh.position.z = -center.z * scale;
+
+      // Store base transform for animations
+      aiModelMesh.userData.baseScale = scale;
+      aiModelMesh.userData.basePositionY = aiModelMesh.position.y;
+
+      aiScene.add(aiModelMesh);
+
+      // Handle animations if present
+      if (gltf.animations && gltf.animations.length > 0) {
+        aiMixer = new THREE.AnimationMixer(aiModelMesh);
+        const action = aiMixer.clipAction(gltf.animations[0]);
+        action.play();
+      } else {
+        aiMixer = null;
+      }
+
+      isAiModelInitialized = true;
+      animateAiModel();
+    },
+    undefined,
+    (error) => {
+      console.warn("Failed to load ai_model.glb, falling back to basic cube.", error);
+      // Fallback: Animated floating cube instead of a GLTF model for now, to ensure it works without assets
+      const geometry = new THREE.BoxGeometry(1.5, 1.5, 1.5);
+      const material = new THREE.MeshStandardMaterial({ color: 0x00ffff, emissive: 0x005555, wireframe: true });
+      aiModelMesh = new THREE.Mesh(geometry, material);
+
+      aiModelMesh.userData.baseScale = 1;
+      aiModelMesh.userData.basePositionY = 0;
+
+      aiScene.add(aiModelMesh);
+      isAiModelInitialized = true;
+      animateAiModel();
+    }
+  );
 }
 
 function animateAiModel() {
@@ -593,15 +640,26 @@ function animateAiModel() {
   if (aiMixer) aiMixer.update(delta);
 
   if (aiModelMesh) {
-    aiModelMesh.rotation.x += 0.5 * delta;
-    aiModelMesh.rotation.y += 1.0 * delta;
-    // Bouncing effect
-    aiModelMesh.position.y = Math.sin(time * 5) * 0.2;
-    // Pulse effect if audio is playing (basic mock based on time)
-    if (audioPlayer && !audioPlayer.paused) {
-       aiModelMesh.scale.setScalar(1 + Math.sin(time * 20) * 0.1);
+    const isCube = aiModelMesh.geometry && aiModelMesh.geometry.type === 'BoxGeometry';
+    const baseScale = aiModelMesh.userData.baseScale || 1;
+    const basePositionY = aiModelMesh.userData.basePositionY || 0;
+
+    if (isCube) {
+       aiModelMesh.rotation.x += 0.5 * delta;
+       aiModelMesh.rotation.y += 1.0 * delta;
+       aiModelMesh.position.y = basePositionY + Math.sin(time * 5) * 0.2;
     } else {
-       aiModelMesh.scale.setScalar(1);
+       // Gentle float and rotate for imported model
+       aiModelMesh.rotation.y += 0.5 * delta;
+       // Bouncing based on original static Y position
+       aiModelMesh.position.y = basePositionY + Math.sin(time * 3) * 0.1;
+    }
+
+    // Pulse effect if audio is playing
+    if (audioPlayer && !audioPlayer.paused) {
+       aiModelMesh.scale.setScalar(baseScale * (1 + Math.sin(time * 20) * 0.05));
+    } else {
+       aiModelMesh.scale.setScalar(baseScale);
     }
   }
 
