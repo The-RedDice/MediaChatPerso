@@ -37,6 +37,7 @@ async function init() {
     document.getElementById('volume').value = vol;
     document.getElementById('opacity').value = opa;
     document.getElementById('shortcut').value = sc;
+    document.getElementById('enableAiModel').checked = (config.enableAiModel !== false);
     updateLabels(msgSize, capSize, ms, px, py, vol, opa);
 
     // Vérification de la version
@@ -218,6 +219,7 @@ window.saveOptions = async function () {
     volume:      parseInt(document.getElementById('volume').value, 10),
     opacity:     parseInt(document.getElementById('opacity').value, 10),
     shortcut:    document.getElementById('shortcut').value.trim(),
+    enableAiModel: document.getElementById('enableAiModel').checked,
   };
 
   if (!config.pseudo) {

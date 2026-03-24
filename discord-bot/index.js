@@ -577,22 +577,48 @@ client.on(Events.InteractionCreate, async (interaction) => {
           await interaction.respond([]);
         }
       }
-    } else if (interaction.commandName === 'inventory' || interaction.commandName === 'market') {
+    } else if (interaction.commandName === 'inventory' || interaction.commandName === 'market' || interaction.commandName === 'fish') {
       const focusedOption = interaction.options.getFocused(true);
-      if (focusedOption.name === 'objet') {
+      if (focusedOption.name === 'objet' || focusedOption.name === 'poisson') {
          try {
             const userId = interaction.user.id;
             const res = await apiGet(`/inventory/${userId}`);
+
+            // To display friendly names we could query /items_db but caching or parsing client side is lighter.
+            // Since it's just an id filter, we'll keep it fast.
+            let itemsDbRes = null;
+            try { itemsDbRes = await apiGet(`/items_db?userId=${userId}`); } catch(e){}
+
             if (res && res.items) {
-               const itemIds = Object.keys(res.items);
+               let itemIds = Object.keys(res.items);
+
+               // Restreindre uniquement aux poissons si la commande est /fish
+               if (interaction.commandName === 'fish' && focusedOption.name === 'poisson') {
+                  itemIds = itemIds.filter(id => id.startsWith('F_'));
+               }
+
                const filtered = itemIds.filter(id => id.toLowerCase().includes(focusedOption.value.toLowerCase()));
+
                await interaction.respond(
-                 filtered.slice(0, 25).map(id => ({ name: `${id} (x${res.items[id]})`, value: id }))
+                 filtered.slice(0, 25).map(id => {
+                   let displayName = id;
+                   if (itemsDbRes) {
+                     // Recherche du vrai nom dans la base
+                     for (const cat in itemsDbRes) {
+                        if (itemsDbRes[cat][id]) {
+                           displayName = itemsDbRes[cat][id].name;
+                           break;
+                        }
+                     }
+                   }
+                   return { name: `${displayName} (x${res.items[id]})`, value: id };
+                 })
                );
             } else {
                await interaction.respond([]);
             }
          } catch(e) {
+            console.error('Autocomplete Error:', e);
             await interaction.respond([]);
          }
       }
@@ -1426,6 +1452,34 @@ client.on(Events.InteractionCreate, async (interaction) => {
             );
 
           await interaction.editReply({ embeds: [embed], components: [row] });
+
+          // Planifier la fin du sondage et l'affichage des résultats
+          setTimeout(async () => {
+            try {
+              const resultRes = await apiGet(`/event/${res.event.id}`);
+              if (resultRes.error || !resultRes.event) return;
+
+              const eventData = resultRes.event;
+              const totalVotes = eventData.totalVotes || 0;
+              const resultsEmbed = new EmbedBuilder()
+                .setColor(0x00FF00)
+                .setTitle(`📊 Résultats finaux : ${eventData.question}`)
+                .setDescription(`Total des votes : **${totalVotes}**`);
+
+              let resultsText = '';
+              eventData.choices.forEach((choice, index) => {
+                const votes = eventData.votes[index] || 0;
+                const percentage = totalVotes > 0 ? Math.round((votes / totalVotes) * 100) : 0;
+                resultsText += `**${choice}** : ${votes} vote(s) (${percentage}%)\n`;
+              });
+
+              resultsEmbed.addFields({ name: 'Résultats', value: resultsText });
+
+              await interaction.followUp({ embeds: [resultsEmbed] });
+            } catch (err) {
+              console.error('[Sondage] Erreur de récupération des résultats:', err);
+            }
+          }, 30000);
         } else {
           // Vue globale avec le détail de toutes les files actives
           const embed = new EmbedBuilder()
@@ -1468,7 +1522,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
           const filter = interaction.options.getString('filter') || 'aucun';
           const effect = interaction.options.getString('effet') || 'aucun';
 
-          const res = await apiPost('/event/start', { type: 'boss', name, image, duration: 60000, greenscreen, filter, effect });
+          const res = await apiPost('/event/start', { type: 'boss', name, image, duration: 30000, greenscreen, filter, effect });
 
           if (res.error) {
             await interaction.editReply(`❌ Erreur : ${res.error}`);
@@ -1480,7 +1534,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
           const embed = new EmbedBuilder()
             .setColor(0xED4245)
             .setTitle(`⚔️ Un Boss est apparu !`)
-            .setDescription(`**${name}** a **${bossHp} HP**.\n\nSpammez le bouton pour l'attaquer ! (60 secondes)\n\n*(Nécessite d'avoir l'overlay ouvert pour obtenir des BordelCoins !)*`);
+            .setDescription(`**${name}** a **${bossHp} HP**.\n\nSpammez le bouton pour l'attaquer ! (30 secondes)\n\n*(Nécessite d'avoir l'overlay ouvert pour obtenir des BordelCoins !)*`);
 
           if (image) embed.setThumbnail(image);
 
@@ -1504,7 +1558,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
           if (c3) choices.push(c3);
           if (c4) choices.push(c4);
 
-          const res = await apiPost('/event/start', { type: 'sondage', question, choices, duration: 60000 });
+          const res = await apiPost('/event/start', { type: 'sondage', question, choices, duration: 30000 });
 
           if (res.error) {
             await interaction.editReply(`❌ Erreur : ${res.error}`);
@@ -1514,7 +1568,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
           const embed = new EmbedBuilder()
             .setColor(0x5865F2)
             .setTitle(`📊 Sondage en direct !`)
-            .setDescription(`**${question}**\n\nVotez avec les boutons ci-dessous ! (60 secondes)`);
+            .setDescription(`**${question}**\n\nVotez avec les boutons ci-dessous ! (30 secondes)`);
 
           const row = new ActionRowBuilder();
           choices.forEach((c, index) => {
@@ -1527,6 +1581,34 @@ client.on(Events.InteractionCreate, async (interaction) => {
           });
 
           await interaction.editReply({ embeds: [embed], components: [row] });
+
+          // Planifier la fin du sondage et l'affichage des résultats
+          setTimeout(async () => {
+            try {
+              const resultRes = await apiGet(`/event/${res.event.id}`);
+              if (resultRes.error || !resultRes.event) return;
+
+              const eventData = resultRes.event;
+              const totalVotes = eventData.totalVotes || 0;
+              const resultsEmbed = new EmbedBuilder()
+                .setColor(0x00FF00)
+                .setTitle(`📊 Résultats finaux : ${eventData.question}`)
+                .setDescription(`Total des votes : **${totalVotes}**`);
+
+              let resultsText = '';
+              eventData.choices.forEach((choice, index) => {
+                const votes = eventData.votes[index] || 0;
+                const percentage = totalVotes > 0 ? Math.round((votes / totalVotes) * 100) : 0;
+                resultsText += `**${choice}** : ${votes} vote(s) (${percentage}%)\n`;
+              });
+
+              resultsEmbed.addFields({ name: 'Résultats', value: resultsText });
+
+              await interaction.followUp({ embeds: [resultsEmbed] });
+            } catch (err) {
+              console.error('[Sondage] Erreur de récupération des résultats:', err);
+            }
+          }, 30000);
         }
         break;
       }
@@ -1697,8 +1779,9 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
           await interaction.editReply({ embeds: [embed] });
         } else if (subCmd === 'sell') {
-          const fishId = interaction.options.getString('poisson');
-          const res = await apiPost('/fish/sell', { userId, fishId });
+          const fishId = interaction.options.getString('poisson', true);
+          const quantityStr = interaction.options.getString('quantite') || '1';
+          const res = await apiPost('/fish/sell', { userId, fishId, quantity: quantityStr });
 
           if (!res || res.error) {
             await interaction.editReply('❌ ' + (res?.error || 'Erreur lors de la vente.'));
@@ -1794,19 +1877,83 @@ client.on(Events.InteractionCreate, async (interaction) => {
             break;
          }
 
-         const embed = new EmbedBuilder()
-          .setTitle('🏆 Liste des Succès')
-          .setColor('#f1c40f')
-          .setDescription(res.achievements.length > 0
-            ? res.achievements.map(a => {
-                const icon = a.earned ? '✅' : '❌';
-                const nameStyle = a.earned ? `**${a.name}**` : `~~${a.name}~~`;
-                return `${icon} ${nameStyle} ${a.emoji || ''}`;
-              }).join('\n')
-            : 'Aucun succès disponible.');
+         if (!res.achievements || res.achievements.length === 0) {
+            await interaction.editReply("Aucun succès disponible.");
+            break;
+         }
 
-        await interaction.editReply({ embeds: [embed] });
-        break;
+         const ITEMS_PER_PAGE = 5;
+         const pages = Math.ceil(res.achievements.length / ITEMS_PER_PAGE);
+         let currentPage = 0;
+
+         const generateEmbed = (page) => {
+           const start = page * ITEMS_PER_PAGE;
+           const currentItems = res.achievements.slice(start, start + ITEMS_PER_PAGE);
+
+           const embed = new EmbedBuilder()
+             .setTitle(`🏆 Liste des Succès (Page ${page + 1}/${pages})`)
+             .setColor('#f1c40f');
+
+           let desc = '';
+           currentItems.forEach(a => {
+             const icon = a.earned ? '✅' : '❌';
+             if (!a.earned && a.secret) {
+               desc += `${icon} **???** (Secret)\n*Description masquée*\n\n`;
+             } else {
+               const nameStyle = a.earned ? `**${a.name}**` : `~~${a.name}~~`;
+               desc += `${icon} ${nameStyle} ${a.emoji || ''}\n*${a.desc}*\nMoyen d'obtention: ${a.howToObtain}\n\n`;
+             }
+           });
+
+           embed.setDescription(desc || 'Rien ici.');
+           return embed;
+         };
+
+         const getRow = (page) => {
+           return new ActionRowBuilder().addComponents(
+             new ButtonBuilder()
+               .setCustomId('achiev_prev_' + interaction.user.id)
+               .setLabel('⬅️ Précédent')
+               .setStyle(ButtonStyle.Secondary)
+               .setDisabled(page === 0),
+             new ButtonBuilder()
+               .setCustomId('achiev_next_' + interaction.user.id)
+               .setLabel('Suivant ➡️')
+               .setStyle(ButtonStyle.Secondary)
+               .setDisabled(page === pages - 1)
+           );
+         };
+
+         const message = await interaction.editReply({
+           embeds: [generateEmbed(currentPage)],
+           components: pages > 1 ? [getRow(currentPage)] : []
+         });
+
+         // Create a collector for the buttons
+         if (pages > 1) {
+           const filter = i => i.customId.startsWith('achiev_') && i.user.id === interaction.user.id;
+           const collector = message.createMessageComponentCollector({ filter, time: 60000 });
+
+           collector.on('collect', async i => {
+             if (i.customId.includes('_prev_')) currentPage--;
+             else if (i.customId.includes('_next_')) currentPage++;
+
+             await i.update({
+               embeds: [generateEmbed(currentPage)],
+               components: [getRow(currentPage)]
+             });
+           });
+
+           collector.on('end', async () => {
+             // Disable buttons after timeout
+             try {
+                const disabledRow = getRow(currentPage);
+                disabledRow.components.forEach(c => c.setDisabled(true));
+                await interaction.editReply({ components: [disabledRow] });
+             } catch(e) {}
+           });
+         }
+         break;
       }
 
             // ── /craft ───────────────────────────────────────────

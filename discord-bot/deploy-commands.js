@@ -625,16 +625,13 @@ const commands = [
         .setDescription('Vendre un poisson de votre inventaire contre des BordelCoins')
         .addStringOption(option =>
            option.setName('poisson')
-                 .setDescription('Le poisson à vendre (Laissez vide pour tout vendre)')
-                 .setRequired(false)
-                 .addChoices(
-                   { name: 'Vielle botte', value: 'F_TRASH' },
-                   { name: 'Morue', value: 'F_COD' },
-                   { name: 'Saumon', value: 'F_SALMON' },
-                   { name: 'Thon', value: 'F_TUNA' },
-                   { name: 'Requin', value: 'F_SHARK' },
-                   { name: 'Tentacule du Kraken', value: 'F_KRAKEN' }
-                 ))),
+                 .setDescription('Le poisson à vendre')
+                 .setRequired(true)
+                 .setAutocomplete(true))
+        .addStringOption(option =>
+           option.setName('quantite')
+                 .setDescription('Quantité à vendre (ex: 1, 5, ou "tout" pour vendre tous ces poissons)')
+                 .setRequired(false))),
 
   new SlashCommandBuilder()
     .setName('slots')

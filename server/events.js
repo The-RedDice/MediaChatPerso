@@ -6,6 +6,7 @@
 let activeEvent = null;
 let eventTimeout = null;
 let lastEventTime = 0;
+const eventHistory = new Map();
 
 // Le cooldown de boss est retiré pour pouvoir spam, mais les récompenses sont limitées
 const REWARD_COOLDOWN = 5 * 60 * 1000; // 5 minutes
@@ -53,7 +54,7 @@ function startEvent(io, eventData) {
   if (serializableEvent.voters) serializableEvent.voters = Array.from(serializableEvent.voters);
   io.emit('event_start', serializableEvent);
 
-  const duration = eventData.duration || (eventData.type === 'boss' ? 60000 : 30000);
+  const duration = eventData.duration || (eventData.type === 'boss' ? 30000 : 30000);
 
   eventTimeout = setTimeout(() => {
     endEvent(io, { reason: 'timeout' });
@@ -199,7 +200,12 @@ function endEvent(io, result) {
   io.emit('event_end', serializableEvent);
 
   lastEventTime = Date.now();
+  eventHistory.set(serializableEvent.id, serializableEvent);
+  if (eventHistory.size > 10) {
+    const firstKey = eventHistory.keys().next().value;
+    eventHistory.delete(firstKey);
+  }
   activeEvent = null;
 }
 
-module.exports = { startEvent, interactEvent, getActiveEvent: () => activeEvent };
+module.exports = { startEvent, interactEvent, getActiveEvent: () => activeEvent, getEventById: (id) => eventHistory.get(id) || (activeEvent && activeEvent.id === id ? activeEvent : null) };

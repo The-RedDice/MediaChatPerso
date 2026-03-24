@@ -25,7 +25,7 @@ const { initAI, generateResponse } = require('./ai');
 const { getInventory, addLootbox, openLootbox, equipItem, getItemsDb, claimDaily, getCollectionProgress, fish, playSlots, createCoinflip, acceptCoinflip, cancelCoinflip, craftItem } = require('./stats');
 const { getListings, createListing, buyListing, cancelListing } = require('./market');
 const { createTradeRequest, updateTradeOffer, acceptTrade, declineTrade, getTrade, getPendingTrades } = require('./trade');
-const { startEvent, interactEvent, getActiveEvent } = require('./events');
+const { startEvent, interactEvent, getActiveEvent, getEventById } = require('./events');
 
 // Initialiser l'API IA
 initAI();
@@ -746,6 +746,9 @@ router.get('/achievements', requireAuth, (req, res) => {
            achievements.push({
               id: itemId,
               name: itemInfo.name,
+              desc: itemInfo.description || 'Complétez l\'objectif pour débloquer.',
+              howToObtain: itemInfo.howToObtain || '???',
+              secret: !!itemInfo.secret,
               emoji: itemInfo.emoji || '',
               earned: hasEarned
            });
@@ -792,13 +795,13 @@ router.post('/fish', requireAuth, (req, res) => {
 });
 
 router.post('/fish/sell', requireAuth, (req, res) => {
-  const { userId, fishId } = req.body;
+  const { userId, fishId, quantity } = req.body;
   if (!userId) return res.status(400).json({ error: 'userId manquant' });
 
   // Si on importe depuis stats.js:
   const statsMod = require('./stats');
   if (statsMod.sellFish) {
-     const result = statsMod.sellFish(userId, fishId);
+     const result = statsMod.sellFish(userId, fishId, quantity);
      return res.json(result);
   } else {
      return res.status(500).json({ error: 'Fonction de vente indisponible.' });
@@ -1274,6 +1277,13 @@ router.post('/event/interact', (req, res) => {
 // GET /api/event/active
 router.get('/event/active', (_req, res) => {
   res.json({ event: getActiveEvent() });
+});
+
+// GET /api/event/:eventId
+router.get('/event/:eventId', (req, res) => {
+  const event = getEventById(req.params.eventId);
+  if (!event) return res.status(404).json({ error: 'Evénement introuvable.' });
+  res.json({ event });
 });
 
 // POST /api/message

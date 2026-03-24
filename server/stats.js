@@ -892,7 +892,7 @@ function fish(userId, baitId, rodId) {
   return result;
 }
 
-function sellFish(userId, fishId) {
+function sellFish(userId, fishId, quantityStr) {
   if (!stats[userId]) return { error: 'Utilisateur inconnu.' };
   ensureInventoryExists(userId);
 
@@ -905,10 +905,22 @@ function sellFish(userId, fishId) {
      const count = inv[fishId] || 0;
      if (count <= 0) return { ok: true, amountSold: 0, coinsGained: 0 };
 
+     let amountToSell = 1;
+     if (quantityStr && quantityStr.toLowerCase() === 'tout') {
+       amountToSell = count;
+     } else if (quantityStr) {
+       amountToSell = parseInt(quantityStr, 10);
+       if (isNaN(amountToSell) || amountToSell <= 0) return { error: 'Quantité invalide.' };
+     }
+
+     if (amountToSell > count) amountToSell = count;
+
      const value = itemsDb.fishes[fishId].value || 0;
-     coinsGained = value * count;
-     amountSold = count;
-     delete inv[fishId];
+     coinsGained = value * amountToSell;
+     amountSold = amountToSell;
+
+     inv[fishId] -= amountToSell;
+     if (inv[fishId] <= 0) delete inv[fishId];
   } else {
      for (const id in itemsDb.fishes) {
         const count = inv[id] || 0;

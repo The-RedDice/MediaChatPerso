@@ -545,6 +545,82 @@ function handleFile(payload) {
   }
 }
 
+
+// ─── THREE.JS AI MODEL VARIABLES ───
+let aiScene, aiCamera, aiRenderer, aiMixer, aiClock;
+let aiModelMesh;
+let isAiModelInitialized = false;
+
+function initAiModel() {
+  if (isAiModelInitialized) return;
+  const container = document.getElementById('ai-model-container');
+  if (!container) return;
+
+  aiScene = new THREE.Scene();
+
+  aiCamera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 100);
+  aiCamera.position.z = 5;
+
+  aiRenderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+  aiRenderer.setSize(container.clientWidth, container.clientHeight);
+  container.appendChild(aiRenderer.domElement);
+
+  const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+  aiScene.add(ambientLight);
+
+  const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+  directionalLight.position.set(1, 1, 2);
+  aiScene.add(directionalLight);
+
+  // Fallback: Animated floating cube instead of a GLTF model for now, to ensure it works without assets
+  const geometry = new THREE.BoxGeometry(1.5, 1.5, 1.5);
+  const material = new THREE.MeshStandardMaterial({ color: 0x00ffff, emissive: 0x005555, wireframe: true });
+  aiModelMesh = new THREE.Mesh(geometry, material);
+  aiScene.add(aiModelMesh);
+
+  aiClock = new THREE.Clock();
+  isAiModelInitialized = true;
+  animateAiModel();
+}
+
+function animateAiModel() {
+  requestAnimationFrame(animateAiModel);
+  if (!isAiModelInitialized) return;
+
+  const delta = aiClock.getDelta();
+  const time = aiClock.getElapsedTime();
+
+  if (aiMixer) aiMixer.update(delta);
+
+  if (aiModelMesh) {
+    aiModelMesh.rotation.x += 0.5 * delta;
+    aiModelMesh.rotation.y += 1.0 * delta;
+    // Bouncing effect
+    aiModelMesh.position.y = Math.sin(time * 5) * 0.2;
+    // Pulse effect if audio is playing (basic mock based on time)
+    if (audioPlayer && !audioPlayer.paused) {
+       aiModelMesh.scale.setScalar(1 + Math.sin(time * 20) * 0.1);
+    } else {
+       aiModelMesh.scale.setScalar(1);
+    }
+  }
+
+  aiRenderer.render(aiScene, aiCamera);
+}
+
+function showAiModel() {
+  if (CONFIG.enableAiModel === false) return; // Disabled via options
+  initAiModel();
+  const container = document.getElementById('ai-model-container');
+  if (container) container.style.opacity = '1';
+}
+
+function hideAiModel() {
+  const container = document.getElementById('ai-model-container');
+  if (container) container.style.opacity = '0';
+}
+// ────────────────────────────────────
+
 function handleMessage(payload) {
   let textToDisplay = payload.text;
 
@@ -557,11 +633,17 @@ function handleMessage(payload) {
 
   messageText.textContent = textToDisplay;
 
+
   if (payload.greenscreen) {
     messageText.classList.add('greenscreen');
   } else {
     messageText.classList.remove('greenscreen');
   }
+
+  if (payload.isAi) {
+     showAiModel();
+  }
+
 
   applyStyle(payload, messageText, messageEffects);
 
@@ -583,7 +665,10 @@ function handleMessage(payload) {
 
   const endMsg = () => {
     if (endedEmitted) return;
+
     endedEmitted = true;
+    hideAiModel();
+
     messageContainer.classList.remove('visible');
     senderInfo.classList.remove('visible');
     setTimeout(() => socket.emit('media_ended'), 400);
@@ -657,7 +742,8 @@ window.showItem = function showItem(item) {
   } else {
     // Si on a du TTS, on ne veut pas couper l'audioPlayer qui va suivre, mais on doit quand même
     // cacher l'image/vidéo/texte précédent.
-    mediaContainer.classList.remove('visible');
+    hideAiModel();
+  mediaContainer.classList.remove('visible');
     messageContainer.classList.remove('visible');
     senderInfo.classList.remove('visible');
     mediaCaption.classList.remove('visible');
