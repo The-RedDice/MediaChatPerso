@@ -1,30 +1,30 @@
 {
   "titles": {
-    "T_NOOB": { "name": "Le Novice", "rarity": "commun" },
+    "T_NOVICE": { "name": "Le Novice", "rarity": "commun" },
     "T_PRO": { "name": "Le Pro", "rarity": "rare" },
-    "T_BOSS": { "name": "Tueur de Boss", "rarity": "epique" },
-    "T_KING": { "name": "Roi du Bordel", "rarity": "legendaire" },
-    "T_GOD": { "name": "Le Dieu", "rarity": "mythique" }
+    "T_TUEUR_BOSS": { "name": "Tueur de Boss", "rarity": "epique" },
+    "T_ROI_BORDEL": { "name": "Roi du Bordel", "rarity": "legendaire" },
+    "T_DIEU": { "name": "Le Dieu", "rarity": "mythique" }
   },
   "colors": {
-    "C_RED": { "name": "Rouge Sang", "rarity": "commun", "value": "#FF0000" },
-    "C_BLUE": { "name": "Bleu Océan", "rarity": "commun", "value": "#0000FF" },
-    "C_GOLD": { "name": "Or Pur", "rarity": "rare", "value": "#FFD700" },
-    "C_NEON": { "name": "Néon Rose", "rarity": "epique", "value": "#FF00FF" },
-    "C_RAINBOW": { "name": "Dégradé Arc-en-ciel", "rarity": "legendaire", "value": "linear-gradient(90deg, red, orange, yellow, green, blue, indigo, violet)" },
-    "C_FIRE": { "name": "Dégradé Feu", "rarity": "mythique", "value": "linear-gradient(90deg, #ff0000, #ff7f00, #ffff00)" }
+    "C_ROUGE_SANG": { "name": "Rouge Sang", "rarity": "commun", "value": "#FF0000" },
+    "C_BLEU_OCEAN": { "name": "Bleu Océan", "rarity": "commun", "value": "#0000FF" },
+    "C_OR_PUR": { "name": "Or Pur", "rarity": "rare", "value": "#FFD700" },
+    "C_NEON_ROSE": { "name": "Néon Rose", "rarity": "epique", "value": "#FF00FF" },
+    "C_DEG_ARC_EN_CIEL": { "name": "Dégradé Arc-en-ciel", "rarity": "legendaire", "value": "linear-gradient(90deg, red, orange, yellow, green, blue, indigo, violet)" },
+    "C_DEG_FEU": { "name": "Dégradé Feu", "rarity": "mythique", "value": "linear-gradient(90deg, #ff0000, #ff7f00, #ffff00)" }
   },
   "badges": {
-    "B_SMILE": { "name": "Sourire", "rarity": "commun", "emoji": "🙂" },
-    "B_STAR": { "name": "Étoile", "rarity": "rare", "emoji": "⭐" },
-    "B_DIAMOND": { "name": "Diamant", "rarity": "epique", "emoji": "💎" },
-    "B_CROWN": { "name": "Couronne", "rarity": "legendaire", "emoji": "👑" },
-    "B_SKULL": { "name": "Crâne Doré", "rarity": "mythique", "emoji": "💀✨" }
+    "B_SOURIRE": { "name": "Sourire", "rarity": "commun", "emoji": "🙂" },
+    "B_ETOILE": { "name": "Étoile", "rarity": "rare", "emoji": "⭐" },
+    "B_DIAMANT": { "name": "Diamant", "rarity": "epique", "emoji": "💎" },
+    "B_COURONNE": { "name": "Couronne", "rarity": "legendaire", "emoji": "👑" },
+    "B_CRANE_DORE": { "name": "Crâne Doré", "rarity": "mythique", "emoji": "💀✨" }
   },
   "jackpots": {
-    "J_SMALL": { "name": "Petit sac d'or (50 💰)", "rarity": "rare", "reward": 50 },
-    "J_MEDIUM": { "name": "Grand sac d'or (150 💰)", "rarity": "epique", "reward": 150 },
-    "J_LARGE": { "name": "Lingot d'or (500 💰)", "rarity": "legendaire", "reward": 500 },
-    "J_MEGA": { "name": "Ticket d'Or (1500 💰)", "rarity": "mythique", "reward": 1500 }
+    "J_PETIT_SAC": { "name": "Petit sac d'or (50 💰)", "rarity": "rare", "reward": 50 },
+    "J_GRAND_SAC": { "name": "Grand sac d'or (150 💰)", "rarity": "epique", "reward": 150 },
+    "J_LINGOT": { "name": "Lingot d'or (500 💰)", "rarity": "legendaire", "reward": 500 },
+    "J_TICKET_OR": { "name": "Ticket d'Or (1500 💰)", "rarity": "mythique", "reward": 1500 }
   }
 }
