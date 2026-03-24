@@ -241,6 +241,31 @@ client.on(Events.InteractionCreate, async (interaction) => {
       return;
     }
 
+    if (customId.startsWith('trade_')) {
+      const parts = customId.split('_');
+      const action = parts[1]; // accept or decline
+      const tradeId = parts.slice(2).join('_');
+
+      try {
+        if (action === 'accept') {
+          const res = await apiPost('/trade/accept', { tradeId, userId: interaction.user.id });
+          if (res.error) {
+            await interaction.reply({ content: `❌ Erreur : ${res.error}`, ephemeral: true });
+          } else {
+             const newEmbed = EmbedBuilder.from(interaction.message.embeds[0]).setColor(0x00FF00).setTitle('✅ Échange accepté et terminé');
+             await interaction.update({ embeds: [newEmbed], components: [] });
+          }
+        } else {
+           await apiPost('/trade/decline', { tradeId, userId: interaction.user.id });
+           const newEmbed = EmbedBuilder.from(interaction.message.embeds[0]).setColor(0xFF0000).setTitle('❌ Échange refusé / annulé');
+           await interaction.update({ embeds: [newEmbed], components: [] });
+        }
+      } catch(err) {
+         await interaction.reply({ content: `❌ Erreur lors de l'échange.`, ephemeral: true });
+      }
+      return;
+    }
+
     // Gérer le bouton de sauvegarde de mème
     if (customId.startsWith('meme_save_')) {
       const messageId = customId.replace('meme_save_', '');
@@ -293,6 +318,9 @@ client.on(Events.InteractionCreate, async (interaction) => {
               } else {
                 userRewardMsg = `*(**${username}**, tu n'as pas gagné de BordelCoins car ton overlay n'était pas connecté.)*`;
               }
+              if (userStats && userStats.gotLootbox) {
+                userRewardMsg += `\n🎁 **ET UNE LOOTBOX OBTENUE !** 🎉 Utilise \`/lootbox open\` !`;
+              }
               // Send the personal reward notification as an ephemeral follow-up
               await interaction.followUp({ content: `🎉 **LE BOSS EST VAINCU !**\n${userRewardMsg}`, ephemeral: true });
             }
@@ -315,7 +343,8 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
                 topParticipants.forEach((p, index) => {
                   const rank = index < 3 ? medals[index] : `**#${index + 1}**`;
-                  participantsList += `${rank} **${p.username}** — ${p.damage} dégâts (${p.percent}%) ➡️ **+${p.reward} pièces**\n`;
+                  const lootboxTag = p.gotLootbox ? " 🎁" : "";
+                  participantsList += `${rank} **${p.username}** — ${p.damage} dégâts (${p.percent}%) ➡️ **+${p.reward} pièces**${lootboxTag}\n`;
                 });
 
                 if (res.participantsStats.length > 10) {
@@ -516,6 +545,25 @@ client.on(Events.InteractionCreate, async (interaction) => {
           await interaction.respond([]);
         }
       }
+    } else if (interaction.commandName === 'inventory' || interaction.commandName === 'market') {
+      const focusedOption = interaction.options.getFocused(true);
+      if (focusedOption.name === 'objet') {
+         try {
+            const userId = interaction.user.id;
+            const res = await apiGet(`/inventory/${userId}`);
+            if (res && res.items) {
+               const itemIds = Object.keys(res.items);
+               const filtered = itemIds.filter(id => id.toLowerCase().includes(focusedOption.value.toLowerCase()));
+               await interaction.respond(
+                 filtered.slice(0, 25).map(id => ({ name: `${id} (x${res.items[id]})`, value: id }))
+               );
+            } else {
+               await interaction.respond([]);
+            }
+         } catch(e) {
+            await interaction.respond([]);
+         }
+      }
     }
     return;
   }
@@ -529,6 +577,8 @@ client.on(Events.InteractionCreate, async (interaction) => {
     await interaction.deferReply();
   } else if (commandName === 'tuto' || commandName === 'style' || commandName === 'upload') {
     await interaction.deferReply({ ephemeral: true });
+      } else if (commandName === 'trade' || commandName === 'market' || commandName === 'lootbox' || commandName === 'inventory') {
+        await interaction.deferReply({ ephemeral: false });
   } else {
     await interaction.deferReply({ ephemeral: true });
   }
@@ -774,7 +824,215 @@ client.on(Events.InteractionCreate, async (interaction) => {
           embed.addFields({ name: '🎨 Style Visuel Actuel', value: '*Aucun style personnalisé défini.*', inline: false });
         }
 
+        // Ajouter les badges et le titre de l'inventaire si équipé
+        const inventoryData = await apiGet(`/inventory/${targetUserId}`);
+        if (inventoryData && inventoryData.equipped) {
+           const equippedTitle = inventoryData.equipped.title;
+           const equippedBadge = inventoryData.equipped.badge;
+
+           // On va simuler ou fetcher la DB items. Idéalement on la récupère du serveur
+           // Pour l'affichage Discord on va juste montrer l'ID si on a pas le détail.
+           // Mais on peut faire mieux si on passe le détail depuis l'API stats.
+
+           if (equippedTitle || equippedBadge) {
+              embed.addFields({ name: '🎒 Équipement Spécial', value: `**Titre:** ${equippedTitle || 'Aucun'}\n**Badge:** ${equippedBadge || 'Aucun'}`, inline: false });
+           }
+        }
+
         await interaction.editReply({ embeds: [embed] });
+        break;
+      }
+
+      // ── /lootbox ───────────────────────────────────────
+      case 'lootbox': {
+        const subCmd = interaction.options.getSubcommand();
+        const userId = interaction.user.id;
+
+        if (subCmd === 'buy') {
+          const quantite = interaction.options.getInteger('quantite') || 1;
+          const res = await apiPost('/lootbox/buy', { userId, amount: quantite });
+          if (res.error) {
+            await interaction.editReply(`❌ Erreur : ${res.error}`);
+          } else {
+            await interaction.editReply(`✅ Tu as acheté **${quantite} Lootbox(es)** pour **${quantite * 10} BordelCoins** ! Utilise \`/lootbox open\` pour les ouvrir.`);
+          }
+        } else if (subCmd === 'open') {
+          const res = await apiPost('/lootbox/open', { userId });
+          if (res.error) {
+            await interaction.editReply(`❌ Erreur : ${res.error}`);
+            return;
+          }
+
+          const item = res.item;
+          let msg = `🔄 Ouverture de la Lootbox...\n🎰 ⬛ ⬛ ⬛`;
+          await interaction.editReply(msg);
+
+          // Petite animation
+          await new Promise(r => setTimeout(r, 800));
+          await interaction.editReply(`🔄 Ouverture de la Lootbox...\n🎰 🟩 ⬛ ⬛`);
+          await new Promise(r => setTimeout(r, 800));
+          await interaction.editReply(`🔄 Ouverture de la Lootbox...\n🎰 🟩 🟨 ⬛`);
+          await new Promise(r => setTimeout(r, 800));
+          await interaction.editReply(`🔄 Ouverture de la Lootbox...\n🎰 🟩 🟨 🔴`);
+          await new Promise(r => setTimeout(r, 1000));
+
+          let rarityEmoji = '⚪';
+          let colorHex = '#FFFFFF';
+          if (item.rarity === 'commun') { rarityEmoji = '🟢'; colorHex = '#2ecc71'; }
+          else if (item.rarity === 'rare') { rarityEmoji = '🔵'; colorHex = '#3498db'; }
+          else if (item.rarity === 'epique') { rarityEmoji = '🟣'; colorHex = '#9b59b6'; }
+          else if (item.rarity === 'legendaire') { rarityEmoji = '🟡'; colorHex = '#f1c40f'; }
+          else if (item.rarity === 'mythique') { rarityEmoji = '🔴✨'; colorHex = '#e74c3c'; }
+
+          const embed = new EmbedBuilder()
+            .setColor(colorHex)
+            .setTitle(`🎉 Tu as obtenu : ${item.name} !`)
+            .setDescription(`**Rareté :** ${rarityEmoji} ${item.rarity.toUpperCase()}\n**Catégorie :** ${item.category}`);
+
+          if (item.category === 'jackpots') {
+            embed.setDescription(embed.data.description + `\n💰 **+${item.reward} BordelCoins !**`);
+          } else {
+            embed.setFooter({ text: 'Utilise /inventory equip pour l\'équiper !' });
+          }
+
+          await interaction.editReply({ content: '🎁 **LOOTBOX OUVERTE !**', embeds: [embed] });
+        }
+        break;
+      }
+
+      // ── /inventory ─────────────────────────────────────
+      case 'inventory': {
+        const subCmd = interaction.options.getSubcommand();
+        const userId = interaction.user.id;
+
+        if (subCmd === 'view') {
+           const res = await apiGet(`/inventory/${userId}`);
+           if (res.error) {
+              await interaction.editReply(`❌ Erreur : ${res.error}`);
+              return;
+           }
+
+           const embed = new EmbedBuilder()
+             .setColor(0x0099FF)
+             .setTitle(`🎒 Inventaire de ${interaction.user.displayName || interaction.user.username}`)
+             .setDescription(`**Lootboxes possédées :** 🎁 ${res.lootboxes}`);
+
+           let itemsText = '';
+           for (const [itemId, count] of Object.entries(res.items)) {
+              itemsText += `• **${itemId}** (x${count})\n`;
+           }
+           if (!itemsText) itemsText = '*Inventaire vide. Achète des lootboxes ou gagne-les !*';
+
+           embed.addFields(
+             { name: '📦 Objets', value: itemsText.substring(0, 1024) },
+             { name: '👕 Équipement Actuel', value: `**Titre:** ${res.equipped.title || 'Aucun'}\n**Badge:** ${res.equipped.badge || 'Aucun'}\n**Couleur:** ${res.equipped.color || 'Par défaut'}` }
+           );
+
+           await interaction.editReply({ embeds: [embed] });
+        } else if (subCmd === 'equip') {
+           const itemToEquip = interaction.options.getString('objet', true);
+           const res = await apiPost('/inventory/equip', { userId, itemId: itemToEquip });
+
+           if (res.error) {
+              await interaction.editReply(`❌ Erreur : ${res.error}`);
+           } else {
+              await interaction.editReply(`✅ Objet **${itemToEquip}** équipé avec succès dans la catégorie **${res.type}** !`);
+           }
+        }
+        break;
+      }
+
+      // ── /market ────────────────────────────────────────
+      case 'market': {
+        const subCmd = interaction.options.getSubcommand();
+        const userId = interaction.user.id;
+
+        if (subCmd === 'list') {
+           const res = await apiGet('/market');
+           if (!res.listings || res.listings.length === 0) {
+              await interaction.editReply('📭 Le marché est actuellement vide.');
+              return;
+           }
+
+           const embed = new EmbedBuilder()
+             .setColor(0xF1C40F)
+             .setTitle('🛒 Marketplace BordelBox');
+
+           let desc = '';
+           for (const l of res.listings.slice(0, 20)) {
+              const itemName = l.itemInfo ? l.itemInfo.name : l.itemId;
+              desc += `\`${l.id}\` | **${itemName}** vendu par *${l.sellerName}* pour 💰 **${l.price}**\n`;
+           }
+           embed.setDescription(desc || '*Aucune offre.*');
+           embed.setFooter({ text: 'Utilisez /market buy <id> pour acheter' });
+
+           await interaction.editReply({ embeds: [embed] });
+        } else if (subCmd === 'sell') {
+           const itemId = interaction.options.getString('objet', true);
+           const price = interaction.options.getInteger('prix', true);
+           const username = interaction.user.displayName || interaction.user.username;
+
+           const res = await apiPost('/market/sell', { sellerId: userId, sellerName: username, itemId, price });
+           if (res.error) {
+             await interaction.editReply(`❌ Erreur : ${res.error}`);
+           } else {
+             const itemName = res.itemName || itemId;
+             await interaction.editReply(`✅ Objet **${itemName}** mis en vente pour **${price} BordelCoins** ! (ID: \`${res.listingId}\`)`);
+           }
+        } else if (subCmd === 'buy') {
+           const listingId = interaction.options.getString('id', true);
+           const res = await apiPost('/market/buy', { buyerId: userId, listingId });
+
+           if (res.error) {
+             await interaction.editReply(`❌ Erreur : ${res.error}`);
+           } else {
+             const itemName = res.itemName || res.item;
+             await interaction.editReply(`✅ Achat réussi ! Vous avez reçu l'objet **${itemName}**.`);
+           }
+        } else if (subCmd === 'cancel') {
+           const listingId = interaction.options.getString('id', true);
+           const res = await apiPost('/market/cancel', { sellerId: userId, listingId });
+
+           if (res.error) {
+             await interaction.editReply(`❌ Erreur : ${res.error}`);
+           } else {
+             await interaction.editReply(`✅ Offre annulée. L'objet a été remis dans votre inventaire.`);
+           }
+        }
+        break;
+      }
+
+      // ── /trade ─────────────────────────────────────────
+      case 'trade': {
+        const targetUser = interaction.options.getUser('joueur', true);
+        const targetId = targetUser.id;
+        const senderId = interaction.user.id;
+
+        const res = await apiPost('/trade/request', {
+           senderId,
+           senderName: interaction.user.displayName || interaction.user.username,
+           receiverId: targetId,
+           receiverName: targetUser.displayName || targetUser.username
+        });
+
+        if (res.error) {
+           await interaction.editReply(`❌ Erreur : ${res.error}`);
+           return;
+        }
+
+        const embed = new EmbedBuilder()
+          .setColor(0x3498DB)
+          .setTitle('🤝 Proposition d\'échange')
+          .setDescription(`<@${targetId}>, <@${senderId}> te propose un échange ! Malheureusement la fonctionnalité de trading sur Discord n'est pas encore terminée. Cette commande sera implémentée dans la version web (dashboard).`);
+
+        const row = new ActionRowBuilder().addComponents(
+           new ButtonBuilder()
+            .setCustomId(`trade_decline_${res.tradeId}`)
+            .setLabel('Fermer')
+            .setStyle(ButtonStyle.Danger)
+        );
+
+        await interaction.editReply({ content: `<@${targetId}>`, embeds: [embed], components: [row] });
         break;
       }
 

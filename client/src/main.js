@@ -668,7 +668,53 @@ window.showItem = function showItem(item) {
 
   // Afficher l'expéditeur Discord si présent
   if (payload.senderName) {
-    senderName.textContent  = payload.senderName;
+    let displayName = payload.senderName;
+
+    // Ajout du badge d'inventaire
+    if (payload.equippedBadge) {
+       displayName = `${payload.equippedBadge} ${displayName}`;
+    }
+
+    function escapeHtml(unsafe) {
+        return (unsafe || '').toString()
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+    }
+
+    let safeDisplayName = escapeHtml(displayName);
+
+    // Ajout du titre d'inventaire
+    if (payload.equippedTitle) {
+       let safeTitle = escapeHtml(payload.equippedTitle);
+       safeDisplayName += `<br><span style="font-size: 0.8em; opacity: 0.8;">[${safeTitle}]</span>`;
+       senderName.innerHTML = safeDisplayName;
+    } else {
+       senderName.textContent = displayName;
+    }
+
+    // Appliquer la couleur spéciale au pseudo
+    if (payload.equippedColorHex) {
+      if (payload.equippedColorHex.startsWith('linear-gradient') || payload.equippedColorHex.startsWith('radial-gradient')) {
+        senderName.style.background = payload.equippedColorHex;
+        senderName.style.webkitBackgroundClip = 'text';
+        senderName.style.webkitTextFillColor = 'transparent';
+        senderName.style.color = 'transparent';
+      } else {
+        senderName.style.background = 'none';
+        senderName.style.webkitBackgroundClip = 'initial';
+        senderName.style.webkitTextFillColor = 'initial';
+        senderName.style.color = payload.equippedColorHex;
+      }
+    } else {
+       senderName.style.background = 'none';
+       senderName.style.webkitBackgroundClip = 'initial';
+       senderName.style.webkitTextFillColor = 'initial';
+       senderName.style.color = '';
+    }
+
     senderAvatar.src        = payload.avatarUrl || '';
     senderAvatar.style.display = payload.avatarUrl ? 'block' : 'none';
     if (senderCrown) {

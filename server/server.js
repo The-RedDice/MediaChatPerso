@@ -22,6 +22,9 @@ const { getAvailableModels, generateTTS } = require('./tts');
 const { recordAction, recordSkip, getUserStats, getLeaderboard, getUserProfile, saveUserProfile, updateReputation, spendCoins, unlockStyleItem, getUnlockedStyles } = require('./stats');
 const { addMeme, getUserMemes, removeMeme } = require('./memes');
 const { initAI, generateResponse } = require('./ai');
+const { getInventory, addLootbox, openLootbox, equipItem, getItemsDb } = require('./stats');
+const { getListings, createListing, buyListing, cancelListing } = require('./market');
+const { createTradeRequest, acceptTrade, declineTrade, getTrade } = require('./trade');
 const { startEvent, interactEvent, getActiveEvent } = require('./events');
 
 // Initialiser l'API IA
@@ -218,7 +221,32 @@ function flushQueue(pseudo) {
  * @param {string|'all'} target  pseudo ou 'all'
  * @param {object}       item    QueueItem
  */
+function enrichItemWithInventory(itemPayload) {
+  if (!itemPayload || !itemPayload.userId) return itemPayload;
+
+  const inv = getInventory(itemPayload.userId);
+  const itemsDb = getItemsDb();
+
+  // Attach equipment details directly to the payload
+  const equipped = inv.equipped;
+  if (equipped.title && itemsDb.titles && itemsDb.titles[equipped.title]) {
+     itemPayload.equippedTitle = itemsDb.titles[equipped.title].name;
+  }
+  if (equipped.badge && itemsDb.badges && itemsDb.badges[equipped.badge]) {
+     itemPayload.equippedBadge = itemsDb.badges[equipped.badge].emoji;
+  }
+  if (equipped.color && itemsDb.colors && itemsDb.colors[equipped.color]) {
+     itemPayload.equippedColorHex = itemsDb.colors[equipped.color].value;
+  }
+
+  return itemPayload;
+}
+
 function enqueue(target, item) {
+  if (item && item.payload) {
+    item.payload = enrichItemWithInventory(item.payload);
+  }
+
   const enrichedItem = { ...item, enqueuedAt: Date.now() };
   if (target === 'all') {
     for (const pseudo of clients.keys()) {
@@ -594,6 +622,95 @@ router.get('/style/:userId', (req, res) => {
   const unlocked = getUnlockedStyles(req.params.userId);
   if (!data) return res.json({ profile: {}, unlocked });
   res.json({ profile: data, unlocked });
+});
+
+// ─── API Inventaire et Lootboxes ─────────────────────────────────────────────
+
+router.get('/inventory/:userId', (req, res) => {
+  res.json(getInventory(req.params.userId));
+});
+
+router.post('/lootbox/buy', requireAuth, (req, res) => {
+  const { userId, amount = 1 } = req.body;
+  const cost = 10 * amount;
+
+  if (spendCoins(userId, cost)) {
+    addLootbox(userId, amount);
+    res.json({ ok: true });
+  } else {
+    res.status(400).json({ error: "Fonds insuffisants." });
+  }
+});
+
+router.post('/lootbox/open', requireAuth, (req, res) => {
+  const { userId } = req.body;
+  const result = openLootbox(userId);
+  if (result.error) return res.status(400).json(result);
+  res.json(result);
+});
+
+router.post('/inventory/equip', requireAuth, (req, res) => {
+  const { userId, itemId } = req.body;
+  const result = equipItem(userId, itemId);
+  if (result.error) return res.status(400).json(result);
+  res.json(result);
+});
+
+// ─── API Trade ───────────────────────────────────────────────────────────────
+
+router.post('/trade/request', requireAuth, (req, res) => {
+  const { senderId, senderName, receiverId, receiverName } = req.body;
+  const result = createTradeRequest(senderId, senderName, receiverId, receiverName);
+  if (result.error) return res.status(400).json(result);
+  res.json(result);
+});
+
+router.post('/trade/accept', requireAuth, (req, res) => {
+  const { tradeId, userId } = req.body;
+  const trade = getTrade(tradeId);
+  if (!trade) return res.status(400).json({ error: "Échange introuvable." });
+  if (trade.receiverId !== userId) return res.status(403).json({ error: "Vous n'êtes pas le destinataire de cet échange." });
+
+  const result = acceptTrade(tradeId);
+  if (result.error) return res.status(400).json(result);
+  res.json(result);
+});
+
+router.post('/trade/decline', requireAuth, (req, res) => {
+  const { tradeId, userId } = req.body;
+  const trade = getTrade(tradeId);
+  if (!trade) return res.status(400).json({ error: "Échange introuvable." });
+  if (trade.receiverId !== userId && trade.senderId !== userId) return res.status(403).json({ error: "Non autorisé." });
+
+  const result = declineTrade(tradeId);
+  res.json(result);
+});
+
+// ─── API Marketplace ─────────────────────────────────────────────────────────
+
+router.get('/market', (req, res) => {
+  res.json({ listings: getListings() });
+});
+
+router.post('/market/sell', requireAuth, (req, res) => {
+  const { sellerId, sellerName, itemId, price } = req.body;
+  const result = createListing(sellerId, sellerName, itemId, parseInt(price, 10));
+  if (result.error) return res.status(400).json(result);
+  res.json(result);
+});
+
+router.post('/market/buy', requireAuth, (req, res) => {
+  const { buyerId, listingId } = req.body;
+  const result = buyListing(buyerId, listingId);
+  if (result.error) return res.status(400).json(result);
+  res.json(result);
+});
+
+router.post('/market/cancel', requireAuth, (req, res) => {
+  const { sellerId, listingId } = req.body;
+  const result = cancelListing(sellerId, listingId);
+  if (result.error) return res.status(400).json(result);
+  res.json(result);
 });
 
 router.post('/shop/buy', requireAuth, (req, res) => {
