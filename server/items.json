@@ -75,69 +75,69 @@
     "T_DIEU": {
       "name": "Le Dieu",
       "rarity": "mythique",
-      "description": "Un titre honorifique.",
-      "howToObtain": "Trouvable dans les lootboxes ou événements."
+      "description": "Il est au-dessus de tout.",
+      "howToObtain": "Lootbox Mythique (0.5% chance)"
     },
     "T_ANOMALIE": {
       "name": "L'Anomalie",
       "rarity": "mythique",
-      "description": "Un titre honorifique.",
-      "howToObtain": "Trouvable dans les lootboxes ou événements."
+      "description": "Une erreur dans le système.",
+      "howToObtain": "Lootbox Mythique (0.5% chance)"
     },
     "T_CREATEUR": {
       "name": "Le Créateur",
       "rarity": "mythique",
-      "description": "Un titre honorifique.",
-      "howToObtain": "Trouvable dans les lootboxes ou événements."
+      "description": "À l'origine de l'univers BordelBox.",
+      "howToObtain": "Lootbox Mythique (0.5% chance)"
     },
     "T_DAILY_14": {
       "name": "L'Assidu",
       "rarity": "legendaire",
       "untradeable": true,
-      "description": "Un titre honorifique.",
-      "howToObtain": "Trouvable dans les lootboxes ou événements."
+      "description": "Vous ne ratez aucun jour.",
+      "howToObtain": "Se connecter 14 jours de suite (/daily)"
     },
     "T_COLL_25": {
       "name": "Collectionneur Débutant",
       "rarity": "rare",
       "untradeable": true,
-      "description": "Un titre honorifique.",
-      "howToObtain": "Trouvable dans les lootboxes ou événements."
+      "description": "Un bon début.",
+      "howToObtain": "Atteindre 25% de complétion de la Collection"
     },
     "T_COLL_50": {
       "name": "Amateur d'Art",
       "rarity": "epique",
       "untradeable": true,
-      "description": "Un titre honorifique.",
-      "howToObtain": "Trouvable dans les lootboxes ou événements."
+      "description": "La moitié du chemin est faite.",
+      "howToObtain": "Atteindre 50% de complétion de la Collection"
     },
     "T_COLL_75": {
       "name": "Conservateur",
       "rarity": "legendaire",
       "untradeable": true,
-      "description": "Un titre honorifique.",
-      "howToObtain": "Trouvable dans les lootboxes ou événements."
+      "description": "Presque tout attrapé.",
+      "howToObtain": "Atteindre 75% de complétion de la Collection"
     },
     "T_COLL_100": {
       "name": "Maitre de l'Univers",
       "rarity": "mythique",
       "untradeable": true,
-      "description": "Un titre honorifique.",
-      "howToObtain": "Trouvable dans les lootboxes ou événements."
+      "description": "Vous avez vaincu le jeu.",
+      "howToObtain": "Atteindre 100% de complétion de la Collection"
     },
     "T_LUCKY": {
       "name": "Le Chanceux",
       "rarity": "epique",
       "untradeable": true,
-      "description": "Un titre honorifique.",
-      "howToObtain": "Trouvable dans les lootboxes ou événements."
+      "description": "Béni par les dieux de la RNG.",
+      "howToObtain": "Gagner un Jackpot à la machine à sous"
     },
     "T_MASTER_FISHER": {
       "name": "Maitre Pêcheur",
       "rarity": "legendaire",
       "untradeable": true,
-      "description": "Un titre honorifique.",
-      "howToObtain": "Trouvable dans les lootboxes ou événements."
+      "description": "Maître incontesté des mers.",
+      "howToObtain": "Pêcher un poisson de rareté Légendaire ou Mythique"
     },
     "T_JACKPOT": {
       "name": "L'Homme aux 777",
@@ -236,80 +236,80 @@
       "rarity": "commun",
       "emoji": "🙂",
       "bonus": 0.01,
-      "description": "Un badge unique.",
-      "howToObtain": "Trouvable dans les lootboxes."
+      "description": "Un badge cosmétique qui montre votre chance !",
+      "howToObtain": "Obtenable dans n'importe quelle Lootbox (Commun)."
     },
     "B_FEUILLE": {
       "name": "Feuille (+2%)",
       "rarity": "commun",
       "emoji": "🍃",
       "bonus": 0.02,
-      "description": "Un badge unique.",
-      "howToObtain": "Trouvable dans les lootboxes."
+      "description": "Un badge cosmétique qui montre votre chance !",
+      "howToObtain": "Obtenable dans n'importe quelle Lootbox (Commun)."
     },
     "B_ETOILE": {
       "name": "Étoile (+5%)",
       "rarity": "rare",
       "emoji": "⭐",
       "bonus": 0.05,
-      "description": "Un badge unique.",
-      "howToObtain": "Trouvable dans les lootboxes."
+      "description": "Un badge cosmétique qui montre votre chance !",
+      "howToObtain": "Obtenable dans les Lootboxes avec un peu de chance (Rare)."
     },
     "B_BOUCLIER": {
       "name": "Bouclier (+6%)",
       "rarity": "rare",
       "emoji": "🛡️",
       "bonus": 0.06,
-      "description": "Un badge unique.",
-      "howToObtain": "Trouvable dans les lootboxes."
+      "description": "Un badge cosmétique qui montre votre chance !",
+      "howToObtain": "Obtenable dans les Lootboxes avec un peu de chance (Rare)."
     },
     "B_DIAMANT": {
       "name": "Diamant (+10%)",
       "rarity": "epique",
       "emoji": "💎",
       "bonus": 0.1,
-      "description": "Un badge unique.",
-      "howToObtain": "Trouvable dans les lootboxes."
+      "description": "Un badge cosmétique qui montre votre chance !",
+      "howToObtain": "Difficile à obtenir dans les Lootboxes (Épique)."
     },
     "B_ECLAIR": {
       "name": "Éclair (+12%)",
       "rarity": "epique",
       "emoji": "⚡",
       "bonus": 0.12,
-      "description": "Un badge unique.",
-      "howToObtain": "Trouvable dans les lootboxes."
+      "description": "Un badge cosmétique qui montre votre chance !",
+      "howToObtain": "Difficile à obtenir dans les Lootboxes (Épique)."
     },
     "B_COURONNE": {
       "name": "Couronne (+20%)",
       "rarity": "legendaire",
       "emoji": "👑",
       "bonus": 0.2,
-      "description": "Un badge unique.",
-      "howToObtain": "Trouvable dans les lootboxes."
+      "description": "Un badge cosmétique qui montre votre chance !",
+      "howToObtain": "Très rare ! Demande d'ouvrir beaucoup de Lootboxes (Légendaire)."
     },
     "B_TROU_NOIR": {
       "name": "Trou Noir (+25%)",
       "rarity": "legendaire",
       "emoji": "🌌",
       "bonus": 0.25,
-      "description": "Un badge unique.",
-      "howToObtain": "Trouvable dans les lootboxes."
+      "description": "Un badge cosmétique qui montre votre chance !",
+      "howToObtain": "Très rare ! Demande d'ouvrir beaucoup de Lootboxes (Légendaire)."
     },
     "B_CRANE_DORE": {
       "name": "Crâne Doré (+40%)",
       "rarity": "mythique",
       "emoji": "💀✨",
       "bonus": 0.4,
-      "description": "Un badge unique.",
-      "howToObtain": "Trouvable dans les lootboxes."
+      "description": "Un badge cosmétique qui montre votre chance !",
+      "howToObtain": "Extrêmement rare ! Une chance infime dans les Lootboxes (Mythique)."
     },
     "B_OEIL_DIVIN": {
       "name": "Œil Divin (+50%)",
       "rarity": "mythique",
       "emoji": "👁️✨",
       "bonus": 0.5,
-      "description": "Un badge unique.",
-      "howToObtain": "Trouvable dans les lootboxes."
+      "description": "Un badge cosmétique qui montre votre chance !",
+      "howToObtain": "Extrêmement rare ! Une chance infime dans les Lootboxes (Mythique)."
     },
     "B_JACKPOT": {
       "name": "Chanceux (+2%)",
@@ -317,8 +317,8 @@
       "emoji": "🎰",
       "bonus": 0.02,
       "untradeable": true,
-      "description": "Un badge unique.",
-      "howToObtain": "Trouvable dans les lootboxes."
+      "description": "Un badge cosmétique qui montre votre chance !",
+      "howToObtain": "Obtenable dans les Lootboxes avec un peu de chance (Rare)."
     }
   },
   "jackpots": {
