@@ -127,12 +127,20 @@ function interactEvent(io, interactionData) {
           userRewardCooldowns.set(pId, now); // Enregistrer le temps du dernier gain
         }
 
+        // Chance to drop a lootbox
+        let gotLootbox = false;
+        if (reward > 0 && Math.random() < 0.3) { // 30% chance for participants getting rewards
+           stats.addLootbox(pId, 1);
+           gotLootbox = true;
+        }
+
         participantsStats.push({
           userId: pId,
           username: pData.username,
           damage: pData.damage,
           percent: Math.round(damagePercent * 100),
-          reward: reward
+          reward: reward,
+          gotLootbox: gotLootbox
         });
       }
 
@@ -143,8 +151,10 @@ function interactEvent(io, interactionData) {
 
       const killerName = top3Names || 'Un héros';
 
+      const eventIdToReturn = activeEvent.id; // Save ID before ending event
+
       endEvent(io, { reason: 'defeated', killer: killerName, participants: Array.from(activeEvent.participants.keys()), coinsMap: Array.from(wonCoins.entries()) });
-      return { ok: true, damage: damageDealt, defeated: true, eventId: activeEvent.id, rewards: Array.from(wonCoins.entries()), participantsStats, prizePool: totalPrizePool };
+      return { ok: true, damage: damageDealt, defeated: true, eventId: eventIdToReturn, rewards: Array.from(wonCoins.entries()), participantsStats, prizePool: totalPrizePool };
     }
     updated = true;
   }

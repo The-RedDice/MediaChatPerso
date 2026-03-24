@@ -342,3 +342,171 @@ module.exports = {
   unlockStyleItem,
   getUnlockedStyles
 };
+
+/** --- SYSTÈME D'INVENTAIRE ET DE LOOTBOXES --- **/
+
+// Chargement des items depuis items.json
+let itemsDb = {};
+try {
+  const itemsPath = path.join(__dirname, 'items.json');
+  if (fs.existsSync(itemsPath)) {
+    itemsDb = JSON.parse(fs.readFileSync(itemsPath, 'utf8'));
+  }
+} catch(err) {
+  console.error('[Stats] Impossible de charger items.json', err);
+}
+
+const RARITY_WEIGHTS = {
+  "commun": 600,     // 60%
+  "rare": 250,       // 25%
+  "epique": 100,     // 10%
+  "legendaire": 40,  // 4%
+  "mythique": 10     // 1%
+};
+
+function ensureInventoryExists(userId) {
+  if (!stats[userId]) return;
+  if (!stats[userId].inventory) stats[userId].inventory = {};
+  if (stats[userId].lootboxes === undefined) stats[userId].lootboxes = 0;
+}
+
+function addLootbox(userId, amount = 1) {
+  if (!stats[userId]) return false;
+  ensureInventoryExists(userId);
+  stats[userId].lootboxes += amount;
+  saveStats();
+  return true;
+}
+
+function getInventory(userId) {
+  if (!stats[userId]) return { items: {}, lootboxes: 0, equipped: {} };
+  ensureInventoryExists(userId);
+  return {
+    items: stats[userId].inventory,
+    lootboxes: stats[userId].lootboxes,
+    equipped: {
+      title: stats[userId].equippedTitle || null,
+      badge: stats[userId].equippedBadge || null,
+      color: stats[userId].equippedColor || null
+    }
+  };
+}
+
+function addItemToInventory(userId, itemId) {
+  if (!stats[userId]) return;
+  ensureInventoryExists(userId);
+  if (!stats[userId].inventory[itemId]) {
+    stats[userId].inventory[itemId] = 0;
+  }
+  stats[userId].inventory[itemId]++;
+  saveStats();
+}
+
+function removeItemFromInventory(userId, itemId) {
+  if (!stats[userId]) return false;
+  ensureInventoryExists(userId);
+  if (stats[userId].inventory[itemId] > 0) {
+    stats[userId].inventory[itemId]--;
+    if (stats[userId].inventory[itemId] === 0) {
+      delete stats[userId].inventory[itemId];
+    }
+
+    // Si l'objet était équipé, on le déséquipe
+    if (stats[userId].equippedTitle === itemId) stats[userId].equippedTitle = null;
+    if (stats[userId].equippedBadge === itemId) stats[userId].equippedBadge = null;
+    if (stats[userId].equippedColor === itemId) stats[userId].equippedColor = null;
+
+    saveStats();
+    return true;
+  }
+  return false;
+}
+
+function openLootbox(userId) {
+  if (!stats[userId]) return { error: "Utilisateur inconnu." };
+  ensureInventoryExists(userId);
+
+  if (stats[userId].lootboxes <= 0) {
+    return { error: "Tu n'as aucune lootbox." };
+  }
+
+  stats[userId].lootboxes--;
+
+  // Aplatir tous les items dans un tableau
+  const allItems = [];
+  for (const category in itemsDb) {
+    for (const itemId in itemsDb[category]) {
+      const item = itemsDb[category][itemId];
+      item.id = itemId;
+      item.category = category;
+      allItems.push(item);
+    }
+  }
+
+  if (allItems.length === 0) return { error: "Aucun objet disponible." };
+
+  // Tirage basé sur les poids
+  const totalWeight = allItems.reduce((sum, item) => sum + (RARITY_WEIGHTS[item.rarity] || 0), 0);
+  let random = Math.floor(Math.random() * totalWeight);
+
+  let wonItem = null;
+  for (const item of allItems) {
+    random -= (RARITY_WEIGHTS[item.rarity] || 0);
+    if (random < 0) {
+      wonItem = item;
+      break;
+    }
+  }
+
+  if (!wonItem) wonItem = allItems[0];
+
+  // Si c'est un jackpot, on donne l'argent direct
+  if (wonItem.category === 'jackpots') {
+    addCoins(userId, wonItem.reward);
+  } else {
+    addItemToInventory(userId, wonItem.id);
+  }
+
+  saveStats();
+  return { ok: true, item: wonItem };
+}
+
+function equipItem(userId, itemId) {
+  if (!stats[userId]) return { error: "Utilisateur inconnu." };
+  ensureInventoryExists(userId);
+
+  if (!stats[userId].inventory[itemId] || stats[userId].inventory[itemId] <= 0) {
+    return { error: "Tu ne possèdes pas cet objet." };
+  }
+
+  // Retrouver la catégorie
+  let category = null;
+  for (const cat in itemsDb) {
+    if (itemsDb[cat][itemId]) {
+      category = cat;
+      break;
+    }
+  }
+
+  if (!category) return { error: "Objet invalide." };
+
+  if (category === 'titles') stats[userId].equippedTitle = itemId;
+  else if (category === 'badges') stats[userId].equippedBadge = itemId;
+  else if (category === 'colors') stats[userId].equippedColor = itemId;
+  else return { error: "Cet objet ne peut pas être équipé." };
+
+  saveStats();
+  return { ok: true, type: category };
+}
+
+function getItemsDb() {
+  return itemsDb;
+}
+
+module.exports.addLootbox = addLootbox;
+module.exports.getInventory = getInventory;
+module.exports.openLootbox = openLootbox;
+module.exports.equipItem = equipItem;
+module.exports.getItemsDb = getItemsDb;
+module.exports.addItemToInventory = addItemToInventory;
+module.exports.removeItemFromInventory = removeItemFromInventory;

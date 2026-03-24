@@ -452,6 +452,86 @@ const commands = [
             .setAutocomplete(true))),
 
   new SlashCommandBuilder()
+    .setName('lootbox')
+    .setDescription('Gérez vos lootboxes (Acheter et Ouvrir)')
+    .addSubcommand(subcommand =>
+      subcommand
+        .setName('buy')
+        .setDescription('Achète une ou plusieurs lootboxes (10 BordelCoins/u)')
+        .addIntegerOption(option =>
+          option.setName('quantite')
+            .setDescription('Nombre de lootboxes à acheter')
+            .setRequired(false)
+            .setMinValue(1)))
+    .addSubcommand(subcommand =>
+      subcommand
+        .setName('open')
+        .setDescription('Ouvre une lootbox de votre inventaire')),
+
+  new SlashCommandBuilder()
+    .setName('inventory')
+    .setDescription('Affiche votre inventaire et permet d\'équiper des objets')
+    .addSubcommand(subcommand =>
+      subcommand
+        .setName('view')
+        .setDescription('Affiche le contenu de votre inventaire'))
+    .addSubcommand(subcommand =>
+      subcommand
+        .setName('equip')
+        .setDescription('Équipe un objet (Titre, Badge, Couleur)')
+        .addStringOption(option =>
+          option.setName('objet')
+            .setDescription('Nom de l\'objet à équiper')
+            .setRequired(true)
+            .setAutocomplete(true))),
+
+  new SlashCommandBuilder()
+    .setName('market')
+    .setDescription('Marché communautaire (Acheter et Vendre des objets)')
+    .addSubcommand(subcommand =>
+      subcommand
+        .setName('list')
+        .setDescription('Affiche les objets en vente sur le marché'))
+    .addSubcommand(subcommand =>
+      subcommand
+        .setName('sell')
+        .setDescription('Met un objet de votre inventaire en vente')
+        .addStringOption(option =>
+          option.setName('objet')
+            .setDescription('L\'objet à vendre')
+            .setRequired(true)
+            .setAutocomplete(true))
+        .addIntegerOption(option =>
+          option.setName('prix')
+            .setDescription('Prix en BordelCoins')
+            .setRequired(true)
+            .setMinValue(1)))
+    .addSubcommand(subcommand =>
+      subcommand
+        .setName('buy')
+        .setDescription('Achète un objet sur le marché')
+        .addStringOption(option =>
+          option.setName('id')
+            .setDescription('ID de l\'offre (visible dans /market list)')
+            .setRequired(true)))
+    .addSubcommand(subcommand =>
+      subcommand
+        .setName('cancel')
+        .setDescription('Annule une de vos offres de vente')
+        .addStringOption(option =>
+          option.setName('id')
+            .setDescription('ID de l\'offre')
+            .setRequired(true))),
+
+  new SlashCommandBuilder()
+    .setName('trade')
+    .setDescription('Propose un échange direct avec un autre joueur')
+    .addUserOption(option =>
+      option.setName('joueur')
+        .setDescription('Le joueur avec qui échanger')
+        .setRequired(true)),
+
+  new SlashCommandBuilder()
     .setName('profile')
     .setDescription('Affiche les statistiques complètes et le style visuel d\'un utilisateur')
     .addUserOption(o =>
