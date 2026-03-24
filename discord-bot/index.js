@@ -660,6 +660,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
         const caption = interaction.options.getString('text') || '';
         const ttsVoice = interaction.options.getString('tts') || '';
         const greenscreen = interaction.options.getBoolean('greenscreen') || false;
+        const modele3d = interaction.options.getBoolean('modele3d') !== false; // True by default
         const filter = interaction.options.getString('filtre') || '';
 
         const senderName = interaction.user.displayName || interaction.user.username;
@@ -720,6 +721,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
         const caption    = interaction.options.getString('text') || '';
         const ttsVoice = interaction.options.getString('tts') || '';
         const greenscreen = interaction.options.getBoolean('greenscreen') || false;
+        const modele3d = interaction.options.getBoolean('modele3d') !== false; // True by default
         const filter = interaction.options.getString('filtre') || '';
 
         if (attachment.size > 250 * 1024 * 1024) {
@@ -1628,6 +1630,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
         const target  = targetUser ? targetUser.username : 'all';
         const ttsVoice = interaction.options.getString('tts') || '';
         const greenscreen = interaction.options.getBoolean('greenscreen') || false;
+        const modele3d = interaction.options.getBoolean('modele3d') !== false; // True by default
 
         const senderName = interaction.user.displayName || interaction.user.username;
         const avatarUrl  = interaction.user.displayAvatarURL({ size: 64, extension: 'png' });
@@ -1643,7 +1646,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
         await interaction.editReply(`🤖 Génération de la réponse IA pour "${prompt}"...`);
 
-        const data = await apiPost('/ai', { prompt, target, senderName, avatarUrl, ttsVoice, greenscreen, userId, color, font, animation, effect });
+        const data = await apiPost('/ai', { prompt, target, senderName, avatarUrl, ttsVoice, greenscreen, modele3d, userId, color, font, animation, effect });
 
         if (data.error) {
           await interaction.editReply(`❌ Erreur IA : ${data.error}`);
@@ -1664,6 +1667,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
         const target  = targetUser ? targetUser.username : 'all';
         const ttsVoice = interaction.options.getString('tts') || '';
         const greenscreen = interaction.options.getBoolean('greenscreen') || false;
+        const modele3d = interaction.options.getBoolean('modele3d') !== false; // True by default
 
         const senderName = interaction.user.displayName || interaction.user.username;
         const avatarUrl  = interaction.user.displayAvatarURL({ size: 64, extension: 'png' });

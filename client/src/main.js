@@ -640,7 +640,7 @@ function handleMessage(payload) {
     messageText.classList.remove('greenscreen');
   }
 
-  if (payload.isAi) {
+  if (payload.isAi && payload.modele3d !== false) {
      showAiModel();
   }
 

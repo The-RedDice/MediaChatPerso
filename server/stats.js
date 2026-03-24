@@ -52,7 +52,7 @@ function recordAction(userId, username, type) {
 
   if (!stats[userId]) {
     stats[userId] = {
-      username: username,
+      username: (username && username !== 'undefined') ? username : 'Unknown',
       mediaCount: 0,
       fileCount: 0,
       messageCount: 0,
@@ -63,8 +63,10 @@ function recordAction(userId, username, type) {
       votesGiven: {}
     };
   } else {
-    // Mettre à jour le pseudo s'il a changé
-    stats[userId].username = username;
+    // Mettre à jour le pseudo s'il a changé et est valide
+    if (username && username !== 'undefined') {
+      stats[userId].username = username;
+    }
     // Retrocompatibilité : si firstAction n'existe pas, on l'initialise
     if (!stats[userId].firstAction) {
       stats[userId].firstAction = stats[userId].lastAction || Date.now();
@@ -160,14 +162,16 @@ function updateReputation(targetId, targetUsername, value, voterId, messageId) {
   // Assurer que le receveur existe
   if (!stats[targetId]) {
     stats[targetId] = {
-      username: targetUsername,
+      username: (targetUsername && targetUsername !== 'undefined') ? targetUsername : 'Unknown',
       mediaCount: 0, fileCount: 0, messageCount: 0, totalCount: 0,
       lastAction: Date.now(),
       bordelCoins: 0,
       votesGiven: {}
     };
   } else {
-    stats[targetId].username = targetUsername;
+    if (targetUsername && targetUsername !== 'undefined') {
+      stats[targetId].username = targetUsername;
+    }
     if (stats[targetId].reputation !== undefined) {
       stats[targetId].bordelCoins = stats[targetId].reputation;
       delete stats[targetId].reputation;
@@ -334,7 +338,7 @@ function saveUserProfile(userId, username, profileData) {
   if (!userId) return;
   if (!stats[userId]) {
     stats[userId] = {
-      username: username,
+      username: (username && username !== 'undefined') ? username : 'Unknown',
       mediaCount: 0,
       fileCount: 0,
       messageCount: 0,
@@ -344,7 +348,9 @@ function saveUserProfile(userId, username, profileData) {
       votesGiven: {}
     };
   } else {
-    stats[userId].username = username;
+    if (username && username !== 'undefined') {
+      stats[userId].username = username;
+    }
     if (stats[userId].reputation !== undefined) {
       stats[userId].bordelCoins = stats[userId].reputation;
       delete stats[userId].reputation;
