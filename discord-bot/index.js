@@ -414,12 +414,12 @@ client.on(Events.InteractionCreate, async (interaction) => {
       const flipId = customId.replace('cf_accept_', '').replace('cf_decline_', '');
 
       if (!isAccept) {
-        await apiPost('/api/coinflip/cancel', { flipId });
+        await apiPost('/coinflip/cancel', { flipId });
         await interaction.update({ content: 'Pari refusé ou annulé.', embeds: [], components: [] });
         return;
       }
 
-      const res = await apiPost('/api/coinflip/accept', { flipId, userId: interaction.user.id });
+      const res = await apiPost('/coinflip/accept', { flipId, userId: interaction.user.id });
       if (!res || res.error) {
         await interaction.reply({ content: '❌ ' + (res?.error || 'Erreur lors de l\'acceptation.'), ephemeral: true });
         return;
@@ -1623,7 +1623,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
       // ── /collection ──────────────────────────────────────
       case 'collection': {
-        const res = await apiGet('/api/collection?userId=' + interaction.user.id);
+        const res = await apiGet('/collection?userId=' + interaction.user.id);
         if (!res || res.error) {
           await interaction.editReply('❌ ' + (res?.error || 'Erreur lors de la récupération de la collection.'));
           break;
@@ -1653,7 +1653,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
       // ── /daily ───────────────────────────────────────────
       case 'daily': {
-        const res = await apiPost('/api/daily', { userId: interaction.user.id });
+        const res = await apiPost('/daily', { userId: interaction.user.id });
         if (!res || res.error) {
           await interaction.editReply('❌ ' + (res?.error || 'Erreur inconnue.'));
           break;
@@ -1671,7 +1671,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
       // ── /fish ────────────────────────────────────────────
       case 'fish': {
         const bait = interaction.options.getString('appat');
-        const res = await apiPost('/api/fish', { userId: interaction.user.id, bait });
+        const res = await apiPost('/fish', { userId: interaction.user.id, bait });
         if (!res || res.error) {
           await interaction.editReply('🎣 ' + (res?.error || 'Erreur lors de la pêche.'));
           break;
@@ -1689,7 +1689,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
       // ── /slots ───────────────────────────────────────────
       case 'slots': {
         const bet = interaction.options.getInteger('mise');
-        const res = await apiPost('/api/slots', { userId: interaction.user.id, amount: bet });
+        const res = await apiPost('/slots', { userId: interaction.user.id, amount: bet });
         if (!res || res.error) {
           await interaction.editReply('🎰 ' + (res?.error || 'Erreur de machine à sous.'));
           break;
@@ -1726,7 +1726,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
             break;
         }
 
-        const res = await apiPost('/api/coinflip/create', { userId: interaction.user.id, targetId: target.id, amount: bet });
+        const res = await apiPost('/coinflip/create', { userId: interaction.user.id, targetId: target.id, amount: bet });
         if (!res || res.error) {
           await interaction.editReply('❌ ' + (res?.error || 'Impossible de créer le pari.'));
           break;
@@ -1754,7 +1754,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
       // ── /achievements ──────────────────────────────────────
       case 'achievements': {
-         const res = await apiGet('/api/achievements?userId=' + interaction.user.id);
+         const res = await apiGet('/achievements?userId=' + interaction.user.id);
          if (!res || res.error) {
             await interaction.editReply("Impossible de récupérer tes succès.");
             break;
@@ -1772,7 +1772,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
             // ── /craft ───────────────────────────────────────────
       case 'craft': {
          const targetId = interaction.options.getString('objet');
-         const res = await apiPost('/api/craft', { userId: interaction.user.id, targetItemId: targetId });
+         const res = await apiPost('/craft', { userId: interaction.user.id, targetItemId: targetId });
 
          if (!res || res.error) {
             await interaction.editReply('❌ ' + (res?.error || 'Erreur lors du craft.'));

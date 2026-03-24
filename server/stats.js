@@ -942,18 +942,18 @@ function checkAchievements(userId) {
   if (!stats[userId]) return;
   ensureInventoryExists(userId);
 
-  const inv = stats[userId].inventory;
+  // Il faut accéder dynamiquement à l'objet interne
   let newAchievements = [];
 
   // Jackpot 1
-  if (stats[userId].slots && stats[userId].slots.jackpots >= 1 && !inv['B_JACKPOT']) {
+  if (stats[userId].slots && stats[userId].slots.jackpots >= 1 && !stats[userId].inventory['B_JACKPOT']) {
     addItemToInventory(userId, 'B_JACKPOT');
     addCoins(userId, 100);
     newAchievements.push('B_JACKPOT + 100 💰');
   }
 
   // 2 consecutive Jackpots
-  if (stats[userId].slots && stats[userId].slots.consecutiveJackpots >= 2 && !inv['T_LUCKY']) {
+  if (stats[userId].slots && stats[userId].slots.consecutiveJackpots >= 2 && !stats[userId].inventory['T_LUCKY']) {
     addItemToInventory(userId, 'T_LUCKY');
     addCoins(userId, 500);
     newAchievements.push('T_LUCKY + 500 💰');
@@ -963,10 +963,10 @@ function checkAchievements(userId) {
   const allFishes = ['F_TRASH', 'F_COD', 'F_SALMON', 'F_TUNA', 'F_SHARK', 'F_KRAKEN'];
   let hasAllFishes = true;
   for (let f of allFishes) {
-      if (!inv[f] || inv[f] <= 0) hasAllFishes = false;
+      if (!stats[userId].inventory[f] || stats[userId].inventory[f] <= 0) hasAllFishes = false;
   }
 
-  if (hasAllFishes && !inv['T_MASTER_FISHER']) {
+  if (hasAllFishes && !stats[userId].inventory['T_MASTER_FISHER']) {
     addItemToInventory(userId, 'T_MASTER_FISHER');
     addCoins(userId, 2000);
     newAchievements.push('T_MASTER_FISHER + 2000 💰');
