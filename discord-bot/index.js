@@ -920,8 +920,32 @@ client.on(Events.InteractionCreate, async (interaction) => {
              .setDescription(`<@${targetId}>\n\n**Lootboxes possédées :** 🎁 ${res.lootboxes}`);
 
            let itemsText = '';
+
+           // Fetch itemsDb to get real names and procedurals
+           let itemsDb = null;
+           try {
+               const dbRes = await apiGet(`/items_db?userId=${targetId}`);
+               if (!dbRes.error) itemsDb = dbRes;
+           } catch(e) {}
+
            for (const [itemId, count] of Object.entries(res.items)) {
-              itemsText += `• **${itemId}** (x${count})\n`;
+              let itemName = itemId;
+              let itemExtra = '';
+              if (itemsDb) {
+                 // Chercher l'objet dans la DB
+                 for (const cat in itemsDb) {
+                    if (itemsDb[cat][itemId]) {
+                       const itemInfo = itemsDb[cat][itemId];
+                       itemName = itemInfo.name;
+                       if (itemInfo.emoji) itemName = `${itemInfo.emoji} ${itemName}`;
+                       if (itemInfo.rarity === 'transcendant' && itemInfo.originalOwnerName && itemInfo.obtainedAt) {
+                           itemExtra = `\n  └ *Découvert par ${itemInfo.originalOwnerName} le <t:${Math.floor(itemInfo.obtainedAt / 1000)}:d>*`;
+                       }
+                       break;
+                    }
+                 }
+              }
+              itemsText += `• **${itemName}** (x${count})${itemExtra}\n`;
            }
            if (!itemsText) itemsText = '*Inventaire vide. Achète des lootboxes ou gagne-les !*';
 

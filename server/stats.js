@@ -179,7 +179,25 @@ function updateReputation(targetId, targetUsername, value, voterId, messageId) {
 
   // Appliquer le vote
   stats[voterId].votesGiven[messageId] = value;
-  stats[targetId].bordelCoins += value;
+
+  let coinsToAdd = value;
+
+  if (coinsToAdd > 0) {
+    const bonus = getCoinBonus(targetId);
+    if (bonus > 0) {
+       // Probabilistic bonus for small amounts (like 1 coin)
+       const bonusAmount = coinsToAdd * bonus;
+       const guaranteedBonus = Math.floor(bonusAmount);
+       const probBonus = bonusAmount - guaranteedBonus;
+
+       coinsToAdd += guaranteedBonus;
+       if (Math.random() < probBonus) {
+         coinsToAdd += 1;
+       }
+    }
+  }
+
+  stats[targetId].bordelCoins += coinsToAdd;
 
   // Empêcher les BordelCoins d'être négatifs
   if (stats[targetId].bordelCoins < 0) {
@@ -224,7 +242,22 @@ function addCoins(userId, amount) {
     delete stats[userId].reputation;
   }
 
-  stats[userId].bordelCoins += amount;
+  let coinsToAdd = amount;
+  if (coinsToAdd > 0) {
+    const bonus = getCoinBonus(userId);
+    if (bonus > 0) {
+       const bonusAmount = coinsToAdd * bonus;
+       const guaranteedBonus = Math.floor(bonusAmount);
+       const probBonus = bonusAmount - guaranteedBonus;
+
+       coinsToAdd += guaranteedBonus;
+       if (Math.random() < probBonus) {
+         coinsToAdd += 1;
+       }
+    }
+  }
+
+  stats[userId].bordelCoins += coinsToAdd;
 
   if (stats[userId].bordelCoins < 0) {
     stats[userId].bordelCoins = 0;
@@ -369,11 +402,22 @@ const PROCEDURAL_PREFIXES = ["Ancien", "Maudit", "Béni", "Légendaire", "Oubli�
 const PROCEDURAL_NOUNS = ["Relique", "Artefact", "Joyau", "Fragments", "Essence", "Grimoire", "Talisman", "Sceptre", "Épée", "Couronne"];
 const PROCEDURAL_SUFFIXES = ["du Vide", "du Chaos", "de la Lumière", "des Anciens", "de l'Infini", "du Temps", "des Abysses", "de l'Aube", "du Crépuscule", "des Âmes"];
 
-function generateProceduralItem() {
+function generateProceduralItem(userId, username) {
+  // Global counter for transcendant items
+  if (!stats['__global__']) {
+    stats['__global__'] = { transcendantCount: 0 };
+  }
+  if (typeof stats['__global__'].transcendantCount !== 'number') {
+    stats['__global__'].transcendantCount = 0;
+  }
+
+  stats['__global__'].transcendantCount++;
+  const serial = stats['__global__'].transcendantCount;
+
   const prefix = PROCEDURAL_PREFIXES[Math.floor(Math.random() * PROCEDURAL_PREFIXES.length)];
   const noun = PROCEDURAL_NOUNS[Math.floor(Math.random() * PROCEDURAL_NOUNS.length)];
   const suffix = PROCEDURAL_SUFFIXES[Math.floor(Math.random() * PROCEDURAL_SUFFIXES.length)];
-  const name = `${prefix} ${noun} ${suffix}`;
+  const name = `${prefix} ${noun} ${suffix} #${serial}`;
 
   // Randomize category (titles or badges are best for procedural items)
   const category = Math.random() > 0.5 ? 'titles' : 'badges';
@@ -383,15 +427,41 @@ function generateProceduralItem() {
     id: id,
     name: name,
     rarity: "transcendant",
-    category: category
+    category: category,
+    serial: serial,
+    originalOwnerId: userId,
+    originalOwnerName: username || "Inconnu",
+    obtainedAt: Date.now()
   };
 
   if (category === 'badges') {
     const emojis = ["🔥", "✨", "🌟", "👁️", "🌌", "⚡", "🔮", "💎", "🐉", "🔱"];
     item.emoji = emojis[Math.floor(Math.random() * emojis.length)];
+    // Random bonus between 30% and 100% for transcendant badges
+    const bonusPct = 30 + Math.floor(Math.random() * 71);
+    item.bonus = bonusPct / 100.0;
+    item.name += ` (+${bonusPct}%)`;
   }
 
   return item;
+}
+
+function getCoinBonus(userId) {
+  if (!stats[userId] || !stats[userId].equippedBadge) return 0;
+
+  const badgeId = stats[userId].equippedBadge;
+
+  // Check static DB
+  if (itemsDb.badges && itemsDb.badges[badgeId] && itemsDb.badges[badgeId].bonus) {
+    return itemsDb.badges[badgeId].bonus;
+  }
+
+  // Check procedural DB
+  if (stats[userId].proceduralItems && stats[userId].proceduralItems[badgeId] && stats[userId].proceduralItems[badgeId].bonus) {
+    return stats[userId].proceduralItems[badgeId].bonus;
+  }
+
+  return 0;
 }
 
 function ensureInventoryExists(userId) {
@@ -546,7 +616,7 @@ function openLootbox(userId) {
 
   if (chosenRarity === "transcendant") {
     // Generate a unique procedural item
-    wonItem = generateProceduralItem();
+    wonItem = generateProceduralItem(userId, stats[userId].username);
 
     // Save it to a custom DB inside the user's inventory or global custom items so it can be equipped
     if (!stats[userId].proceduralItems) {

@@ -630,6 +630,11 @@ router.get('/inventory/:userId', (req, res) => {
   res.json(getInventory(req.params.userId));
 });
 
+router.get('/items_db', (req, res) => {
+  const userId = req.query.userId;
+  res.json(getItemsDb(userId));
+});
+
 router.post('/lootbox/buy', requireAuth, (req, res) => {
   const { userId, amount = 1 } = req.body;
   const cost = 10 * amount;
