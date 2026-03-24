@@ -903,10 +903,12 @@ client.on(Events.InteractionCreate, async (interaction) => {
       // ── /inventory ─────────────────────────────────────
       case 'inventory': {
         const subCmd = interaction.options.getSubcommand();
-        const userId = interaction.user.id;
 
         if (subCmd === 'view') {
-           const res = await apiGet(`/inventory/${userId}`);
+           const targetUser = interaction.options.getUser('utilisateur') || interaction.user;
+           const targetId = targetUser.id;
+
+           const res = await apiGet(`/inventory/${targetId}`);
            if (res.error) {
               await interaction.editReply(`❌ Erreur : ${res.error}`);
               return;
@@ -914,8 +916,8 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
            const embed = new EmbedBuilder()
              .setColor(0x0099FF)
-             .setTitle(`🎒 Inventaire de ${interaction.user.displayName || interaction.user.username}`)
-             .setDescription(`**Lootboxes possédées :** 🎁 ${res.lootboxes}`);
+             .setTitle(`🎒 Inventaire de ${targetUser.displayName || targetUser.username}`)
+             .setDescription(`<@${targetId}>\n\n**Lootboxes possédées :** 🎁 ${res.lootboxes}`);
 
            let itemsText = '';
            for (const [itemId, count] of Object.entries(res.items)) {
@@ -930,6 +932,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
            await interaction.editReply({ embeds: [embed] });
         } else if (subCmd === 'equip') {
+           const userId = interaction.user.id;
            const itemToEquip = interaction.options.getString('objet', true);
            const res = await apiPost('/inventory/equip', { userId, itemId: itemToEquip });
 

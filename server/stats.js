@@ -357,12 +357,42 @@ try {
 }
 
 const RARITY_WEIGHTS = {
-  "commun": 600,     // 60%
-  "rare": 250,       // 25%
-  "epique": 100,     // 10%
-  "legendaire": 40,  // 4%
-  "mythique": 10     // 1%
+  "commun": 6000,     // 60%
+  "rare": 2500,       // 25%
+  "epique": 1000,     // 10%
+  "legendaire": 400,  // 4%
+  "mythique": 70,     // 0.7%
+  "transcendant": 30  // 0.3%
 };
+
+const PROCEDURAL_PREFIXES = ["Ancien", "Maudit", "Béni", "Légendaire", "Oublié", "Divin", "Corrompu", "Céleste", "Éthéré", "Sombre"];
+const PROCEDURAL_NOUNS = ["Relique", "Artefact", "Joyau", "Fragments", "Essence", "Grimoire", "Talisman", "Sceptre", "Épée", "Couronne"];
+const PROCEDURAL_SUFFIXES = ["du Vide", "du Chaos", "de la Lumière", "des Anciens", "de l'Infini", "du Temps", "des Abysses", "de l'Aube", "du Crépuscule", "des Âmes"];
+
+function generateProceduralItem() {
+  const prefix = PROCEDURAL_PREFIXES[Math.floor(Math.random() * PROCEDURAL_PREFIXES.length)];
+  const noun = PROCEDURAL_NOUNS[Math.floor(Math.random() * PROCEDURAL_NOUNS.length)];
+  const suffix = PROCEDURAL_SUFFIXES[Math.floor(Math.random() * PROCEDURAL_SUFFIXES.length)];
+  const name = `${prefix} ${noun} ${suffix}`;
+
+  // Randomize category (titles or badges are best for procedural items)
+  const category = Math.random() > 0.5 ? 'titles' : 'badges';
+  const id = `PROC_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+
+  let item = {
+    id: id,
+    name: name,
+    rarity: "transcendant",
+    category: category
+  };
+
+  if (category === 'badges') {
+    const emojis = ["🔥", "✨", "🌟", "👁️", "🌌", "⚡", "🔮", "💎", "🐉", "🔱"];
+    item.emoji = emojis[Math.floor(Math.random() * emojis.length)];
+  }
+
+  return item;
+}
 
 function ensureInventoryExists(userId) {
   if (!stats[userId]) return;
@@ -497,20 +527,41 @@ function openLootbox(userId) {
 
   if (allItems.length === 0) return { error: "Aucun objet disponible." };
 
-  // Tirage basé sur les poids
-  const totalWeight = allItems.reduce((sum, item) => sum + (RARITY_WEIGHTS[item.rarity] || 0), 0);
-  let random = Math.floor(Math.random() * totalWeight);
-
   let wonItem = null;
-  for (const item of allItems) {
-    random -= (RARITY_WEIGHTS[item.rarity] || 0);
-    if (random < 0) {
-      wonItem = item;
+
+  // Decide rarity first to see if we hit 'transcendant'
+  let totalWeightRarity = 0;
+  for (const r in RARITY_WEIGHTS) {
+    totalWeightRarity += RARITY_WEIGHTS[r];
+  }
+  let randomRarityVal = Math.floor(Math.random() * totalWeightRarity);
+  let chosenRarity = "commun";
+  for (const r in RARITY_WEIGHTS) {
+    randomRarityVal -= RARITY_WEIGHTS[r];
+    if (randomRarityVal < 0) {
+      chosenRarity = r;
       break;
     }
   }
 
-  if (!wonItem) wonItem = allItems[0];
+  if (chosenRarity === "transcendant") {
+    // Generate a unique procedural item
+    wonItem = generateProceduralItem();
+
+    // Save it to a custom DB inside the user's inventory or global custom items so it can be equipped
+    if (!stats[userId].proceduralItems) {
+      stats[userId].proceduralItems = {};
+    }
+    stats[userId].proceduralItems[wonItem.id] = wonItem;
+  } else {
+    // Filter items by chosen rarity
+    const rarityItems = allItems.filter(i => i.rarity === chosenRarity);
+    if (rarityItems.length > 0) {
+      wonItem = rarityItems[Math.floor(Math.random() * rarityItems.length)];
+    } else {
+      wonItem = allItems[Math.floor(Math.random() * allItems.length)]; // Fallback
+    }
+  }
 
   // Si c'est un jackpot, on donne l'argent direct
   if (wonItem.category === 'jackpots') {
@@ -540,6 +591,11 @@ function equipItem(userId, itemId) {
     }
   }
 
+  // Check if it's a procedural item
+  if (!category && stats[userId] && stats[userId].proceduralItems && stats[userId].proceduralItems[itemId]) {
+    category = stats[userId].proceduralItems[itemId].category;
+  }
+
   if (!category) return { error: "Objet invalide." };
 
   if (category === 'titles') stats[userId].equippedTitle = itemId;
@@ -551,8 +607,19 @@ function equipItem(userId, itemId) {
   return { ok: true, type: category };
 }
 
-function getItemsDb() {
-  return itemsDb;
+function getItemsDb(userId = null) {
+  if (!userId || !stats[userId] || !stats[userId].proceduralItems) {
+    return itemsDb;
+  }
+
+  // Create a merged DB for this user so procedural items can be resolved for names/emojis
+  const mergedDb = JSON.parse(JSON.stringify(itemsDb));
+  for (const procId in stats[userId].proceduralItems) {
+    const procItem = stats[userId].proceduralItems[procId];
+    if (!mergedDb[procItem.category]) mergedDb[procItem.category] = {};
+    mergedDb[procItem.category][procId] = procItem;
+  }
+  return mergedDb;
 }
 
 module.exports.addLootbox = addLootbox;

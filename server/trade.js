@@ -39,7 +39,7 @@ function updateTradeOffer(tradeId, userId, offerItems, offerCoins) {
 
   // Validate inventory
   const inventory = getInventory(userId);
-  const itemsDb = getItemsDb();
+  const itemsDb = getItemsDb(userId);
 
   // Create a copy of the inventory counts to simulate the offer and ensure they have everything
   const tempInv = { ...inventory.items };

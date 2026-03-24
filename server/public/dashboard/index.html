@@ -136,6 +136,28 @@
           </div>
         </div>
 
+        <!-- Trade Editor Modal -->
+        <div id="trade-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 10000; align-items: center; justify-content: center;">
+           <div class="card" style="width: 90%; max-width: 500px; max-height: 90vh; overflow-y: auto;">
+              <h3 style="margin-bottom: 15px;">Modifier votre offre</h3>
+              <p style="color: #ccc; margin-bottom: 15px;">Sélectionnez les objets et ajoutez des BordelCoins à votre offre :</p>
+
+              <div id="trade-modal-items" style="background: rgba(255,255,255,0.05); padding: 10px; border-radius: 8px; margin-bottom: 15px; max-height: 200px; overflow-y: auto;">
+                 <!-- Checkboxes loaded here -->
+              </div>
+
+              <div style="margin-bottom: 20px;">
+                 <label style="display: block; margin-bottom: 5px; color: #fff;">BordelCoins offerts :</label>
+                 <input type="number" id="trade-coins-input" min="0" value="0" style="width: 100%; padding: 10px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; color: #fff;">
+              </div>
+
+              <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                 <button class="btn btn-secondary" onclick="closeTradeEditor()">Annuler</button>
+                 <button class="btn btn-success" onclick="submitTradeOffer()">Sauvegarder l'offre</button>
+              </div>
+           </div>
+        </div>
+
         <!-- Upload Tab -->
         <div class="card" id="content-upload" style="display: none;">
           <h3>📎 Fichier à envoyer</h3>

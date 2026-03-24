@@ -225,7 +225,7 @@ function enrichItemWithInventory(itemPayload) {
   if (!itemPayload || !itemPayload.userId) return itemPayload;
 
   const inv = getInventory(itemPayload.userId);
-  const itemsDb = getItemsDb();
+  const itemsDb = getItemsDb(itemPayload.userId);
 
   // Attach equipment details directly to the payload
   const equipped = inv.equipped;

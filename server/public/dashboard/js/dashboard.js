@@ -72,10 +72,12 @@ async function loadMemes() {
     // Fetch user context if available
     let userId = null;
     try {
-      const userRes = await fetch('/auth/me');
+      const userRes = await fetch('/auth/status');
       if (userRes.ok) {
         const udata = await userRes.json();
-        userId = udata.id;
+        if (udata.authenticated) {
+          userId = udata.user.id;
+        }
       }
     } catch (e) {}
 
@@ -147,10 +149,12 @@ async function sendMeme(name, memeData) {
     // Fetch user context if available
     let userId = null;
     try {
-      const userRes = await fetch('/auth/me');
+      const userRes = await fetch('/auth/status');
       if (userRes.ok) {
         const udata = await userRes.json();
-        userId = udata.id;
+        if (udata.authenticated) {
+          userId = udata.user.id;
+        }
       }
     } catch (e) {}
 
@@ -195,7 +199,7 @@ async function sendMeme(name, memeData) {
 async function loadTrades(userId) {
   const container = document.getElementById('trade-container');
   try {
-    const res = await fetch(`/trades/me?userId=${userId}`);
+    const res = await fetch(`/api/trades/me?userId=${userId}`);
     if (!res.ok) throw new Error('Failed to load trades');
     const data = await res.json();
     const trades = data.pending || [];
@@ -219,11 +223,32 @@ async function loadTrades(userId) {
       div.style.borderRadius = '8px';
       div.style.border = '1px solid var(--color-border)';
 
+      // Show what is being offered by both parties
+      const senderOfferItems = trade.senderOffer.items.length > 0 ? trade.senderOffer.items.join(', ') : 'Aucun objet';
+      const receiverOfferItems = trade.receiverOffer.items.length > 0 ? trade.receiverOffer.items.join(', ') : 'Aucun objet';
+      const senderOfferCoins = trade.senderOffer.coins;
+      const receiverOfferCoins = trade.receiverOffer.coins;
+
+      let displayStatus = 'En attente...';
+      if (trade.status === 'accepted') displayStatus = 'Accepté';
+      else if (trade.status === 'declined') displayStatus = 'Refusé / Annulé';
+
       div.innerHTML = `
         <h4 style="margin-bottom: 10px; color: var(--color-primary);">${statusLabel} ${partnerName}</h4>
-        <div style="font-size: 0.9em; color: #ccc; margin-bottom: 15px;">ID: ${trade.id}</div>
+        <div style="font-size: 0.9em; color: #ccc; margin-bottom: 15px;">Statut: ${displayStatus}</div>
+        <div style="font-size: 0.9em; color: #ccc; margin-bottom: 10px;">
+           <strong>Offre de ${trade.senderName} :</strong><br>
+           Objets: ${senderOfferItems}<br>
+           Coins: ${senderOfferCoins}
+        </div>
+        <div style="font-size: 0.9em; color: #ccc; margin-bottom: 15px;">
+           <strong>Offre de ${trade.receiverName} :</strong><br>
+           Objets: ${receiverOfferItems}<br>
+           Coins: ${receiverOfferCoins}
+        </div>
         <div style="display: flex; gap: 10px;">
-           <button class="btn btn-primary" onclick="window.alert('L\\'interface détaillée de modification des objets arrive très bientôt !')">Modifier / Voir</button>
+           <button class="btn btn-primary" onclick="openTradeEditor('${trade.id}', '${userId}', ${isSender})">Modifier / Voir</button>
+           ${!isSender && trade.status === 'pending' ? `<button class="btn btn-success" onclick="acceptTrade('${trade.id}', '${userId}')">Accepter</button>` : ''}
            <button class="btn btn-danger" onclick="declineTrade('${trade.id}', '${userId}')">Refuser / Annuler</button>
         </div>
       `;
@@ -235,10 +260,101 @@ async function loadTrades(userId) {
   }
 }
 
+let currentTradeId = null;
+let currentTradeUserId = null;
+
+async function openTradeEditor(tradeId, userId, isSender) {
+  currentTradeId = tradeId;
+  currentTradeUserId = userId;
+
+  const modal = document.getElementById('trade-modal');
+  modal.style.display = 'flex';
+
+  // Load user inventory to show options
+  try {
+    const res = await fetch(`/api/inventory/${userId}`);
+    if (res.ok) {
+      const inv = await res.json();
+      const container = document.getElementById('trade-modal-items');
+      container.innerHTML = '';
+
+      if (!inv.items || Object.keys(inv.items).length === 0) {
+        container.innerHTML = '<div style="color: #ccc;">Aucun objet dans l\'inventaire.</div>';
+      } else {
+        for (const [itemId, count] of Object.entries(inv.items)) {
+          const div = document.createElement('div');
+          div.style.marginBottom = '5px';
+          div.innerHTML = `
+            <label style="color: #fff;">
+               <input type="checkbox" value="${itemId}" class="trade-item-checkbox"> ${itemId} (Dispo: ${count})
+            </label>
+          `;
+          container.appendChild(div);
+        }
+      }
+    }
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+function closeTradeEditor() {
+  document.getElementById('trade-modal').style.display = 'none';
+  currentTradeId = null;
+  currentTradeUserId = null;
+}
+
+async function submitTradeOffer() {
+  if (!currentTradeId || !currentTradeUserId) return;
+
+  const checkboxes = document.querySelectorAll('.trade-item-checkbox:checked');
+  const offerItems = Array.from(checkboxes).map(cb => cb.value);
+  const coinsInput = document.getElementById('trade-coins-input').value;
+  const offerCoins = parseInt(coinsInput, 10) || 0;
+
+  try {
+    const res = await fetch('/api/trade/update', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tradeId: currentTradeId, userId: currentTradeUserId, offerItems, offerCoins })
+    });
+
+    if (res.ok) {
+      closeTradeEditor();
+      loadTrades(currentTradeUserId); // Refresh list
+    } else {
+      const err = await res.json();
+      alert('Erreur: ' + err.error);
+    }
+  } catch (err) {
+    alert('Erreur réseau');
+  }
+}
+
+async function acceptTrade(tradeId, userId) {
+  if (!confirm('Êtes-vous sûr de vouloir accepter cet échange ?')) return;
+  try {
+    const res = await fetch('/api/trade/accept', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tradeId, userId })
+    });
+    if (res.ok) {
+      alert('Échange accepté avec succès !');
+      loadTrades(userId);
+    } else {
+      const err = await res.json();
+      alert('Erreur: ' + err.error);
+    }
+  } catch (err) {
+    alert('Erreur réseau');
+  }
+}
+
 async function declineTrade(tradeId, userId) {
   if (!confirm('Voulez-vous vraiment annuler / refuser cet échange ?')) return;
   try {
-    const res = await fetch('/trade/decline', {
+    const res = await fetch('/api/trade/decline', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ tradeId, userId })

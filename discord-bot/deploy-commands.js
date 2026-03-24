@@ -470,11 +470,15 @@ const commands = [
 
   new SlashCommandBuilder()
     .setName('inventory')
-    .setDescription('Affiche votre inventaire et permet d\'équiper des objets')
+    .setDescription('Affiche un inventaire et permet d\'équiper des objets')
     .addSubcommand(subcommand =>
       subcommand
         .setName('view')
-        .setDescription('Affiche le contenu de votre inventaire'))
+        .setDescription('Affiche le contenu d\'un inventaire')
+        .addUserOption(option =>
+          option.setName('utilisateur')
+            .setDescription('L\'utilisateur dont vous voulez voir l\'inventaire (optionnel)')
+            .setRequired(false)))
     .addSubcommand(subcommand =>
       subcommand
         .setName('equip')
