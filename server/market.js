@@ -29,7 +29,8 @@ function createListing(sellerId, sellerName, itemId, price) {
     return { error: "Vous ne possédez pas cet objet." };
   }
 
-  if (price <= 0) {
+  const parsedPrice = parseInt(price, 10);
+  if (isNaN(parsedPrice) || parsedPrice <= 0) {
     return { error: "Le prix doit être supérieur à 0." };
   }
 
@@ -41,7 +42,7 @@ function createListing(sellerId, sellerName, itemId, price) {
       sellerId,
       sellerName,
       itemId,
-      price,
+      price: parsedPrice,
       createdAt: Date.now()
     });
     saveMarket();

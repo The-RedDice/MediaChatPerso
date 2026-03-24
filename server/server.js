@@ -24,7 +24,7 @@ const { addMeme, getUserMemes, removeMeme } = require('./memes');
 const { initAI, generateResponse } = require('./ai');
 const { getInventory, addLootbox, openLootbox, equipItem, getItemsDb } = require('./stats');
 const { getListings, createListing, buyListing, cancelListing } = require('./market');
-const { createTradeRequest, acceptTrade, declineTrade, getTrade } = require('./trade');
+const { createTradeRequest, updateTradeOffer, acceptTrade, declineTrade, getTrade } = require('./trade');
 const { startEvent, interactEvent, getActiveEvent } = require('./events');
 
 // Initialiser l'API IA
@@ -676,6 +676,13 @@ router.post('/trade/accept', requireAuth, (req, res) => {
   res.json(result);
 });
 
+router.post('/trade/update', requireAuth, (req, res) => {
+  const { tradeId, userId, offerItems, offerCoins } = req.body;
+  const result = updateTradeOffer(tradeId, userId, offerItems, offerCoins || 0);
+  if (result.error) return res.status(400).json(result);
+  res.json(result);
+});
+
 router.post('/trade/decline', requireAuth, (req, res) => {
   const { tradeId, userId } = req.body;
   const trade = getTrade(tradeId);
@@ -684,6 +691,12 @@ router.post('/trade/decline', requireAuth, (req, res) => {
 
   const result = declineTrade(tradeId);
   res.json(result);
+});
+
+router.get('/trade/:tradeId', requireAuth, (req, res) => {
+  const trade = getTrade(req.params.tradeId);
+  if (!trade) return res.status(404).json({ error: "Échange introuvable." });
+  res.json({ trade });
 });
 
 // ─── API Marketplace ─────────────────────────────────────────────────────────

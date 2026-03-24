@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;800&family=Space+Grotesk:wght@400;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/panel/css/panel.css">
-  <link rel="stylesheet" href="css/upload.css">
+  <link rel="stylesheet" href="css/dashboard.css">
   <style>
     .dashboard-grid {
       display: grid;
@@ -115,6 +115,7 @@
         <div class="tabs">
           <div class="tab active" id="tab-soundboard" onclick="switchTab('soundboard')">🎛️ Mes Mèmes</div>
           <div class="tab" id="tab-upload" onclick="switchTab('upload')">📎 Upload Fichier</div>
+          <div class="tab" id="tab-trade" onclick="switchTab('trade')">🤝 Échanges</div>
         </div>
 
         <!-- Soundboard Tab -->
@@ -123,6 +124,15 @@
           <p style="color: #888; font-size: 0.9rem; margin-bottom: 10px;">Cliquez sur un mème pour l'envoyer instantanément sur la cible sélectionnée.</p>
           <div class="dashboard-grid" id="memes-grid">
             <div style="color: #aaa; text-align: center; grid-column: 1 / -1; padding: 20px;">Chargement des mèmes...</div>
+          </div>
+        </div>
+
+        <!-- Trade Tab -->
+        <div class="card" id="content-trade" style="display: none;">
+          <h3>🤝 Demandes d'échange</h3>
+          <p style="color: #888; font-size: 0.9rem; margin-bottom: 10px;">Gérez vos offres commerciales en temps réel.</p>
+          <div id="trade-container" style="text-align: center; color: #aaa; padding: 20px;">
+             Aucune offre en cours ou la fonctionnalité est toujours en développement. Plus d'informations à venir.
           </div>
         </div>
 
@@ -164,13 +174,16 @@
   </main>
 
   <script src="/socket.io/socket.io.js"></script>
-  <script src="js/upload.js"></script>
+  <script src="js/dashboard.js"></script>
   <script>
     function switchTab(tabName) {
       document.getElementById('tab-soundboard').classList.remove('active');
       document.getElementById('tab-upload').classList.remove('active');
+      document.getElementById('tab-trade').classList.remove('active');
+
       document.getElementById('content-soundboard').style.display = 'none';
       document.getElementById('content-upload').style.display = 'none';
+      document.getElementById('content-trade').style.display = 'none';
 
       document.getElementById('tab-' + tabName).classList.add('active');
       document.getElementById('content-' + tabName).style.display = 'block';

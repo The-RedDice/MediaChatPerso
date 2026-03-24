@@ -575,7 +575,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
   // Réponse différée pour les commandes longues
   if (commandName === 'sendurl' || commandName === 'sendfile' || commandName === 'message' || commandName === 'ai' || commandName === 'online' || commandName === 'profile' || commandName === 'leaderboard' || commandName === 'queue' || commandName === 'download' || commandName === 'meme' || commandName === 'event') {
     await interaction.deferReply();
-  } else if (commandName === 'tuto' || commandName === 'style' || commandName === 'upload') {
+  } else if (commandName === 'tuto' || commandName === 'style' || commandName === 'dashboard') {
     await interaction.deferReply({ ephemeral: true });
       } else if (commandName === 'trade' || commandName === 'market' || commandName === 'lootbox' || commandName === 'inventory') {
         await interaction.deferReply({ ephemeral: false });
@@ -1530,11 +1530,11 @@ client.on(Events.InteractionCreate, async (interaction) => {
         break;
       }
 
-      // ── /upload ────────────────────────────────────────
-      case 'upload': {
-        const msg = `🌐 **Page d'Upload Web**\n\n` +
-                    `Vous pouvez uploader des fichiers (jusqu'à 250 Mo) directement depuis votre PC sans passer par Discord en utilisant le lien suivant :\n` +
-                    `<${SERVER_URL}/upload>\n\n` +
+      // ── /dashboard ────────────────────────────────────────
+      case 'dashboard': {
+        const msg = `🌐 **Tableau de Bord Web**\n\n` +
+                    `Vous pouvez uploader des fichiers (jusqu'à 250 Mo), gérer vos objets et jouer des sons directement depuis votre navigateur :\n` +
+                    `<${SERVER_URL}/dashboard>\n\n` +
                     `*Une connexion Discord est requise sur le site pour vérifier que vous êtes membre du serveur.*`;
 
         await interaction.editReply(msg);
@@ -1711,7 +1711,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
             },
             {
               name: '🔧 Utilitaires & Gestion',
-              value: '`/queue` : Gère les files d\'attente (Skip, Vider)\n`/style` : Menu interactif pour personnaliser votre profil\n`/online` : Liste des PC connectés\n`/upload` : Panel web pour les gros fichiers\n`/download` : Télécharge le client BordelBox\n`/tuto` : Affiche ce guide'
+              value: '`/queue` : Gère les files d\'attente (Skip, Vider)\n`/style` : Menu interactif pour personnaliser votre profil\n`/online` : Liste des PC connectés\n`/dashboard` : Panel web pour les gros fichiers et marché\n`/download` : Télécharge le client BordelBox\n`/tuto` : Affiche ce guide'
             }
           )
           .setFooter({ text: 'Amusez-vous bien ! 🎬' })

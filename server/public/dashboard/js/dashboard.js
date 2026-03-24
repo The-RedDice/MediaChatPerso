@@ -66,7 +66,22 @@ async function checkAuthStatus() {
 async function loadMemes() {
   const grid = document.getElementById('memes-grid');
   try {
-    const res = await fetch('/api/me/memes');
+    // Fetch user context if available
+    let userId = null;
+    try {
+      const userRes = await fetch('/auth/me');
+      if (userRes.ok) {
+        const udata = await userRes.json();
+        userId = udata.id;
+      }
+    } catch (e) {}
+
+    if (!userId) {
+      grid.innerHTML = '<div style="color: #ff3c6e; text-align: center; grid-column: 1 / -1; padding: 20px;">Veuillez vous connecter.</div>';
+      return;
+    }
+
+    const res = await fetch(`/api/memes/${userId}`);
     if (!res.ok) throw new Error('Failed to load memes');
     const data = await res.json();
     const memes = data.memes || {};
