@@ -541,7 +541,7 @@ router.post('/upload', requireAuth, uploadMiddleware.single('file'), async (req,
 
   const { target = 'all', caption, ttsVoice, greenscreen, filter } = req.body;
 
-  const senderName = req.user.displayName || req.user.username;
+  const senderName = req.user.displayName || req.user.username || 'Unknown';
   const avatarUrl = `https://cdn.discordapp.com/avatars/${req.user.id}/${req.user.avatar}.png`;
   const userId = req.user.id;
 
@@ -1190,7 +1190,7 @@ router.post('/voteskip', (req, res) => {
 
 // POST /api/ai
 router.post('/ai', requireAuth, async (req, res) => {
-  const { prompt, target = 'all', senderName, avatarUrl, ttsVoice, greenscreen, userId, color, font, animation, effect } = req.body;
+  const { prompt, target = 'all', senderName, avatarUrl, ttsVoice, greenscreen, modele3d, userId, color, font, animation, effect } = req.body;
 
   if (!prompt) return res.status(400).json({ error: 'prompt requis' });
 
@@ -1210,7 +1210,7 @@ router.post('/ai', requireAuth, async (req, res) => {
 
     const result = enqueue(target, {
       type: 'message',
-      payload: { text, prompt, senderName: senderName || '', avatarUrl: avatarUrl || '', ttsUrl, greenscreen: !!greenscreen, style: payloadStyle, userId, isRankOne, isAi: true },
+      payload: { text, prompt, senderName: senderName || '', avatarUrl: avatarUrl || '', ttsUrl, greenscreen: !!greenscreen, modele3d: modele3d !== false, style: payloadStyle, userId, isRankOne, isAi: true },
     });
 
     if (result?.error) return res.status(404).json(result);

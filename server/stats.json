@@ -11,38 +11,38 @@
     "username": "Alice",
     "mediaCount": 1,
     "fileCount": 0,
-    "messageCount": 0,
-    "totalCount": 1,
-    "firstAction": 1773680041383,
-    "lastAction": 1773680041383,
-    "reputation": 0,
-    "votesGiven": {
-      "msg1": 1
-    }
-  },
-  "user2": {
-    "username": "Bob",
-    "mediaCount": 0,
-    "fileCount": 2,
-    "messageCount": 0,
+    "messageCount": 1,
     "totalCount": 2,
     "firstAction": 1773680041383,
-    "lastAction": 1773680041383,
-    "reputation": 0,
+    "lastAction": 1774386220953,
+    "votesGiven": {
+      "msg1": 1
+    },
+    "bordelCoins": 0
+  },
+  "user2": {
+    "username": "SuperUser",
+    "mediaCount": 0,
+    "fileCount": 2,
+    "messageCount": 3,
+    "totalCount": 5,
+    "firstAction": 1773680041383,
+    "lastAction": 1774386220953,
     "votesGiven": {
       "msg2": 1
-    }
+    },
+    "bordelCoins": 0
   },
   "user3": {
     "username": "Charlie the King",
     "mediaCount": 0,
     "fileCount": 0,
-    "messageCount": 1,
-    "totalCount": 1,
-    "lastAction": 1773680231539,
-    "reputation": 2,
+    "messageCount": 2,
+    "totalCount": 2,
+    "lastAction": 1774386220953,
     "votesGiven": {},
-    "firstAction": 1773680041384
+    "firstAction": 1773680041384,
+    "bordelCoins": 2
   },
   "somevoter": {
     "username": "Unknown",

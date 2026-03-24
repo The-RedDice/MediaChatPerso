@@ -47,6 +47,10 @@ const commands = [
       o.setName('greenscreen')
        .setDescription('Applique un filtre green screen pour enlever le fond vert')
        .setRequired(false))
+    .addBooleanOption(o =>
+      o.setName('modele3d')
+       .setDescription('Affiche le modèle 3D animé sur l\'écran (Vrai par défaut)')
+       .setRequired(false))
     .addStringOption(o =>
       o.setName('couleur')
        .setDescription('Override la couleur (ex: red)')
@@ -142,6 +146,10 @@ const commands = [
     .addBooleanOption(o =>
       o.setName('greenscreen')
        .setDescription('Applique un filtre green screen pour enlever le fond vert')
+       .setRequired(false))
+    .addBooleanOption(o =>
+      o.setName('modele3d')
+       .setDescription('Affiche le modèle 3D animé sur l\'écran (Vrai par défaut)')
        .setRequired(false))
     .addStringOption(o =>
       o.setName('couleur')
@@ -278,6 +286,10 @@ const commands = [
       o.setName('greenscreen')
        .setDescription('Applique un filtre green screen pour enlever le fond vert')
        .setRequired(false))
+    .addBooleanOption(o =>
+      o.setName('modele3d')
+       .setDescription('Affiche le modèle 3D animé sur l\'écran (Vrai par défaut)')
+       .setRequired(false))
     .addStringOption(o =>
       o.setName('couleur')
        .setDescription('Override la couleur (ex: red)')
@@ -355,6 +367,10 @@ const commands = [
     .addBooleanOption(o =>
       o.setName('greenscreen')
        .setDescription('Applique un filtre green screen pour enlever le fond vert')
+       .setRequired(false))
+    .addBooleanOption(o =>
+      o.setName('modele3d')
+       .setDescription('Affiche le modèle 3D animé sur l\'écran (Vrai par défaut)')
        .setRequired(false))
     .addStringOption(o =>
       o.setName('couleur')
