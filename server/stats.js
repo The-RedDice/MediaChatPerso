@@ -712,3 +712,392 @@ module.exports.equipItem = equipItem;
 module.exports.getItemsDb = getItemsDb;
 module.exports.addItemToInventory = addItemToInventory;
 module.exports.removeItemFromInventory = removeItemFromInventory;
+
+/** --- NEW FEATURES --- **/
+
+// Daily Rewards
+function claimDaily(userId) {
+  if (!stats[userId]) return { error: 'Utilisateur inconnu.' };
+
+  const now = new Date();
+  const todayStr = now.toISOString().split('T')[0];
+
+  if (!stats[userId].daily) {
+    stats[userId].daily = { lastClaimDate: null, streak: 0 };
+  }
+
+  if (stats[userId].daily.lastClaimDate === todayStr) {
+    return { error: 'Tu as déjà réclamé ta récompense aujourd\'hui !' };
+  }
+
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+  const yesterdayStr = yesterday.toISOString().split('T')[0];
+
+  if (stats[userId].daily.lastClaimDate === yesterdayStr) {
+    stats[userId].daily.streak++;
+  } else {
+    stats[userId].daily.streak = 1;
+  }
+
+  stats[userId].daily.lastClaimDate = todayStr;
+
+  const baseReward = 30;
+  const bonus = (stats[userId].daily.streak - 1) * 5;
+  const totalReward = baseReward + bonus;
+
+  addCoins(userId, totalReward);
+
+  let rewards = [`${totalReward} BordelCoins`];
+
+  if (stats[userId].daily.streak % 7 === 0) {
+    addLootbox(userId, 1);
+    rewards.push('1 Lootbox');
+  }
+
+  if (stats[userId].daily.streak === 14) {
+    ensureInventoryExists(userId);
+    if (!stats[userId].inventory['T_DAILY_14']) {
+      addItemToInventory(userId, 'T_DAILY_14');
+      rewards.push("Titre exclusif 'L'Assidu'");
+    }
+  }
+
+  saveStats();
+
+  return { ok: true, streak: stats[userId].daily.streak, rewards };
+}
+
+// Collection
+function getCollectionProgress(userId) {
+  if (!stats[userId]) return { error: "Utilisateur inconnu." };
+  ensureInventoryExists(userId);
+
+  const userInv = stats[userId].inventory;
+  const categories = ['titles', 'colors', 'badges'];
+  let totalItems = 0;
+  let userItems = 0;
+
+  let progress = {};
+
+  categories.forEach(cat => {
+    let catTotal = 0;
+    let catUser = 0;
+
+    for (const itemId in itemsDb[cat]) {
+      const item = itemsDb[cat][itemId];
+      if (item.rarity !== 'transcendant' && !item.untradeable) { // Only count standard items
+        catTotal++;
+        totalItems++;
+        if (userInv[itemId] && userInv[itemId] > 0) {
+          catUser++;
+          userItems++;
+        }
+      }
+    }
+    progress[cat] = { total: catTotal, user: catUser, pct: catTotal > 0 ? (catUser / catTotal) : 0 };
+  });
+
+  const globalPct = totalItems > 0 ? (userItems / totalItems) : 0;
+
+  // Check milestone rewards
+  const milestones = [
+    { pct: 0.25, id: 'T_COLL_25', coins: 500 },
+    { pct: 0.50, id: 'T_COLL_50', coins: 1500 },
+    { pct: 0.75, id: 'T_COLL_75', coins: 3000 },
+    { pct: 1.00, id: 'T_COLL_100', coins: 10000 }
+  ];
+
+  let newRewards = [];
+  milestones.forEach(m => {
+    if (globalPct >= m.pct && (!userInv[m.id] || userInv[m.id] === 0)) {
+      addItemToInventory(userId, m.id);
+      addCoins(userId, m.coins);
+      newRewards.push(`${m.id} + ${m.coins} 💰`);
+    }
+  });
+
+  return {
+    ok: true,
+    globalPct,
+    categories: progress,
+    newRewards
+  };
+}
+
+// Fishing
+const FISHING_LOOT_TABLE = [
+  { id: 'F_TRASH', weight: 4000 },
+  { id: 'F_COD', weight: 3000 },
+  { id: 'F_SALMON', weight: 1500 },
+  { id: 'F_TUNA', weight: 1000 },
+  { id: 'F_SHARK', weight: 400 },
+  { id: 'F_KRAKEN', weight: 90 },
+  { id: 'LOOTBOX', weight: 10 }
+];
+
+function getFishCooldown(rodId) {
+  if (!rodId || !itemsDb.rods || !itemsDb.rods[rodId]) return 40; // Base
+  return itemsDb.rods[rodId].cooldown || 40;
+}
+
+function fish(userId, baitId, rodId) {
+  if (!stats[userId]) return { error: 'Utilisateur inconnu.' };
+  ensureInventoryExists(userId);
+
+  if (!itemsDb.baits || !itemsDb.baits[baitId]) return { error: 'Appât invalide.' };
+  const baitPrice = itemsDb.baits[baitId].price || 0;
+
+  const now = Date.now();
+  if (!stats[userId].fishing) stats[userId].fishing = { lastFish: 0 };
+
+  const cooldownSecs = getFishCooldown(rodId);
+  const elapsed = (now - stats[userId].fishing.lastFish) / 1000;
+
+  if (elapsed < cooldownSecs) {
+    return { error: `Tu dois encore attendre ${Math.ceil(cooldownSecs - elapsed)} secondes.` };
+  }
+
+  if (!spendCoins(userId, baitPrice)) {
+    return { error: `Il te faut ${baitPrice} BordelCoins pour cet appât.` };
+  }
+
+  stats[userId].fishing.lastFish = now;
+
+  // Rarity boost from bait could be implemented here
+  let totalWeight = 0;
+  FISHING_LOOT_TABLE.forEach(l => totalWeight += l.weight);
+  let rand = Math.floor(Math.random() * totalWeight);
+  let wonLoot = 'F_TRASH';
+  for (let l of FISHING_LOOT_TABLE) {
+    rand -= l.weight;
+    if (rand < 0) {
+      wonLoot = l.id;
+      break;
+    }
+  }
+
+  let result = { ok: true, itemId: wonLoot };
+  if (wonLoot === 'LOOTBOX') {
+    addLootbox(userId, 1);
+    result.item = { name: 'Lootbox Mystère', emoji: '🎁', rarity: 'rare' };
+  } else {
+    addItemToInventory(userId, wonLoot);
+    result.item = itemsDb.fishes[wonLoot];
+  }
+
+  checkAchievements(userId);
+  saveStats();
+
+  return result;
+}
+
+// Slots
+const SLOTS_EMOJIS = ['🍒', '🍋', '🍉', '🍇', '🔔', '💎'];
+function playSlots(userId, amount) {
+  if (!stats[userId]) return { error: 'Utilisateur inconnu.' };
+  if (amount <= 0) return { error: 'Mise invalide.' };
+
+  if (!spendCoins(userId, amount)) return { error: 'Fonds insuffisants pour jouer.' };
+
+  const r1 = SLOTS_EMOJIS[Math.floor(Math.random() * SLOTS_EMOJIS.length)];
+  const r2 = SLOTS_EMOJIS[Math.floor(Math.random() * SLOTS_EMOJIS.length)];
+  const r3 = SLOTS_EMOJIS[Math.floor(Math.random() * SLOTS_EMOJIS.length)];
+
+  let winAmount = 0;
+  let isJackpot = false;
+
+  // All 3 matching
+  if (r1 === r2 && r2 === r3) {
+    if (r1 === '💎') { winAmount = amount * 50; isJackpot = true; }
+    else if (r1 === '🔔') winAmount = amount * 20;
+    else winAmount = amount * 10;
+  }
+  // 2 out of 3 matching
+  else if (r1 === r2 || r2 === r3 || r1 === r3) {
+    winAmount = amount * 2;
+  }
+
+  if (winAmount > 0) {
+    addCoins(userId, winAmount);
+  }
+
+  if (!stats[userId].slots) stats[userId].slots = { jackpots: 0, consecutiveJackpots: 0 };
+
+  if (isJackpot) {
+    stats[userId].slots.jackpots++;
+    stats[userId].slots.consecutiveJackpots++;
+  } else {
+    stats[userId].slots.consecutiveJackpots = 0;
+  }
+
+  checkAchievements(userId);
+  saveStats();
+
+  return { ok: true, result: [r1, r2, r3], winAmount, isJackpot };
+}
+
+// Achievements
+function checkAchievements(userId) {
+  if (!stats[userId]) return;
+  ensureInventoryExists(userId);
+
+  const inv = stats[userId].inventory;
+  let newAchievements = [];
+
+  // Jackpot 1
+  if (stats[userId].slots && stats[userId].slots.jackpots >= 1 && !inv['B_JACKPOT']) {
+    addItemToInventory(userId, 'B_JACKPOT');
+    addCoins(userId, 100);
+    newAchievements.push('B_JACKPOT + 100 💰');
+  }
+
+  // 2 consecutive Jackpots
+  if (stats[userId].slots && stats[userId].slots.consecutiveJackpots >= 2 && !inv['T_LUCKY']) {
+    addItemToInventory(userId, 'T_LUCKY');
+    addCoins(userId, 500);
+    newAchievements.push('T_LUCKY + 500 💰');
+  }
+
+  // All Fishes
+  const allFishes = ['F_TRASH', 'F_COD', 'F_SALMON', 'F_TUNA', 'F_SHARK', 'F_KRAKEN'];
+  let hasAllFishes = true;
+  for (let f of allFishes) {
+      if (!inv[f] || inv[f] <= 0) hasAllFishes = false;
+  }
+
+  if (hasAllFishes && !inv['T_MASTER_FISHER']) {
+    addItemToInventory(userId, 'T_MASTER_FISHER');
+    addCoins(userId, 2000);
+    newAchievements.push('T_MASTER_FISHER + 2000 💰');
+  }
+
+  return newAchievements;
+}
+
+// Coinflip
+const activeCoinflips = new Map();
+
+function createCoinflip(userId, targetId, amount) {
+  if (!stats[userId] || !stats[targetId]) return { error: 'Utilisateur inconnu.' };
+  if (amount <= 0) return { error: 'Mise invalide.' };
+
+  if (stats[userId].bordelCoins < amount) return { error: "Tu n'as pas assez de pièces." };
+  if (stats[targetId].bordelCoins < amount) return { error: "Ton adversaire n'a pas assez de pièces." };
+
+  const flipId = `CF_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+  activeCoinflips.set(flipId, {
+    creator: userId,
+    target: targetId,
+    amount: amount,
+    createdAt: Date.now()
+  });
+
+  // Timeout automatique au bout de 60 secondes
+  setTimeout(() => {
+    if (activeCoinflips.has(flipId)) {
+      activeCoinflips.delete(flipId);
+    }
+  }, 60 * 1000);
+
+  return { ok: true, flipId };
+}
+
+function acceptCoinflip(flipId, targetId) {
+  const flip = activeCoinflips.get(flipId);
+  if (!flip) return { error: 'Pari introuvable ou expiré.' };
+  if (flip.target !== targetId) return { error: "Ce pari ne t'est pas destiné." };
+
+  if (!spendCoins(flip.creator, flip.amount)) return { error: "Le créateur n'a plus les pièces requises." };
+  if (!spendCoins(targetId, flip.amount)) {
+    // Rend les pieces au createur si on les avait pris
+    addCoins(flip.creator, flip.amount);
+    return { error: "Tu n'as plus assez de pièces." };
+  }
+
+  activeCoinflips.delete(flipId);
+
+  const totalPot = flip.amount * 2;
+  const winner = Math.random() > 0.5 ? flip.creator : flip.target;
+  const loser = winner === flip.creator ? flip.target : flip.creator;
+
+  // 5% tax
+  const tax = Math.floor(totalPot * 0.05);
+  const payout = totalPot - tax;
+
+  addCoins(winner, payout);
+  saveStats();
+
+  return { ok: true, winner, loser, amount: flip.amount, payout, tax };
+}
+
+function cancelCoinflip(flipId) {
+   activeCoinflips.delete(flipId);
+}
+
+module.exports.claimDaily = claimDaily;
+module.exports.getCollectionProgress = getCollectionProgress;
+module.exports.fish = fish;
+module.exports.playSlots = playSlots;
+module.exports.checkAchievements = checkAchievements;
+module.exports.createCoinflip = createCoinflip;
+module.exports.acceptCoinflip = acceptCoinflip;
+module.exports.cancelCoinflip = cancelCoinflip;
+
+// --- CRAFTING ---
+const CRAFTING_RECIPES = {
+  'R_IRON': {
+    name: 'Canne en fer',
+    cost: 1000,
+    ingredients: { 'R_WOOD': 1 }
+  },
+  'R_GOLD': {
+    name: 'Canne en or',
+    cost: 5000,
+    ingredients: { 'R_IRON': 1 }
+  },
+  'R_DIAMOND': {
+    name: 'Canne en diamant',
+    cost: 15000,
+    ingredients: { 'R_GOLD': 1 }
+  }
+};
+
+function craftItem(userId, targetItemId) {
+  if (!stats[userId]) return { error: 'Utilisateur inconnu.' };
+  ensureInventoryExists(userId);
+
+  const recipe = CRAFTING_RECIPES[targetItemId];
+  if (!recipe) return { error: 'Recette inconnue.' };
+
+  const inv = stats[userId].inventory;
+
+  // Verify ingredients
+  for (const [ingId, qty] of Object.entries(recipe.ingredients)) {
+     if (!inv[ingId] || inv[ingId] < qty) {
+        return { error: `Il te manque des matériaux. Requis: ${qty}x ${ingId}` };
+     }
+  }
+
+  // Verify and spend coins
+  if (recipe.cost > 0) {
+     if (!spendCoins(userId, recipe.cost)) {
+        return { error: `Fonds insuffisants. Requis: ${recipe.cost} BordelCoins.` };
+     }
+  }
+
+  // Consume ingredients
+  for (const [ingId, qty] of Object.entries(recipe.ingredients)) {
+     for (let i = 0; i < qty; i++) {
+        removeItemFromInventory(userId, ingId);
+     }
+  }
+
+  // Give crafted item
+  addItemToInventory(userId, targetItemId);
+
+  return { ok: true, item: targetItemId, itemName: recipe.name };
+}
+
+module.exports.craftItem = craftItem;
+module.exports.CRAFTING_RECIPES = CRAFTING_RECIPES;

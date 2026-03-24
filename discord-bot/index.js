@@ -407,7 +407,39 @@ client.on(Events.InteractionCreate, async (interaction) => {
       } catch (err) {
         await interaction.reply({ content: `❌ Erreur lors du vidage de la file.`, ephemeral: true });
       }
-    } else if (customId.startsWith('skip_')) {
+    } else
+    // --- Coinflip Buttons ---
+    if (customId.startsWith('cf_accept_') || customId.startsWith('cf_decline_')) {
+      const isAccept = customId.startsWith('cf_accept_');
+      const flipId = customId.replace('cf_accept_', '').replace('cf_decline_', '');
+
+      if (!isAccept) {
+        await apiPost('/api/coinflip/cancel', { flipId });
+        await interaction.update({ content: 'Pari refusé ou annulé.', embeds: [], components: [] });
+        return;
+      }
+
+      const res = await apiPost('/api/coinflip/accept', { flipId, userId: interaction.user.id });
+      if (!res || res.error) {
+        await interaction.reply({ content: '❌ ' + (res?.error || 'Erreur lors de l\'acceptation.'), ephemeral: true });
+        return;
+      }
+
+      const embed = new EmbedBuilder()
+        .setTitle('🪙 Résultat du Pile ou Face !')
+        .setColor('#e67e22')
+        .setDescription(
+          `<@${res.winner}> gagne contre <@${res.loser}> !\n\n` +
+          `Mise : **${res.amount} BordelCoins**\n` +
+          `Gains (après taxe de 5%) : **${res.payout} BordelCoins**\n` +
+          `*(Taxe serveur : ${res.tax})*`
+        );
+
+      await interaction.update({ content: null, embeds: [embed], components: [] });
+      return;
+    }
+
+    if (customId.startsWith('skip_')) {
       const target = customId.replace('skip_', '');
       try {
         const res = await apiPost('/voteskip', { voterId: interaction.user.id });
@@ -577,7 +609,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
     await interaction.deferReply();
   } else if (commandName === 'tuto' || commandName === 'style' || commandName === 'dashboard') {
     await interaction.deferReply({ ephemeral: true });
-      } else if (commandName === 'trade' || commandName === 'market' || commandName === 'lootbox' || commandName === 'inventory') {
+  } else if (commandName === 'trade' || commandName === 'market' || commandName === 'lootbox' || commandName === 'inventory' || commandName === 'collection' || commandName === 'daily' || commandName === 'fish' || commandName === 'slots' || commandName === 'coinflip' || commandName === 'achievements' || commandName === 'craft') {
         await interaction.deferReply({ ephemeral: false });
   } else {
     await interaction.deferReply({ ephemeral: true });
@@ -1588,6 +1620,174 @@ client.on(Events.InteractionCreate, async (interaction) => {
       }
 
       // ── /download ──────────────────────────────────────
+
+      // ── /collection ──────────────────────────────────────
+      case 'collection': {
+        const res = await apiGet('/api/collection?userId=' + interaction.user.id);
+        if (!res || res.error) {
+          await interaction.editReply('❌ ' + (res?.error || 'Erreur lors de la récupération de la collection.'));
+          break;
+        }
+
+        const pct = Math.floor(res.globalPct * 100);
+        let desc = '**Progression Globale : ' + pct + '%**\n*(Hors objets transcendants et liés au compte)*\n\n';
+
+        for (const [catName, data] of Object.entries(res.categories)) {
+          const catPct = Math.floor(data.pct * 100);
+          desc += '**' + catName.toUpperCase() + ' :** ' + data.user + ' / ' + data.total + ' (' + catPct + '%)\n';
+        }
+
+        if (res.newRewards && res.newRewards.length > 0) {
+          desc += '\n🎉 **Paliers atteints !** Tu as débloqué de nouveaux titres :\n';
+          res.newRewards.forEach(r => desc += '- ' + r + '\n');
+        }
+
+        const embed = new EmbedBuilder()
+          .setTitle('🖼️ Ta Collection')
+          .setColor('#9b59b6')
+          .setDescription(desc);
+
+        await interaction.editReply({ embeds: [embed] });
+        break;
+      }
+
+      // ── /daily ───────────────────────────────────────────
+      case 'daily': {
+        const res = await apiPost('/api/daily', { userId: interaction.user.id });
+        if (!res || res.error) {
+          await interaction.editReply('❌ ' + (res?.error || 'Erreur inconnue.'));
+          break;
+        }
+
+        const embed = new EmbedBuilder()
+          .setTitle('📅 Récompense Quotidienne')
+          .setColor('#2ecc71')
+          .setDescription('Tu as réclamé ta récompense !\n\n🔥 **Série actuelle : ' + res.streak + ' jour(s)**\n\n**Gains :**\n' + res.rewards.map(r => '- ' + r).join('\n'));
+
+        await interaction.editReply({ embeds: [embed] });
+        break;
+      }
+
+      // ── /fish ────────────────────────────────────────────
+      case 'fish': {
+        const bait = interaction.options.getString('appat');
+        const res = await apiPost('/api/fish', { userId: interaction.user.id, bait });
+        if (!res || res.error) {
+          await interaction.editReply('🎣 ' + (res?.error || 'Erreur lors de la pêche.'));
+          break;
+        }
+
+        const embed = new EmbedBuilder()
+          .setTitle('🎣 Pêche')
+          .setColor('#3498db')
+          .setDescription('Tu as attrapé :\n\n**' + res.item.name + '** ' + (res.item.emoji ? res.item.emoji : '🐟'));
+
+        await interaction.editReply({ embeds: [embed] });
+        break;
+      }
+
+      // ── /slots ───────────────────────────────────────────
+      case 'slots': {
+        const bet = interaction.options.getInteger('mise');
+        const res = await apiPost('/api/slots', { userId: interaction.user.id, amount: bet });
+        if (!res || res.error) {
+          await interaction.editReply('🎰 ' + (res?.error || 'Erreur de machine à sous.'));
+          break;
+        }
+
+        let desc = 'Mise : ' + bet + ' 💰\n\n' +
+                   '╔════════════╗\n' +
+                   '║  ' + res.result.join(' | ') + '  ║\n' +
+                   '╚════════════╝\n\n';
+
+        if (res.winAmount > 0) {
+           desc += '🎉 **Gagné ! ' + res.winAmount + ' BordelCoins !**';
+           if (res.isJackpot) desc += ' \n🎰 **JACKPOT !!!!**';
+        } else {
+           desc += '😢 Perdu.';
+        }
+
+        const embed = new EmbedBuilder()
+          .setTitle('🎰 Machine à Sous')
+          .setColor(res.winAmount > 0 ? '#f1c40f' : '#e74c3c')
+          .setDescription(desc);
+
+        await interaction.editReply({ embeds: [embed] });
+        break;
+      }
+
+      // ── /coinflip ────────────────────────────────────────
+      case 'coinflip': {
+        const target = interaction.options.getUser('joueur');
+        const bet = interaction.options.getInteger('mise');
+
+        if (target.id === interaction.user.id || target.bot) {
+            await interaction.editReply("Tu ne peux pas parier contre toi-même ou un bot.");
+            break;
+        }
+
+        const res = await apiPost('/api/coinflip/create', { userId: interaction.user.id, targetId: target.id, amount: bet });
+        if (!res || res.error) {
+          await interaction.editReply('❌ ' + (res?.error || 'Impossible de créer le pari.'));
+          break;
+        }
+
+        const embed = new EmbedBuilder()
+          .setTitle('🪙 Pari : Pile ou Face')
+          .setColor('#e67e22')
+          .setDescription('<@' + target.id + '>, <@' + interaction.user.id + '> te défie pour **' + bet + ' BordelCoins**.\n\nAcceptez-vous le pari ?');
+
+        const row = new ActionRowBuilder().addComponents(
+          new ButtonBuilder()
+            .setCustomId('cf_accept_' + res.flipId)
+            .setLabel('Accepter')
+            .setStyle(ButtonStyle.Success),
+          new ButtonBuilder()
+            .setCustomId('cf_decline_' + res.flipId)
+            .setLabel('Refuser')
+            .setStyle(ButtonStyle.Danger)
+        );
+
+        await interaction.editReply({ content: '<@' + target.id + '>', embeds: [embed], components: [row] });
+        break;
+      }
+
+      // ── /achievements ──────────────────────────────────────
+      case 'achievements': {
+         const res = await apiGet('/api/achievements?userId=' + interaction.user.id);
+         if (!res || res.error) {
+            await interaction.editReply("Impossible de récupérer tes succès.");
+            break;
+         }
+
+         const embed = new EmbedBuilder()
+          .setTitle('🏆 Succès Débloqués')
+          .setColor('#f1c40f')
+          .setDescription(res.achievements.length > 0 ? res.achievements.map(a => '- ' + a.name + ' ' + (a.emoji||'')).join('\n') : 'Aucun succès pour le moment.');
+
+        await interaction.editReply({ embeds: [embed] });
+        break;
+      }
+
+            // ── /craft ───────────────────────────────────────────
+      case 'craft': {
+         const targetId = interaction.options.getString('objet');
+         const res = await apiPost('/api/craft', { userId: interaction.user.id, targetItemId: targetId });
+
+         if (!res || res.error) {
+            await interaction.editReply('❌ ' + (res?.error || 'Erreur lors du craft.'));
+            break;
+         }
+
+         const embed = new EmbedBuilder()
+          .setTitle('🛠️ Craft réussi !')
+          .setColor('#3498db')
+          .setDescription('Tu viens de fabriquer : **' + res.itemName + '** !');
+
+        await interaction.editReply({ embeds: [embed] });
+        break;
+      }
+
       case 'download': {
         const repoUrl = 'https://api.github.com/repos/The-RedDice/MediaChatPerso/releases/latest';
 
@@ -1784,3 +1984,6 @@ client.on(Events.InteractionCreate, async (interaction) => {
 // ─── Connexion ───────────────────────────────────────────
 
 client.login(TOKEN);
+
+// Ajouter le traitement des nouvelles commandes à la fin de client.on('interactionCreate')
+// je vais injecter ça proprement au bon endroit.

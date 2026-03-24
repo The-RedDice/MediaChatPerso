@@ -29,6 +29,18 @@ function createListing(sellerId, sellerName, itemId, price) {
     return { error: "Vous ne possédez pas cet objet." };
   }
 
+  const itemsDb = getItemsDb();
+  let isUntradeable = false;
+  for (const cat in itemsDb) {
+    if (itemsDb[cat][itemId] && itemsDb[cat][itemId].untradeable) {
+       isUntradeable = true;
+       break;
+    }
+  }
+  if (isUntradeable) {
+     return { error: "Cet objet est lié à votre compte et ne peut pas être vendu sur le marché." };
+  }
+
   const parsedPrice = parseInt(price, 10);
   if (isNaN(parsedPrice) || parsedPrice <= 0) {
     return { error: "Le prix doit être supérieur à 0." };
