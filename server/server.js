@@ -746,9 +746,9 @@ router.get('/achievements', requireAuth, (req, res) => {
            achievements.push({
               id: itemId,
               name: itemInfo.name,
-              desc: itemInfo.description || 'Complétez l\'objectif pour débloquer.',
-              howToObtain: itemInfo.howToObtain || '???',
-              secret: !!itemInfo.secret,
+              desc: itemInfo.description || 'Débloquez cet objet en jouant.',
+              howToObtain: itemInfo.howToObtain || 'Inconnu',
+              secret: itemInfo.secret === true,
               emoji: itemInfo.emoji || '',
               earned: hasEarned
            });
