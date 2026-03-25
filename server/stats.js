@@ -47,8 +47,141 @@ function saveStats() {
  * @param {string} username - Le pseudo Discord (pour l'affichage)
  * @param {string} type - 'media', 'file' ou 'message'
  */
+function checkDailyReset() {
+  const now = new Date();
+  const todayStr = now.toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris' });
+
+  if (!stats['__daily__']) {
+    stats['__daily__'] = {
+      date: todayStr,
+      data: {}
+    };
+    saveStats();
+    return;
+  }
+
+  if (stats['__daily__'].date !== todayStr) {
+    // Changement de jour ! On garde les données de la veille
+    const oldData = stats['__daily__'].data;
+
+    // On reset pour le nouveau jour
+    stats['__daily__'] = {
+      date: todayStr,
+      data: {}
+    };
+    saveStats();
+
+    // On distribue les récompenses (qui peuvent faire des appels récursifs)
+    distributeDailyRewards(oldData);
+  }
+}
+
+function addRewardCoins(userId, amount) {
+  if (!userId || !stats[userId]) return false;
+
+  if (stats[userId].bordelCoins === undefined) {
+    stats[userId].bordelCoins = stats[userId].reputation || 0;
+    delete stats[userId].reputation;
+  }
+
+  stats[userId].bordelCoins += amount;
+
+  if (stats[userId].bordelCoins < 0) {
+    stats[userId].bordelCoins = 0;
+  }
+
+  saveStats();
+  return true;
+}
+
+function distributeDailyRewards(dailyData) {
+  if (!dailyData) return;
+
+  const categories = ['media', 'coins', 'fishes', 'slots', 'flop'];
+
+  categories.forEach(cat => {
+    // Extraire les scores de tous les utilisateurs pour cette catégorie
+    const scores = [];
+    for (const userId in dailyData) {
+      if (dailyData[userId][cat]) {
+        scores.push({ userId, score: dailyData[userId][cat] });
+      }
+    }
+
+    // Trier par score décroissant
+    scores.sort((a, b) => b.score - a.score);
+
+    // Prendre le top 3
+    const top3 = scores.slice(0, 3);
+
+    top3.forEach((user, index) => {
+      let coinsReward = 0;
+      let lootboxReward = 0;
+
+      if (index === 0) {
+        coinsReward = 50;
+        lootboxReward = 1;
+      } else if (index === 1) {
+        coinsReward = 25;
+      } else if (index === 2) {
+        coinsReward = 10;
+      }
+
+      if (coinsReward > 0 || lootboxReward > 0) {
+        if (!stats[user.userId]) return; // Sécurité
+
+        addRewardCoins(user.userId, coinsReward);
+        if (lootboxReward > 0) {
+          addLootbox(user.userId, lootboxReward);
+        }
+
+        // Ajouter une notification pour le bot Discord
+        if (!stats[user.userId].notifications) {
+          stats[user.userId].notifications = [];
+        }
+
+        let catName = cat;
+        if (cat === 'media') catName = 'Médias envoyés';
+        if (cat === 'coins') catName = 'BordelCoins gagnés';
+        if (cat === 'fishes') catName = 'Poissons pêchés';
+        if (cat === 'slots') catName = 'Machines à sous jouées';
+        if (cat === 'flop') catName = 'Flops (Skips)';
+
+        stats[user.userId].notifications.push({
+          type: 'daily_reward',
+          rank: index + 1,
+          category: catName,
+          score: user.score,
+          coins: coinsReward,
+          lootbox: lootboxReward
+        });
+      }
+    });
+  });
+}
+
+function recordDailyAction(userId, category, amount = 1) {
+  if (!userId) return;
+  checkDailyReset();
+
+  if (!stats['__daily__'].data[userId]) {
+    stats['__daily__'].data[userId] = {
+      media: 0,
+      coins: 0,
+      fishes: 0,
+      slots: 0,
+      flop: 0
+    };
+  }
+
+  stats['__daily__'].data[userId][category] = (stats['__daily__'].data[userId][category] || 0) + amount;
+}
+
+
 function recordAction(userId, username, type) {
   if (!userId) return; // Si pas d'ID, on ne peut pas track de façon fiable
+
+  checkDailyReset();
 
   if (!stats[userId]) {
     stats[userId] = {
@@ -85,8 +218,10 @@ function recordAction(userId, username, type) {
 
   if (type === 'media') {
     stats[userId].mediaCount++;
+    recordDailyAction(userId, 'media', 1);
   } else if (type === 'file') {
     stats[userId].fileCount++;
+    recordDailyAction(userId, 'media', 1);
   } else if (type === 'message') {
     stats[userId].messageCount++;
   }
@@ -106,11 +241,14 @@ function recordAction(userId, username, type) {
 function recordSkip(userId) {
   if (!userId || !stats[userId]) return;
 
+  checkDailyReset();
+
   if (typeof stats[userId].skippedCount !== 'number') {
     stats[userId].skippedCount = 0;
   }
 
   stats[userId].skippedCount++;
+  recordDailyAction(userId, 'flop', 1);
   saveStats();
 }
 
@@ -203,6 +341,10 @@ function updateReputation(targetId, targetUsername, value, voterId, messageId) {
 
   stats[targetId].bordelCoins += coinsToAdd;
 
+  if (coinsToAdd > 0) {
+     recordDailyAction(targetId, 'coins', coinsToAdd);
+  }
+
   // Empêcher les BordelCoins d'être négatifs
   if (stats[targetId].bordelCoins < 0) {
     stats[targetId].bordelCoins = 0;
@@ -248,6 +390,7 @@ function addCoins(userId, amount) {
 
   let coinsToAdd = amount;
   if (coinsToAdd > 0) {
+    recordDailyAction(userId, 'coins', coinsToAdd);
     const bonus = getCoinBonus(userId);
     if (bonus > 0) {
        const bonusAmount = coinsToAdd * bonus;
@@ -309,8 +452,34 @@ function getUnlockedStyles(userId) {
  * @param {string} type - 'media' ou 'flop' ou 'rep'
  * @param {number} limit - Nombre de résultats maximum
  */
-function getLeaderboard(type = 'media', limit = 10) {
+function getLeaderboard(type = 'media', limit = 10, period = 'global') {
+  checkDailyReset();
+
+  if (period === 'daily') {
+    const dailyData = stats['__daily__']?.data || {};
+    const users = [];
+
+    for (const userId in dailyData) {
+      if (userId === '__global__' || userId === '__daily__') continue;
+
+      const userObj = {
+        userId,
+        username: stats[userId]?.username || 'Unknown',
+        avatar: stats[userId]?.avatar || null,
+        score: dailyData[userId][type] || 0
+      };
+
+      if (userObj.score > 0) {
+        users.push(userObj);
+      }
+    }
+
+    return users.sort((a, b) => b.score - a.score).slice(0, limit);
+  }
+
+  // Global leaderboard
   return Object.entries(stats)
+    .filter(([userId]) => userId !== '__global__' && userId !== '__daily__')
     .map(([userId, data]) => ({ userId, ...data }))
     .sort((a, b) => {
       if (type === 'flop') {
@@ -321,6 +490,14 @@ function getLeaderboard(type = 'media', limit = 10) {
         const aCoins = a.bordelCoins !== undefined ? a.bordelCoins : (a.reputation || 0);
         const bCoins = b.bordelCoins !== undefined ? b.bordelCoins : (b.reputation || 0);
         return bCoins - aCoins;
+      } else if (type === 'fishes') {
+        const aFishes = a.fishesCaught || 0;
+        const bFishes = b.fishesCaught || 0;
+        return bFishes - aFishes;
+      } else if (type === 'slots') {
+        const aSlots = a.slotsPlayed || 0;
+        const bSlots = b.slotsPlayed || 0;
+        return bSlots - aSlots;
       } else {
         // type === 'media'
         const aMedia = (a.mediaCount || 0) + (a.fileCount || 0);
@@ -328,7 +505,24 @@ function getLeaderboard(type = 'media', limit = 10) {
         return bMedia - aMedia;
       }
     })
+    .filter(u => {
+      if (type === 'flop') return (u.skippedCount || 0) > 0;
+      if (type === 'coins') return (u.bordelCoins || u.reputation || 0) > 0;
+      if (type === 'fishes') return (u.fishesCaught || 0) > 0;
+      if (type === 'slots') return (u.slotsPlayed || 0) > 0;
+      return (u.mediaCount || 0) + (u.fileCount || 0) > 0;
+    })
     .slice(0, limit);
+}
+
+function getNotifications(userId) {
+  if (!stats[userId] || !stats[userId].notifications || stats[userId].notifications.length === 0) {
+    return [];
+  }
+  const notifs = [...stats[userId].notifications];
+  stats[userId].notifications = []; // Clear
+  saveStats();
+  return notifs;
 }
 
 /**
@@ -379,7 +573,8 @@ module.exports = {
   spendCoins,
   addCoins,
   unlockStyleItem,
-  getUnlockedStyles
+  getUnlockedStyles,
+  getNotifications
 };
 
 /** --- SYSTÈME D'INVENTAIRE ET DE LOOTBOXES --- **/
@@ -890,6 +1085,11 @@ function fish(userId, baitId, rodId) {
   } else {
     addItemToInventory(userId, wonLoot);
     result.item = itemsDb.fishes[wonLoot];
+
+    // Suivi des poissons attrapés
+    if (!stats[userId].fishesCaught) stats[userId].fishesCaught = 0;
+    stats[userId].fishesCaught++;
+    recordDailyAction(userId, 'fishes', 1);
   }
 
   checkAchievements(userId);
@@ -980,6 +1180,10 @@ function playSlots(userId, amount) {
   }
 
   if (!stats[userId].slots) stats[userId].slots = { jackpots: 0, consecutiveJackpots: 0 };
+  if (!stats[userId].slotsPlayed) stats[userId].slotsPlayed = 0;
+
+  stats[userId].slotsPlayed++;
+  recordDailyAction(userId, 'slots', 1);
 
   if (isJackpot) {
     stats[userId].slots.jackpots++;

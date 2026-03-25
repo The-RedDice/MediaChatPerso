@@ -87,5 +87,28 @@
     },
     "inventory": {},
     "lootboxes": 0
+  },
+  "test-id": {
+    "username": "test",
+    "mediaCount": 2,
+    "fileCount": 0,
+    "messageCount": 0,
+    "totalCount": 2,
+    "firstAction": 1774458566280,
+    "lastAction": 1774458625489,
+    "bordelCoins": 0,
+    "votesGiven": {}
+  },
+  "__daily__": {
+    "date": "25/03/2026",
+    "data": {
+      "test-id": {
+        "media": 1,
+        "coins": 0,
+        "fishes": 0,
+        "slots": 0,
+        "flops": 0
+      }
+    }
   }
 }

@@ -165,6 +165,31 @@ client.once(Events.ClientReady, async (c) => {
 
 // ─── Gestion des interactions ────────────────────────────
 
+async function checkUserNotifications(interaction, userId) {
+  try {
+    const res = await apiGet(`/notifications/${userId}`);
+    if (res && res.notifications && res.notifications.length > 0) {
+      let msg = "🎉 **BordelBox - Récompenses Journalières !** 🎉\n\nFélicitations, tu as terminé dans le **Top 3** hier !\n\n";
+
+      let totalCoins = 0;
+      let totalLootboxes = 0;
+
+      res.notifications.forEach(n => {
+        msg += `🏆 **#${n.rank}** en *${n.category}* (Score: ${n.score})\n`;
+        if (n.coins > 0) { msg += `└ 💰 +${n.coins} BordelCoins\n`; totalCoins += n.coins; }
+        if (n.lootbox > 0) { msg += `└ 🎁 +${n.lootbox} Lootbox(es)\n`; totalLootboxes += n.lootbox; }
+        msg += "\n";
+      });
+
+      msg += `**Total gagné :** ${totalCoins} 💰` + (totalLootboxes > 0 ? ` et ${totalLootboxes} 🎁` : "");
+
+      await interaction.followUp({ content: msg, ephemeral: true });
+    }
+  } catch (err) {
+    console.error("[Notifications] Erreur de récupération :", err);
+  }
+}
+
 client.on(Events.InteractionCreate, async (interaction) => {
   if (interaction.isButton()) {
     const customId = interaction.customId;
@@ -230,6 +255,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
           } else {
             await interaction.reply({ content: `✅ Vote enregistré ! (${res.newScore > 0 ? '+' : ''}${res.newScore})`, ephemeral: true });
           }
+          await checkUserNotifications(interaction, voterId);
         } else {
           await interaction.reply({ content: `❌ Erreur : ${res.error}`, ephemeral: true });
         }
@@ -534,6 +560,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
       } else {
         await interaction.update({ content: msg });
       }
+        await checkUserNotifications(interaction, userId);
     } catch (err) {
       if (interaction.deferred || interaction.replied) {
         await interaction.editReply({ content: `❌ Erreur : Impossible de sauvegarder le style.` });
@@ -796,6 +823,8 @@ client.on(Events.InteractionCreate, async (interaction) => {
         const totalMedia = (data.mediaCount || 0) + (data.fileCount || 0);
         const flops = data.skippedCount || 0;
         const bordelCoins = data.bordelCoins !== undefined ? data.bordelCoins : (data.reputation || 0);
+        const fishesCaught = data.fishesCaught || 0;
+        const slotsPlayed = data.slotsPlayed || 0;
         const profileData = data.profile || {};
 
         const rankMediaStr = data.rankMedia ? ` *(#${data.rankMedia})*` : '';
@@ -813,7 +842,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
           .addFields(
             { name: '📊 Statistiques d\'envoi', value: `**Médias :** ${totalMedia}${rankMediaStr}\n**Messages Texte :** ${data.messageCount || 0}\n**Total :** ${data.totalCount}\n**Flops (Skips) :** ${flops}${rankFlopStr}`, inline: true },
             { name: '💰 BordelCoins', value: `**Solde :** ${bordelCoins}${rankCoinsStr}`, inline: true },
-            { name: '\u200B', value: '\u200B' } // Espacement
+            { name: '🎮 Mini-jeux', value: `🎣 **Poissons :** ${fishesCaught}\n🎰 **Machines à sous :** ${slotsPlayed}`, inline: false }
           );
 
         // Dates clés
@@ -1034,6 +1063,11 @@ client.on(Events.InteractionCreate, async (interaction) => {
                        const itemInfo = itemsDb[cat][itemId];
                        itemName = itemInfo.name;
                        if (itemInfo.emoji) itemName = `${itemInfo.emoji} ${itemName}`;
+                       if (itemInfo.rarity) {
+                          // Capitaliser la première lettre de la rareté
+                          const rarityStr = itemInfo.rarity.charAt(0).toUpperCase() + itemInfo.rarity.slice(1);
+                          itemName = `${itemName} (${rarityStr})`;
+                       }
                        if (itemInfo.rarity === 'transcendant' && itemInfo.originalOwnerName && itemInfo.obtainedAt) {
                            itemExtra = `\n  └ *Découvert par ${itemInfo.originalOwnerName} le <t:${Math.floor(itemInfo.obtainedAt / 1000)}:d>*`;
                        }
@@ -1162,10 +1196,11 @@ client.on(Events.InteractionCreate, async (interaction) => {
       // ── /leaderboard ───────────────────────────────────
       case 'leaderboard': {
         const type = interaction.options.getString('type') || 'media';
-        const lb = await apiGet(`/leaderboard?type=${type}`);
+        const period = interaction.options.getString('periode') || 'global';
+        const lb = await apiGet(`/leaderboard?type=${type}&period=${period}`);
 
         if (!lb || lb.length === 0) {
-          await interaction.editReply('🏆 Le leaderboard est vide.');
+          await interaction.editReply(`🏆 Le leaderboard ${period === 'daily' ? 'journalier' : 'global'} est vide pour cette catégorie.`);
           return;
         }
 
@@ -1174,12 +1209,18 @@ client.on(Events.InteractionCreate, async (interaction) => {
           const rank = i < 3 ? places[i] : `**#${i + 1}**`;
           let valueStr = '';
           if (type === 'flop') {
-            valueStr = `${user.skippedCount || 0} flops`;
+            valueStr = `${user.score !== undefined ? user.score : (user.skippedCount || 0)} flops`;
           } else if (type === 'coins') {
-            const coins = user.bordelCoins !== undefined ? user.bordelCoins : (user.reputation || 0);
+            const coins = user.score !== undefined ? user.score : (user.bordelCoins !== undefined ? user.bordelCoins : (user.reputation || 0));
             valueStr = `${coins} pièces`;
+          } else if (type === 'fishes') {
+            const fishes = user.score !== undefined ? user.score : (user.fishesCaught || 0);
+            valueStr = `${fishes} poissons`;
+          } else if (type === 'slots') {
+            const slots = user.score !== undefined ? user.score : (user.slotsPlayed || 0);
+            valueStr = `${slots} parties`;
           } else {
-            const totalMedia = (user.mediaCount || 0) + (user.fileCount || 0);
+            const totalMedia = user.score !== undefined ? user.score : ((user.mediaCount || 0) + (user.fileCount || 0));
             valueStr = `${totalMedia} médias`;
           }
           return `${rank} **${user.username}** — ${valueStr}`;
@@ -1188,6 +1229,14 @@ client.on(Events.InteractionCreate, async (interaction) => {
         let title = '🏆 **TOP MÉDIAS BORDELBOX** 🏆';
         if (type === 'flop') title = '🏆 **TOP FLOP BORDELBOX (Médias Skippés)** 🏆';
         if (type === 'coins') title = '🏆 **TOP BORDELCOINS** 🏆';
+        if (type === 'fishes') title = '🎣 **TOP POISSONS PÊCHÉS** 🏆';
+        if (type === 'slots') title = '🎰 **TOP MACHINES À SOUS** 🏆';
+
+        if (period === 'daily') {
+          title = title.replace('🏆', '📅'); // Replace first trophy to indicate daily
+          title += ' *(Journalier)*';
+        }
+
         await interaction.editReply(`${title}\n\n${list}`);
         break;
       }
@@ -2244,6 +2293,13 @@ client.on(Events.InteractionCreate, async (interaction) => {
       default:
         await interaction.editReply('❓ Commande inconnue.');
     }
+
+        if (!interaction.isAutocomplete()) {
+          try {
+            await checkUserNotifications(interaction, interaction.user.id);
+          } catch(e) {}
+        }
+
   } catch (err) {
     console.error(`[Bot Error] ${commandName}:`, err.message);
     const msg = `❌ Impossible de contacter le serveur BordelBox.\n\`${err.message}\``;

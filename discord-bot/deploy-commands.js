@@ -584,7 +584,17 @@ const commands = [
        .addChoices(
          { name: 'Top BordelCoins', value: 'coins' },
          { name: 'Top Médias Envoyés', value: 'media' },
+         { name: 'Top Poissons Pêchés', value: 'fishes' },
+         { name: 'Top Machines à sous', value: 'slots' },
          { name: 'Top Flop (Skip)', value: 'flop' }
+       ))
+    .addStringOption(o =>
+      o.setName('periode')
+       .setDescription('La période du classement (Global ou Journalier)')
+       .setRequired(false)
+       .addChoices(
+         { name: 'Global', value: 'global' },
+         { name: 'Journalier', value: 'daily' }
        )),
 
   new SlashCommandBuilder()

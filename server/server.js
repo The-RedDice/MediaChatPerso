@@ -19,7 +19,7 @@ const session        = require('express-session');
 const passport       = require('passport');
 const DiscordStrategy = require('passport-discord').Strategy;
 const { getAvailableModels, generateTTS } = require('./tts');
-const { recordAction, recordSkip, getUserStats, getLeaderboard, getUserProfile, saveUserProfile, updateReputation, spendCoins, unlockStyleItem, getUnlockedStyles } = require('./stats');
+const { recordAction, recordSkip, getUserStats, getLeaderboard, getUserProfile, saveUserProfile, updateReputation, spendCoins, unlockStyleItem, getUnlockedStyles, getNotifications } = require('./stats');
 const { addMeme, getUserMemes, removeMeme } = require('./memes');
 const { initAI, generateResponse } = require('./ai');
 const { getInventory, addLootbox, openLootbox, equipItem, getItemsDb, claimDaily, getCollectionProgress, fish, playSlots, createCoinflip, acceptCoinflip, cancelCoinflip, craftItem } = require('./stats');
@@ -580,6 +580,17 @@ router.post('/upload', requireAuth, uploadMiddleware.single('file'), async (req,
 
 // ─── API Stats ───────────────────────────────────────────────────────────────
 
+router.get('/notifications/:userId', requireAuth, (req, res) => {
+  const userId = req.params.userId;
+  // Bot auth checking
+  if (req.user && req.user.id && req.user.id !== userId && req.headers.authorization && !req.headers.authorization.startsWith('Basic')) {
+     return res.status(403).json({ error: 'Non autorisé.' });
+  }
+
+  const notifs = getNotifications(userId);
+  res.json({ notifications: notifs });
+});
+
 router.get('/stats/:userId', (req, res) => {
   const userId = req.params.userId;
   const data = getUserStats(userId);
@@ -614,7 +625,8 @@ router.get('/stats/:userId', (req, res) => {
 
 router.get('/leaderboard', (req, res) => {
   const type = req.query.type || 'media';
-  res.json(getLeaderboard(type));
+  const period = req.query.period || 'global';
+  res.json(getLeaderboard(type, 10, period));
 });
 
 router.get('/style/:userId', (req, res) => {
