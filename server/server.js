@@ -229,12 +229,38 @@ function enrichItemWithInventory(itemPayload) {
 
   // Attach equipment details directly to the payload
   const equipped = inv.equipped;
-  if (equipped.title && itemsDb.titles && itemsDb.titles[equipped.title]) {
-     itemPayload.equippedTitle = itemsDb.titles[equipped.title].name;
+  if (equipped.title) {
+     if (itemsDb.titles && itemsDb.titles[equipped.title]) {
+         itemPayload.equippedTitle = itemsDb.titles[equipped.title].name;
+     } else {
+         let found = false;
+         for (const cat in itemsDb) {
+             if (itemsDb[cat] && itemsDb[cat][equipped.title]) {
+                 itemPayload.equippedTitle = itemsDb[cat][equipped.title].name;
+                 found = true;
+                 break;
+             }
+         }
+         if (!found) itemPayload.equippedTitle = equipped.title;
+     }
   }
-  if (equipped.badge && itemsDb.badges && itemsDb.badges[equipped.badge]) {
-     itemPayload.equippedBadge = itemsDb.badges[equipped.badge].emoji;
+
+  if (equipped.badge) {
+     if (itemsDb.badges && itemsDb.badges[equipped.badge]) {
+         itemPayload.equippedBadge = itemsDb.badges[equipped.badge].emoji;
+     } else {
+         let found = false;
+         for (const cat in itemsDb) {
+             if (itemsDb[cat] && itemsDb[cat][equipped.badge]) {
+                 itemPayload.equippedBadge = itemsDb[cat][equipped.badge].emoji || "✨";
+                 found = true;
+                 break;
+             }
+         }
+         if (!found && equipped.badge.startsWith('PROC_')) itemPayload.equippedBadge = "✨";
+     }
   }
+
   if (equipped.color && itemsDb.colors && itemsDb.colors[equipped.color]) {
      itemPayload.equippedColorHex = itemsDb.colors[equipped.color].value;
   }

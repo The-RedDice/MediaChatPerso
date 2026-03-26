@@ -996,9 +996,13 @@ function getCollectionProgress(userId) {
 
   // Check milestone rewards
   const milestones = [
+    { pct: 0.10, id: 'T_NOVICE', coins: 0 },
     { pct: 0.25, id: 'T_COLL_25', coins: 500 },
+    { pct: 0.25, id: 'T_PRO', coins: 0 },
     { pct: 0.50, id: 'T_COLL_50', coins: 1500 },
+    { pct: 0.50, id: 'T_CHAMPION', coins: 0 },
     { pct: 0.75, id: 'T_COLL_75', coins: 3000 },
+    { pct: 0.75, id: 'T_ROI_BORDEL', coins: 0 },
     { pct: 1.00, id: 'T_COLL_100', coins: 10000 }
   ];
 
@@ -1006,8 +1010,8 @@ function getCollectionProgress(userId) {
   milestones.forEach(m => {
     if (globalPct >= m.pct && (!userInv[m.id] || userInv[m.id] === 0)) {
       addItemToInventory(userId, m.id);
-      addCoins(userId, m.coins);
-      newRewards.push(`${m.id} + ${m.coins} 💰`);
+      if (m.coins > 0) addCoins(userId, m.coins);
+      newRewards.push(`${m.id}${m.coins > 0 ? ` + ${m.coins} 💰` : ''}`);
     }
   });
 
@@ -1058,12 +1062,31 @@ function fish(userId, baitId, rodId) {
 
   stats[userId].fishing.lastFish = now;
 
-  // Rarity boost from bait could be implemented here
+  // Rarity boost from bait
+  let currentLootTable = FISHING_LOOT_TABLE.map(l => ({ ...l }));
+  if (baitId === 'BAIT_SHRIMP') {
+    // Rare bait: reduces trash, boosts mid-tier and rares slightly
+    currentLootTable.find(l => l.id === 'F_TRASH').weight *= 0.6;
+    currentLootTable.find(l => l.id === 'F_TUNA').weight *= 1.5;
+    currentLootTable.find(l => l.id === 'F_SHARK').weight *= 2.0;
+    currentLootTable.find(l => l.id === 'F_KRAKEN').weight *= 2.0;
+    currentLootTable.find(l => l.id === 'LOOTBOX').weight *= 1.5;
+  } else if (baitId === 'BAIT_SQUID') {
+    // Epic bait: drastically reduces trash, greatly boosts rares and lootboxes
+    currentLootTable.find(l => l.id === 'F_TRASH').weight *= 0.2;
+    currentLootTable.find(l => l.id === 'F_COD').weight *= 0.5;
+    currentLootTable.find(l => l.id === 'F_SALMON').weight *= 1.2;
+    currentLootTable.find(l => l.id === 'F_TUNA').weight *= 2.5;
+    currentLootTable.find(l => l.id === 'F_SHARK').weight *= 4.0;
+    currentLootTable.find(l => l.id === 'F_KRAKEN').weight *= 5.0;
+    currentLootTable.find(l => l.id === 'LOOTBOX').weight *= 3.0;
+  }
+
   let totalWeight = 0;
-  FISHING_LOOT_TABLE.forEach(l => totalWeight += l.weight);
+  currentLootTable.forEach(l => totalWeight += l.weight);
   let rand = Math.floor(Math.random() * totalWeight);
   let wonLoot = 'F_TRASH';
-  for (let l of FISHING_LOOT_TABLE) {
+  for (let l of currentLootTable) {
     rand -= l.weight;
     if (rand < 0) {
       wonLoot = l.id;

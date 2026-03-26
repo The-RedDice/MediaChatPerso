@@ -23,6 +23,15 @@ function saveMarket() {
   }
 }
 
+function generateShortId() {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let id = '';
+  for (let i = 0; i < 5; i++) {
+    id += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return id;
+}
+
 function createListing(sellerId, sellerName, itemId, price) {
   const inventory = getInventory(sellerId);
   if (!inventory.items[itemId] || inventory.items[itemId] <= 0) {
@@ -48,7 +57,12 @@ function createListing(sellerId, sellerName, itemId, price) {
 
   // Remove item from inventory to put it on the market
   if (removeItemFromInventory(sellerId, itemId)) {
-    const listingId = `list_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+    let listingId = generateShortId();
+    // Ensure uniqueness
+    while (market.some(l => l.id === listingId)) {
+      listingId = generateShortId();
+    }
+
     market.push({
       id: listingId,
       sellerId,
