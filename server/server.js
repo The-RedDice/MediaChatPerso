@@ -403,12 +403,10 @@ function getQueueDataForEmitters() {
 function checkIfRankOne(userId) {
   if (!userId) return false;
   const mediaLb = getLeaderboard('media', 1);
-  const flopLb = getLeaderboard('flop', 1);
   const coinsLb = getLeaderboard('coins', 1);
 
   return (
     (mediaLb.length > 0 && mediaLb[0].userId === userId) ||
-    (flopLb.length > 0 && flopLb[0].userId === userId && (flopLb[0].skippedCount || 0) > 0) ||
     (coinsLb.length > 0 && coinsLb[0].userId === userId && (coinsLb[0].bordelCoins || 0) !== 0)
   );
 }
@@ -603,10 +601,6 @@ router.get('/stats/:userId', (req, res) => {
   const mediaLb = getLeaderboard('media', 1000);
   const rankMediaIdx = mediaLb.findIndex(u => u.userId === userId);
   responseData.rankMedia = rankMediaIdx !== -1 ? rankMediaIdx + 1 : null;
-
-  const flopLb = getLeaderboard('flop', 1000);
-  const rankFlopIdx = flopLb.findIndex(u => u.userId === userId && (u.skippedCount || 0) > 0);
-  responseData.rankFlop = rankFlopIdx !== -1 ? rankFlopIdx + 1 : null;
 
   const coinsLb = getLeaderboard('coins', 1000);
   const rankCoinsIdx = coinsLb.findIndex(u => u.userId === userId);

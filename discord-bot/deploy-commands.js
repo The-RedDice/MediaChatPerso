@@ -585,8 +585,7 @@ const commands = [
          { name: 'Top BordelCoins', value: 'coins' },
          { name: 'Top Médias Envoyés', value: 'media' },
          { name: 'Top Poissons Pêchés', value: 'fishes' },
-         { name: 'Top Machines à sous', value: 'slots' },
-         { name: 'Top Flop (Skip)', value: 'flop' }
+         { name: 'Top Machines à sous', value: 'slots' }
        ))
     .addStringOption(o =>
       o.setName('periode')

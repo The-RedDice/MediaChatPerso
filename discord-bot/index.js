@@ -821,14 +821,12 @@ client.on(Events.InteractionCreate, async (interaction) => {
         }
 
         const totalMedia = (data.mediaCount || 0) + (data.fileCount || 0);
-        const flops = data.skippedCount || 0;
         const bordelCoins = data.bordelCoins !== undefined ? data.bordelCoins : (data.reputation || 0);
         const fishesCaught = data.fishesCaught || 0;
         const slotsPlayed = data.slotsPlayed || 0;
         const profileData = data.profile || {};
 
         const rankMediaStr = data.rankMedia ? ` *(#${data.rankMedia})*` : '';
-        const rankFlopStr = data.rankFlop ? ` *(#${data.rankFlop})*` : '';
         const rankCoinsStr = data.rankCoins ? ` *(#${data.rankCoins})*` : '';
 
         const embedColor = profileData.color && profileData.color.startsWith('#')
@@ -840,7 +838,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
           .setThumbnail(targetUser.displayAvatarURL({ size: 256, extension: 'png' }))
           .setColor(embedColor)
           .addFields(
-            { name: '📊 Statistiques d\'envoi', value: `**Médias :** ${totalMedia}${rankMediaStr}\n**Messages Texte :** ${data.messageCount || 0}\n**Total :** ${data.totalCount}\n**Flops (Skips) :** ${flops}${rankFlopStr}`, inline: true },
+            { name: '📊 Statistiques d\'envoi', value: `**Médias :** ${totalMedia}${rankMediaStr}\n**Messages Texte :** ${data.messageCount || 0}\n**Total :** ${data.totalCount}`, inline: true },
             { name: '💰 BordelCoins', value: `**Solde :** ${bordelCoins}${rankCoinsStr}`, inline: true },
             { name: '🎮 Mini-jeux', value: `🎣 **Poissons :** ${fishesCaught}\n🎰 **Machines à sous :** ${slotsPlayed}`, inline: false }
           );
@@ -1208,9 +1206,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
         const list = lb.map((user, i) => {
           const rank = i < 3 ? places[i] : `**#${i + 1}**`;
           let valueStr = '';
-          if (type === 'flop') {
-            valueStr = `${user.score !== undefined ? user.score : (user.skippedCount || 0)} flops`;
-          } else if (type === 'coins') {
+          if (type === 'coins') {
             const coins = user.score !== undefined ? user.score : (user.bordelCoins !== undefined ? user.bordelCoins : (user.reputation || 0));
             valueStr = `${coins} pièces`;
           } else if (type === 'fishes') {
@@ -1227,7 +1223,6 @@ client.on(Events.InteractionCreate, async (interaction) => {
         }).join('\n');
 
         let title = '🏆 **TOP MÉDIAS BORDELBOX** 🏆';
-        if (type === 'flop') title = '🏆 **TOP FLOP BORDELBOX (Médias Skippés)** 🏆';
         if (type === 'coins') title = '🏆 **TOP BORDELCOINS** 🏆';
         if (type === 'fishes') title = '🎣 **TOP POISSONS PÊCHÉS** 🏆';
         if (type === 'slots') title = '🎰 **TOP MACHINES À SOUS** 🏆';

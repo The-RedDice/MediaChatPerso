@@ -97,7 +97,7 @@ function addRewardCoins(userId, amount) {
 function distributeDailyRewards(dailyData) {
   if (!dailyData) return;
 
-  const categories = ['media', 'coins', 'fishes', 'slots', 'flop'];
+  const categories = ['media', 'coins', 'fishes', 'slots'];
 
   categories.forEach(cat => {
     // Extraire les scores de tous les utilisateurs pour cette catégorie
@@ -145,7 +145,6 @@ function distributeDailyRewards(dailyData) {
         if (cat === 'coins') catName = 'BordelCoins gagnés';
         if (cat === 'fishes') catName = 'Poissons pêchés';
         if (cat === 'slots') catName = 'Machines à sous jouées';
-        if (cat === 'flop') catName = 'Flops (Skips)';
 
         stats[user.userId].notifications.push({
           type: 'daily_reward',
@@ -169,8 +168,7 @@ function recordDailyAction(userId, category, amount = 1) {
       media: 0,
       coins: 0,
       fishes: 0,
-      slots: 0,
-      flop: 0
+      slots: 0
     };
   }
 
@@ -248,7 +246,7 @@ function recordSkip(userId) {
   }
 
   stats[userId].skippedCount++;
-  recordDailyAction(userId, 'flop', 1);
+  // We keep skippedCount for legacy, but we stop recording daily action for flops.
   saveStats();
 }
 
@@ -482,11 +480,7 @@ function getLeaderboard(type = 'media', limit = 10, period = 'global') {
     .filter(([userId]) => userId !== '__global__' && userId !== '__daily__')
     .map(([userId, data]) => ({ userId, ...data }))
     .sort((a, b) => {
-      if (type === 'flop') {
-        const aFlop = a.skippedCount || 0;
-        const bFlop = b.skippedCount || 0;
-        return bFlop - aFlop;
-      } else if (type === 'coins') {
+      if (type === 'coins') {
         const aCoins = a.bordelCoins !== undefined ? a.bordelCoins : (a.reputation || 0);
         const bCoins = b.bordelCoins !== undefined ? b.bordelCoins : (b.reputation || 0);
         return bCoins - aCoins;
@@ -506,7 +500,6 @@ function getLeaderboard(type = 'media', limit = 10, period = 'global') {
       }
     })
     .filter(u => {
-      if (type === 'flop') return (u.skippedCount || 0) > 0;
       if (type === 'coins') return (u.bordelCoins || u.reputation || 0) > 0;
       if (type === 'fishes') return (u.fishesCaught || 0) > 0;
       if (type === 'slots') return (u.slotsPlayed || 0) > 0;
