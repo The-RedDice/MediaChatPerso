@@ -22,7 +22,7 @@ const { getAvailableModels, generateTTS } = require('./tts');
 const { recordAction, recordSkip, getUserStats, getLeaderboard, getUserProfile, saveUserProfile, updateReputation, spendCoins, unlockStyleItem, getUnlockedStyles, getNotifications } = require('./stats');
 const { addMeme, getUserMemes, removeMeme } = require('./memes');
 const { initAI, generateResponse } = require('./ai');
-const { getInventory, addLootbox, openLootbox, equipItem, getItemsDb, claimDaily, getCollectionProgress, fish, playSlots, createCoinflip, acceptCoinflip, cancelCoinflip, craftItem, createArenaChallenge, acceptArenaChallenge, cancelArenaChallenge, createRoulette, joinRoulette, startRoulette, shootRoulette, voteDrawRoulette, cancelRoulette } = require('./stats');
+const { getInventory, addLootbox, openLootbox, equipItem, getItemsDb, claimDaily, getCollectionProgress, fish, playSlots, createCoinflip, acceptCoinflip, cancelCoinflip, craftItem, createArenaChallenge, acceptArenaChallenge, cancelArenaChallenge, createRoulette, joinRoulette, startRoulette, shootRoulette, voteDrawRoulette, cancelRoulette, getRouletteState } = require('./stats');
 const { getListings, createListing, buyListing, cancelListing } = require('./market');
 const { createTradeRequest, updateTradeOffer, acceptTrade, declineTrade, getTrade, getPendingTrades } = require('./trade');
 const { startEvent, interactEvent, getActiveEvent, getEventById } = require('./events');
@@ -868,9 +868,9 @@ router.post('/roulette/start', requireAuth, (req, res) => {
 });
 
 router.post('/roulette/shoot', requireAuth, (req, res) => {
-  const { rouletteId } = req.body;
-  if (!rouletteId) return res.status(400).json({ error: 'Paramètres manquants' });
-  const result = shootRoulette(rouletteId);
+  const { rouletteId, shooterId, targetId } = req.body;
+  if (!rouletteId || !shooterId || !targetId) return res.status(400).json({ error: 'Paramètres manquants' });
+  const result = shootRoulette(rouletteId, shooterId, targetId);
   res.json(result);
 });
 
@@ -886,6 +886,13 @@ router.post('/roulette/cancel', requireAuth, (req, res) => {
   if (!rouletteId) return res.status(400).json({ error: 'Paramètres manquants' });
   cancelRoulette(rouletteId);
   res.json({ ok: true });
+});
+
+router.get('/roulette/state', requireAuth, (req, res) => {
+  const { rouletteId } = req.query;
+  if (!rouletteId) return res.status(400).json({ error: 'Paramètres manquants' });
+  const result = getRouletteState(rouletteId);
+  res.json(result);
 });
 
 // ─── ARENA ─────────────────────────────────────────────────────────

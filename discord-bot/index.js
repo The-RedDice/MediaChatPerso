@@ -493,22 +493,38 @@ client.on(Events.InteractionCreate, async (interaction) => {
            .setTitle('🤝 Égalité Acceptée')
            .setColor('#3498db')
            .setDescription(`Les survivants se sont mis d'accord.\n\nChacun repart avec **${res.payout} BordelCoins** !`);
-         await interaction.followUp({ embeds: [drawEmbed] });
+         await interaction.followUp({ embeds: [drawEmbed], components: [] });
       } else if (res.drawAccepted === false) {
          // One player declined. Resume game.
-         await interaction.followUp({ content: 'Le barillet tourne de nouveau...' });
+         let resumeMsg = `<@${interaction.user.id}> a refusé l'égalité !\n\n`;
+         if (res.reloaded) {
+             resumeMsg += `🔄 **Le fusil était vide ! On recharge : ${res.liveCount} 🔴 et ${res.blankCount} ⚪.**\n\n`;
+         } else {
+             resumeMsg += `(Il reste ${res.liveCount} 🔴 et ${res.blankCount} ⚪ dans le chargeur)\n\n`;
+         }
+         resumeMsg += `C'est au tour de <@${res.nextPlayer}> de jouer.`;
 
-         // Trigger next shoot
-         setTimeout(async () => {
-             const shootRes = await apiPost('/roulette/shoot', { rouletteId });
-             if (shootRes && shootRes.state === 'finished') {
-                const winEmbed = new EmbedBuilder()
-                   .setTitle('🔫 Fin de la Roulette')
-                   .setColor('#2ecc71')
-                   .setDescription(`**PAN !** <@${shootRes.victim}> s'est pris une balle !\n\n🎉 <@${shootRes.winner}> est le seul survivant et rafle le pactole de **${shootRes.payout} BordelCoins** (Taxe: ${shootRes.tax}) !`);
-                 await interaction.followUp({ embeds: [winEmbed] });
-             }
-         }, 3000);
+         const turnEmbed = new EmbedBuilder()
+             .setTitle('🔫 La partie reprend')
+             .setColor('#e74c3c')
+             .setDescription(resumeMsg);
+
+           const stateRes = await apiGet(`/roulette/state?rouletteId=${rouletteId}`);
+
+           const targetOptions = stateRes.alivePlayers.map(pId => ({
+               label: pId === stateRes.turnPlayer ? 'Me tirer dessus (Rejoue si ⚪)' : `Tirer sur un adversaire`,
+               value: pId,
+               description: pId === stateRes.turnPlayer ? 'Risqué mais récompense d\'un tour' : 'Éliminer une menace'
+           }));
+
+           const selectMenu = new StringSelectMenuBuilder()
+              .setCustomId('roulette_target_' + rouletteId)
+              .setPlaceholder('Choisissez votre cible...')
+              .addOptions(targetOptions.slice(0, 25));
+
+           const actionRow = new ActionRowBuilder().addComponents(selectMenu);
+
+         await interaction.followUp({ embeds: [turnEmbed], components: [actionRow] });
       }
       return;
     }
@@ -547,6 +563,110 @@ client.on(Events.InteractionCreate, async (interaction) => {
     const customId = interaction.customId;
     const userId = interaction.user.id;
     const username = interaction.user.displayName || interaction.user.username;
+
+    if (customId.startsWith('roulette_target_')) {
+        const rouletteId = customId.replace('roulette_target_', '');
+        const targetId = interaction.values[0];
+
+        const shootRes = await apiPost('/roulette/shoot', { rouletteId, shooterId: userId, targetId });
+
+        if (shootRes.error) {
+            await interaction.reply({ content: '❌ ' + shootRes.error, ephemeral: true });
+            return;
+        }
+
+        // Action was successful, we need to update the game state for everyone.
+        // We delete the current component row so no one else can click it.
+        await interaction.update({ components: [] });
+
+        const isLive = shootRes.isLive;
+        const isSelf = shootRes.isSelf;
+        const victimDied = shootRes.victimDied;
+
+        let resultMsg = `<@${userId}> pointe le fusil sur ${isSelf ? '**LUI-MÊME**' : `<@${targetId}>`} et presse la détente...\n\n`;
+
+        if (isLive) {
+            resultMsg += `💥 **BAM ! C'était une vraie balle 🔴 !**\n<@${targetId}> s'effondre.\n`;
+        } else {
+            resultMsg += `*Clic.* **C'était une balle à blanc ⚪.**\n`;
+            if (isSelf) {
+               resultMsg += `<@${userId}> sourit. Il gagne un tour supplémentaire !\n`;
+            }
+        }
+
+        if (shootRes.state === 'finished') {
+           const winEmbed = new EmbedBuilder()
+             .setTitle('🔫 Fin de la Partie')
+             .setColor('#2ecc71')
+             .setDescription(resultMsg + `\n🎉 <@${shootRes.winner}> est le dernier survivant et rafle le pactole de **${shootRes.payout} BordelCoins** (Taxe: ${shootRes.tax}) !`);
+           await interaction.followUp({ embeds: [winEmbed] });
+           return;
+        }
+
+        if (shootRes.state === 'draw_proposed') {
+           const drawEmbed = new EmbedBuilder()
+             .setTitle('🔫 Proposition d\'Égalité')
+             .setColor('#f1c40f')
+             .setDescription(resultMsg + `\nIl ne reste plus que <@${shootRes.alive[0]}> et <@${shootRes.alive[1]}> en vie !\n\nVoulez-vous partager le pactole ou continuer le massacre ?`);
+
+           const drawRow = new ActionRowBuilder().addComponents(
+             new ButtonBuilder()
+               .setCustomId('roulette_draw_yes_' + rouletteId)
+               .setLabel('Partager')
+               .setStyle(ButtonStyle.Success),
+             new ButtonBuilder()
+               .setCustomId('roulette_draw_no_' + rouletteId)
+               .setLabel('Continuer le carnage')
+               .setStyle(ButtonStyle.Danger)
+           );
+
+           await interaction.followUp({ embeds: [drawEmbed], components: [drawRow] });
+           return;
+        }
+
+        if (shootRes.state === 'playing') {
+           let nextTurnMsg = resultMsg + '\n';
+           if (shootRes.reloaded) {
+              nextTurnMsg += `🔄 **Le fusil était vide ! On recharge : ${shootRes.liveCount} 🔴 et ${shootRes.blankCount} ⚪.**\n\n`;
+           } else {
+              nextTurnMsg += `(Il reste ${shootRes.liveCount} 🔴 et ${shootRes.blankCount} ⚪ dans le chargeur)\n\n`;
+           }
+
+           nextTurnMsg += `C'est au tour de <@${shootRes.nextPlayer}> de jouer.`;
+
+           const turnEmbed = new EmbedBuilder()
+             .setTitle('🔫 Tour Suivant')
+             .setColor('#e74c3c')
+             .setDescription(nextTurnMsg);
+
+           // Recreate target options
+           // To get current players we either need to fetch state or we know it's in shootRes?
+           // I didn't return alive players in shootRes for playing state except 'nextPlayer'. I need the whole list.
+           // Let's fetch it from server.
+           const stateRes = await apiGet(`/roulette/state?rouletteId=${rouletteId}`);
+
+           if (!stateRes || stateRes.error) {
+               await interaction.followUp('Erreur de synchro.');
+               return;
+           }
+
+           const targetOptions = stateRes.alivePlayers.map(pId => ({
+               label: pId === stateRes.turnPlayer ? 'Me tirer dessus (Rejoue si ⚪)' : `Tirer sur un adversaire`,
+               value: pId,
+               description: pId === stateRes.turnPlayer ? 'Risqué mais récompense d\'un tour' : 'Éliminer une menace'
+           }));
+
+           const selectMenu = new StringSelectMenuBuilder()
+              .setCustomId('roulette_target_' + rouletteId)
+              .setPlaceholder('Choisissez votre cible...')
+              .addOptions(targetOptions.slice(0, 25));
+
+           const actionRow = new ActionRowBuilder().addComponents(selectMenu);
+
+           await interaction.followUp({ embeds: [turnEmbed], components: [actionRow] });
+        }
+        return;
+    }
 
     let payload = { username };
 
@@ -2000,7 +2120,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
 
 
-      // ── /roulette ─────────────────────────────────────────
+            // ── /roulette ─────────────────────────────────────────
       case 'roulette': {
         const bet = interaction.options.getInteger('mise', true);
         const res = await apiPost('/roulette/create', { userId: interaction.user.id, amount: bet });
@@ -2011,9 +2131,9 @@ client.on(Events.InteractionCreate, async (interaction) => {
         }
 
         const embed = new EmbedBuilder()
-          .setTitle('🔫 Roulette Russe Clandestine')
+          .setTitle('🔫 Buckshot Roulette Clandestine')
           .setColor('#000000')
-          .setDescription(`Une partie de Roulette Russe est ouverte par <@${interaction.user.id}> !\n\n**Mise : ${bet} BordelCoins**\n\nLa partie commence dans **30 secondes**. Cliquez sur le bouton pour rejoindre !`);
+          .setDescription(`Une partie de Buckshot Roulette est ouverte par <@${interaction.user.id}> !\n\n**Mise : ${bet} BordelCoins**\n\nLa partie commence dans **30 secondes**. Cliquez sur le bouton pour rejoindre !\n\n**Règles du jeu :**\n- Le fusil est chargé avec des vraies balles 🔴 et des balles à blanc ⚪.\n- À votre tour, choisissez sur qui tirer.\n- Si vous vous tirez dessus avec une balle à blanc, vous gagnez un tour gratuit !\n- Le dernier survivant rafle toute la mise.`);
 
         const row = new ActionRowBuilder().addComponents(
           new ButtonBuilder()
@@ -2044,145 +2164,34 @@ client.on(Events.InteractionCreate, async (interaction) => {
            }
 
            const players = startRes.players;
-           let currentAlive = [...players];
 
-           await interaction.followUp({ content: `La Roulette commence avec **${players.length} joueurs** ! Le barillet tourne...` });
+           let gameMsg = `La partie de Buckshot commence avec **${players.length} joueurs** !\n\n`;
+           gameMsg += `Le fusil est chargé : **${startRes.liveCount} 🔴** (Vraies) et **${startRes.blankCount} ⚪** (Blanches).\nL'ordre des balles est inconnu.\n\n`;
+           gameMsg += `C'est au tour de <@${startRes.turnPlayer}> de jouer.`;
 
-           // Simulate rounds
-           const simulateRound = async () => {
-              await new Promise(r => setTimeout(r, 3000));
-              const shootRes = await apiPost('/roulette/shoot', { rouletteId: res.rouletteId });
+           const turnEmbed = new EmbedBuilder()
+             .setTitle('🔫 Tour de Jeu')
+             .setColor('#e74c3c')
+             .setDescription(gameMsg);
 
-              if (!shootRes || shootRes.error) {
-                 await interaction.followUp({ content: '❌ Erreur de la roulette.' });
-                 return;
-              }
+           // On génère le menu de ciblage
+           const targetOptions = players.map(pId => ({
+               label: pId === startRes.turnPlayer ? 'Me tirer dessus (Rejoue si ⚪)' : `Tirer sur un adversaire`,
+               value: pId,
+               description: pId === startRes.turnPlayer ? 'Risqué mais récompense d\'un tour' : 'Éliminer une menace'
+           }));
 
-              if (shootRes.state === 'finished') {
-                 const winEmbed = new EmbedBuilder()
-                   .setTitle('🔫 Fin de la Roulette')
-                   .setColor('#2ecc71')
-                   .setDescription(`**PAN !** <@${shootRes.victim}> s'est pris une balle !\n\n🎉 <@${shootRes.winner}> est le seul survivant et rafle le pactole de **${shootRes.payout} BordelCoins** (Taxe: ${shootRes.tax}) !`);
-                 await interaction.followUp({ embeds: [winEmbed] });
-                 return;
-              }
+           // Discord limit to 25 choices
+           const selectMenu = new StringSelectMenuBuilder()
+              .setCustomId('roulette_target_' + res.rouletteId)
+              .setPlaceholder('Choisissez votre cible...')
+              .addOptions(targetOptions.slice(0, 25));
 
-              if (shootRes.state === 'draw_proposed') {
-                 currentAlive = shootRes.alive;
-                 const drawEmbed = new EmbedBuilder()
-                   .setTitle('🔫 Proposition d\'Égalité')
-                   .setColor('#f1c40f')
-                   .setDescription(`**PAN !** <@${shootRes.victim}> s'est pris une balle !\n\nIl ne reste plus que <@${currentAlive[0]}> et <@${currentAlive[1]}> !\n\nVoulez-vous partager le pactole ou continuer à jouer avec votre vie ?`);
+           const actionRow = new ActionRowBuilder().addComponents(selectMenu);
 
-                 const drawRow = new ActionRowBuilder().addComponents(
-                   new ButtonBuilder()
-                     .setCustomId('roulette_draw_yes_' + res.rouletteId)
-                     .setLabel('Partager')
-                     .setStyle(ButtonStyle.Success),
-                   new ButtonBuilder()
-                     .setCustomId('roulette_draw_no_' + res.rouletteId)
-                     .setLabel('Continuer à tirer')
-                     .setStyle(ButtonStyle.Danger)
-                 );
-
-                 await interaction.followUp({ embeds: [drawEmbed], components: [drawRow] });
-                 return;
-              }
-
-              if (shootRes.state === 'playing') {
-                 await interaction.followUp({ content: `**PAN !** <@${shootRes.victim}> s'est pris une balle ! Il reste **${shootRes.alive.length} joueurs** en vie. Le barillet tourne encore...` });
-                 simulateRound();
-              }
-           };
-
-           simulateRound();
+           await interaction.followUp({ embeds: [turnEmbed], components: [actionRow] });
 
         }, 30 * 1000);
-        break;
-      }
-
-      // ── /arena ───────────────────────────────────────────
-      case 'arena': {
-        const subCmd = interaction.options.getSubcommand();
-
-        if (subCmd === 'challenge') {
-          const target = interaction.options.getUser('joueur');
-          const bet = interaction.options.getInteger('mise');
-          const userItem = interaction.options.getString('objet', true);
-
-          if (target.id === interaction.user.id || target.bot) {
-              await interaction.editReply("Tu ne peux pas défier toi-même ou un bot.");
-              break;
-          }
-
-          const res = await apiPost('/arena/create', { userId: interaction.user.id, targetId: target.id, amount: bet, userItemId: userItem });
-          if (!res || res.error) {
-            await interaction.editReply('❌ ' + (res?.error || 'Impossible de créer le défi.'));
-            break;
-          }
-
-          const embed = new EmbedBuilder()
-            .setTitle('⚔️ Défi d\'Arène Clandestine')
-            .setColor('#e74c3c')
-            .setDescription('<@' + target.id + '>, <@' + interaction.user.id + '> te défie dans l\'arène pour **' + bet + ' BordelCoins** avec son objet **' + userItem + '** !\n\nAcceptez-vous le défi en choisissant votre arme ?');
-
-          const row = new ActionRowBuilder().addComponents(
-            new ButtonBuilder()
-              .setCustomId('arena_accept_' + res.arenaId)
-              .setLabel('Accepter')
-              .setStyle(ButtonStyle.Success),
-            new ButtonBuilder()
-              .setCustomId('arena_decline_' + res.arenaId)
-              .setLabel('Refuser')
-              .setStyle(ButtonStyle.Danger)
-          );
-
-          await interaction.editReply({ content: '<@' + target.id + '>', embeds: [embed], components: [row] });
-        } else if (subCmd === 'accept') {
-          const arenaId = interaction.options.getString('id', true);
-          const targetItem = interaction.options.getString('objet', true);
-
-          const res = await apiPost('/arena/accept', { arenaId: arenaId, userId: interaction.user.id, targetItemId: targetItem });
-          if (!res || res.error) {
-            await interaction.editReply('❌ ' + (res?.error || 'Impossible d\'accepter le défi.'));
-            break;
-          }
-
-          const creatorItemName = res.creatorItemInfo ? res.creatorItemInfo.name : 'Arme secrète';
-          const targetItemName = res.targetItemInfo ? res.targetItemInfo.name : targetItem;
-
-          let desc = `Le combat fait rage entre <@${res.winner}> et <@${res.loser}> !\n\n`;
-          desc += `Vainqueur : <@${res.winner}> !\n`;
-          desc += `Gains : **${res.payout} BordelCoins** (Taxe: ${res.tax})\n`;
-
-          if (res.itemStolen) {
-             desc += `\n🚨 **INCROYABLE !** Le vainqueur a racketté l'objet du perdant !`;
-          }
-
-          const embed = new EmbedBuilder()
-            .setTitle('⚔️ Résultat de l\'Arène')
-            .setColor('#e74c3c')
-            .setDescription(desc);
-
-          await interaction.editReply({ embeds: [embed] });
-
-          const creatorRarity = res.creatorItemInfo ? res.creatorItemInfo.rarity : 'commun';
-          const targetRarity = res.targetItemInfo ? res.targetItemInfo.rarity : 'commun';
-          const highRarities = ['legendaire', 'mythique', 'transcendant'];
-
-          if (res.amount >= 100 || highRarities.includes(creatorRarity) || highRarities.includes(targetRarity)) {
-             const overlayText = `⚔️ ARÈNE:\n${creatorItemName} VS ${targetItemName}...\nLe vainqueur rafle tout !`;
-             await apiPost('/message', {
-                text: overlayText,
-                target: 'all',
-                senderName: 'L\'Arène',
-                userId: interaction.user.id,
-                color: '#e74c3c',
-                font: 'Impact',
-                animation: 'shake'
-             });
-          }
-        }
         break;
       }
 
@@ -2489,7 +2498,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
             },
             {
               name: '⭐ Économie & Mini-Jeux',
-              value: '`/daily` : Récompense quotidienne\n`/fish` : Pêche des poissons avec des appâts.\n`/slots` : Machine à sous.\n`/coinflip` : Pari contre un autre joueur.\n`/achievements` : Voir vos succès.'
+              value: '`/daily` : Récompense quotidienne\n`/fish` : Pêche des poissons avec des appâts.\n`/slots` : Machine à sous.\n`/arena` : Combat 1v1 d\'objets.\n`/roulette` : Buckshot Roulette.\n`/coinflip` : Pari contre un autre joueur.\n`/achievements` : Voir vos succès.'
             },
             {
               name: '💼 Inventaire & Marché',
@@ -2515,7 +2524,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
         switch (subject) {
           case 'economy':
             embed.setTitle('💰 Économie & BordelCoins')
-                 .setDescription('Les **BordelCoins** sont la monnaie de la BordelBox.\n\n**Comment en gagner ?**\n- Les upvotes dans le salon réputation 👍\n- La commande `/daily` tous les jours\n- Vaincre un `/event boss` (nécessite l\'overlay ouvert)\n- La pêche (`/fish`), machine à sous (`/slots`), paris (`/coinflip`)\n- Vendre vos objets sur le `/market`\n\n**Que faire avec ?**\n- Acheter des effets visuels dans le `/shop`\n- Acheter des lootboxes (`/lootbox buy`)\n- Acheter de meilleurs appâts pour `/fish` ou des cannes à pêche (`/craft`)');
+                 .setDescription('Les **BordelCoins** sont la monnaie de la BordelBox.\n\n**Comment en gagner ?**\n- Les upvotes dans le salon réputation 👍\n- La commande `/daily` tous les jours\n- Vaincre un `/event boss` (nécessite l\'overlay ouvert)\n- La pêche (`/fish`), machine à sous (`/slots`), paris (`/coinflip`), `/arena` et `/roulette`\n- Vendre vos objets sur le `/market`\n\n**Que faire avec ?**\n- Acheter des effets visuels dans le `/shop`\n- Acheter des lootboxes (`/lootbox buy`)\n- Acheter de meilleurs appâts pour `/fish` ou des cannes à pêche (`/craft`)');
             break;
           case 'fishing':
             embed.setTitle('🎣 Guide de la Pêche')
