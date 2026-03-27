@@ -732,7 +732,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
     await interaction.deferReply();
   } else if (commandName === 'tuto' || commandName === 'info' || commandName === 'style' || commandName === 'dashboard') {
     await interaction.deferReply({ ephemeral: true });
-  } else if (commandName === 'trade' || commandName === 'market' || commandName === 'lootbox' || commandName === 'inventory' || commandName === 'collection' || commandName === 'daily' || commandName === 'fish' || commandName === 'slots' || commandName === 'coinflip' || commandName === 'achievements' || commandName === 'craft') {
+  } else if (commandName === 'trade' || commandName === 'market' || commandName === 'lootbox' || commandName === 'inventory' || commandName === 'collection' || commandName === 'daily' || commandName === 'fish' || commandName === 'slots' || commandName === 'coinflip' || commandName === 'achievements' || commandName === 'craft' || commandName === 'arena' || commandName === 'roulette') {
         await interaction.deferReply({ ephemeral: false });
   } else {
     await interaction.deferReply({ ephemeral: true });
