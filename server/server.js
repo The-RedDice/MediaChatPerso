@@ -22,7 +22,7 @@ const { getAvailableModels, generateTTS } = require('./tts');
 const { recordAction, recordSkip, getUserStats, getLeaderboard, getUserProfile, saveUserProfile, updateReputation, spendCoins, unlockStyleItem, getUnlockedStyles, getNotifications } = require('./stats');
 const { addMeme, getUserMemes, removeMeme } = require('./memes');
 const { initAI, generateResponse } = require('./ai');
-const { getInventory, addLootbox, openLootbox, equipItem, getItemsDb, claimDaily, getCollectionProgress, fish, playSlots, createCoinflip, acceptCoinflip, cancelCoinflip, craftItem } = require('./stats');
+const { getInventory, addLootbox, openLootbox, equipItem, getItemsDb, claimDaily, getCollectionProgress, fish, playSlots, createCoinflip, acceptCoinflip, cancelCoinflip, craftItem, createArenaChallenge, acceptArenaChallenge, cancelArenaChallenge, createRoulette, joinRoulette, startRoulette, shootRoulette, voteDrawRoulette, cancelRoulette } = require('./stats');
 const { getListings, createListing, buyListing, cancelListing } = require('./market');
 const { createTradeRequest, updateTradeOffer, acceptTrade, declineTrade, getTrade, getPendingTrades } = require('./trade');
 const { startEvent, interactEvent, getActiveEvent, getEventById } = require('./events');
@@ -870,6 +870,71 @@ router.post('/coinflip/cancel', requireAuth, (req, res) => {
   res.json({ ok: true });
 });
 
+
+// ─── ROULETTE ──────────────────────────────────────────────────────
+router.post('/roulette/create', requireAuth, (req, res) => {
+  const { userId, amount } = req.body;
+  if (!userId || amount === undefined) return res.status(400).json({ error: 'Paramètres manquants' });
+  const result = createRoulette(userId, parseInt(amount, 10));
+  res.json(result);
+});
+
+router.post('/roulette/join', requireAuth, (req, res) => {
+  const { rouletteId, userId } = req.body;
+  if (!rouletteId || !userId) return res.status(400).json({ error: 'Paramètres manquants' });
+  const result = joinRoulette(rouletteId, userId);
+  res.json(result);
+});
+
+router.post('/roulette/start', requireAuth, (req, res) => {
+  const { rouletteId } = req.body;
+  if (!rouletteId) return res.status(400).json({ error: 'Paramètres manquants' });
+  const result = startRoulette(rouletteId);
+  res.json(result);
+});
+
+router.post('/roulette/shoot', requireAuth, (req, res) => {
+  const { rouletteId } = req.body;
+  if (!rouletteId) return res.status(400).json({ error: 'Paramètres manquants' });
+  const result = shootRoulette(rouletteId);
+  res.json(result);
+});
+
+router.post('/roulette/vote', requireAuth, (req, res) => {
+  const { rouletteId, userId, vote } = req.body;
+  if (!rouletteId || !userId || vote === undefined) return res.status(400).json({ error: 'Paramètres manquants' });
+  const result = voteDrawRoulette(rouletteId, userId, vote);
+  res.json(result);
+});
+
+router.post('/roulette/cancel', requireAuth, (req, res) => {
+  const { rouletteId } = req.body;
+  if (!rouletteId) return res.status(400).json({ error: 'Paramètres manquants' });
+  cancelRoulette(rouletteId);
+  res.json({ ok: true });
+});
+
+// ─── ARENA ─────────────────────────────────────────────────────────
+router.post('/arena/create', requireAuth, (req, res) => {
+  const { userId, targetId, amount, userItemId } = req.body;
+  if (!userId || !targetId || amount === undefined || !userItemId) return res.status(400).json({ error: 'Paramètres manquants' });
+  const result = createArenaChallenge(userId, targetId, parseInt(amount, 10), userItemId);
+  res.json(result);
+});
+
+router.post('/arena/accept', requireAuth, (req, res) => {
+  const { arenaId, userId, targetItemId } = req.body;
+  if (!arenaId || !userId || !targetItemId) return res.status(400).json({ error: 'Paramètres manquants' });
+  const result = acceptArenaChallenge(arenaId, userId, targetItemId);
+  res.json(result);
+});
+
+router.post('/arena/cancel', requireAuth, (req, res) => {
+  const { arenaId } = req.body;
+  if (!arenaId) return res.status(400).json({ error: 'Paramètres manquants' });
+  cancelArenaChallenge(arenaId);
+  res.json({ ok: true });
+});
 
 router.get('/market', (req, res) => {
   res.json({ listings: getListings() });

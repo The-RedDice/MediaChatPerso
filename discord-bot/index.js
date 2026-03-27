@@ -465,6 +465,68 @@ client.on(Events.InteractionCreate, async (interaction) => {
       return;
     }
 
+    if (customId.startsWith('roulette_join_')) {
+      const rouletteId = customId.replace('roulette_join_', '');
+      const res = await apiPost('/roulette/join', { rouletteId, userId: interaction.user.id });
+      if (res.error) {
+         await interaction.reply({ content: '❌ ' + res.error, ephemeral: true });
+      } else {
+         await interaction.reply({ content: `✅ Tu as rejoint la partie de Roulette (${res.playersCount} joueurs inscrits) !`, ephemeral: true });
+      }
+      return;
+    }
+
+    if (customId.startsWith('roulette_draw_yes_') || customId.startsWith('roulette_draw_no_')) {
+      const vote = customId.startsWith('roulette_draw_yes_');
+      const rouletteId = customId.replace('roulette_draw_yes_', '').replace('roulette_draw_no_', '');
+      const res = await apiPost('/roulette/vote', { rouletteId, userId: interaction.user.id, vote });
+
+      if (res.error) {
+         await interaction.reply({ content: '❌ ' + res.error, ephemeral: true });
+         return;
+      }
+
+      await interaction.reply({ content: vote ? '✅ Tu as voté pour l\'égalité.' : '🔫 Tu as refusé l\'égalité. Que le bain de sang reprenne !', ephemeral: false });
+
+      if (res.drawAccepted === true) {
+         const drawEmbed = new EmbedBuilder()
+           .setTitle('🤝 Égalité Acceptée')
+           .setColor('#3498db')
+           .setDescription(`Les survivants se sont mis d'accord.\n\nChacun repart avec **${res.payout} BordelCoins** !`);
+         await interaction.followUp({ embeds: [drawEmbed] });
+      } else if (res.drawAccepted === false) {
+         // One player declined. Resume game.
+         await interaction.followUp({ content: 'Le barillet tourne de nouveau...' });
+
+         // Trigger next shoot
+         setTimeout(async () => {
+             const shootRes = await apiPost('/roulette/shoot', { rouletteId });
+             if (shootRes && shootRes.state === 'finished') {
+                const winEmbed = new EmbedBuilder()
+                   .setTitle('🔫 Fin de la Roulette')
+                   .setColor('#2ecc71')
+                   .setDescription(`**PAN !** <@${shootRes.victim}> s'est pris une balle !\n\n🎉 <@${shootRes.winner}> est le seul survivant et rafle le pactole de **${shootRes.payout} BordelCoins** (Taxe: ${shootRes.tax}) !`);
+                 await interaction.followUp({ embeds: [winEmbed] });
+             }
+         }, 3000);
+      }
+      return;
+    }
+
+    if (customId.startsWith('arena_accept_') || customId.startsWith('arena_decline_')) {
+      const isAccept = customId.startsWith('arena_accept_');
+      const arenaId = customId.replace('arena_accept_', '').replace('arena_decline_', '');
+
+      if (!isAccept) {
+        await apiPost('/arena/cancel', { arenaId });
+        await interaction.update({ content: 'Défi refusé ou annulé.', embeds: [], components: [] });
+        return;
+      }
+
+      await interaction.reply({ content: `Pour accepter le combat, tu dois choisir ton arme avec la commande : \`/arena accept \${arenaId} <ton_objet>\``, ephemeral: true });
+      return;
+    }
+
     if (customId.startsWith('skip_')) {
       const target = customId.replace('skip_', '');
       try {
@@ -604,7 +666,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
           await interaction.respond([]);
         }
       }
-    } else if (interaction.commandName === 'inventory' || interaction.commandName === 'market' || interaction.commandName === 'fish') {
+    } else if (interaction.commandName === 'inventory' || interaction.commandName === 'market' || interaction.commandName === 'fish' || interaction.commandName === 'arena' || interaction.commandName === 'roulette') {
       const focusedOption = interaction.options.getFocused(true);
       if (focusedOption.name === 'objet' || focusedOption.name === 'poisson') {
          try {
@@ -1929,6 +1991,198 @@ client.on(Events.InteractionCreate, async (interaction) => {
              .setDescription(buildDesc(res.result[0], res.result[1], res.result[2], finalMessage));
 
         await interaction.editReply({ embeds: [embed] });
+        break;
+      }
+
+
+
+        const subCmd = interaction.options.getSubcommand();
+
+
+
+      // ── /roulette ─────────────────────────────────────────
+      case 'roulette': {
+        const bet = interaction.options.getInteger('mise', true);
+        const res = await apiPost('/roulette/create', { userId: interaction.user.id, amount: bet });
+
+        if (!res || res.error) {
+           await interaction.editReply('❌ ' + (res?.error || 'Impossible de créer la roulette.'));
+           break;
+        }
+
+        const embed = new EmbedBuilder()
+          .setTitle('🔫 Roulette Russe Clandestine')
+          .setColor('#000000')
+          .setDescription(`Une partie de Roulette Russe est ouverte par <@${interaction.user.id}> !\n\n**Mise : ${bet} BordelCoins**\n\nLa partie commence dans **30 secondes**. Cliquez sur le bouton pour rejoindre !`);
+
+        const row = new ActionRowBuilder().addComponents(
+          new ButtonBuilder()
+            .setCustomId('roulette_join_' + res.rouletteId)
+            .setLabel('Rejoindre')
+            .setStyle(ButtonStyle.Danger)
+        );
+
+        await interaction.editReply({ embeds: [embed], components: [row] });
+
+        setTimeout(async () => {
+           // Disable join button
+           try {
+             const disabledRow = new ActionRowBuilder().addComponents(
+                new ButtonBuilder()
+                  .setCustomId('roulette_join_' + res.rouletteId)
+                  .setLabel('Partie Démarrée')
+                  .setStyle(ButtonStyle.Secondary)
+                  .setDisabled(true)
+             );
+             await interaction.editReply({ components: [disabledRow] });
+           } catch(e) {}
+
+           const startRes = await apiPost('/roulette/start', { rouletteId: res.rouletteId });
+           if (!startRes || startRes.error) {
+              await interaction.followUp({ content: '❌ La roulette a été annulée : ' + (startRes?.error || 'Erreur inconnue.') });
+              return;
+           }
+
+           const players = startRes.players;
+           let currentAlive = [...players];
+
+           await interaction.followUp({ content: `La Roulette commence avec **${players.length} joueurs** ! Le barillet tourne...` });
+
+           // Simulate rounds
+           const simulateRound = async () => {
+              await new Promise(r => setTimeout(r, 3000));
+              const shootRes = await apiPost('/roulette/shoot', { rouletteId: res.rouletteId });
+
+              if (!shootRes || shootRes.error) {
+                 await interaction.followUp({ content: '❌ Erreur de la roulette.' });
+                 return;
+              }
+
+              if (shootRes.state === 'finished') {
+                 const winEmbed = new EmbedBuilder()
+                   .setTitle('🔫 Fin de la Roulette')
+                   .setColor('#2ecc71')
+                   .setDescription(`**PAN !** <@${shootRes.victim}> s'est pris une balle !\n\n🎉 <@${shootRes.winner}> est le seul survivant et rafle le pactole de **${shootRes.payout} BordelCoins** (Taxe: ${shootRes.tax}) !`);
+                 await interaction.followUp({ embeds: [winEmbed] });
+                 return;
+              }
+
+              if (shootRes.state === 'draw_proposed') {
+                 currentAlive = shootRes.alive;
+                 const drawEmbed = new EmbedBuilder()
+                   .setTitle('🔫 Proposition d\'Égalité')
+                   .setColor('#f1c40f')
+                   .setDescription(`**PAN !** <@${shootRes.victim}> s'est pris une balle !\n\nIl ne reste plus que <@${currentAlive[0]}> et <@${currentAlive[1]}> !\n\nVoulez-vous partager le pactole ou continuer à jouer avec votre vie ?`);
+
+                 const drawRow = new ActionRowBuilder().addComponents(
+                   new ButtonBuilder()
+                     .setCustomId('roulette_draw_yes_' + res.rouletteId)
+                     .setLabel('Partager')
+                     .setStyle(ButtonStyle.Success),
+                   new ButtonBuilder()
+                     .setCustomId('roulette_draw_no_' + res.rouletteId)
+                     .setLabel('Continuer à tirer')
+                     .setStyle(ButtonStyle.Danger)
+                 );
+
+                 await interaction.followUp({ embeds: [drawEmbed], components: [drawRow] });
+                 return;
+              }
+
+              if (shootRes.state === 'playing') {
+                 await interaction.followUp({ content: `**PAN !** <@${shootRes.victim}> s'est pris une balle ! Il reste **${shootRes.alive.length} joueurs** en vie. Le barillet tourne encore...` });
+                 simulateRound();
+              }
+           };
+
+           simulateRound();
+
+        }, 30 * 1000);
+        break;
+      }
+
+      // ── /arena ───────────────────────────────────────────
+      case 'arena': {
+        const subCmd = interaction.options.getSubcommand();
+
+        if (subCmd === 'challenge') {
+          const target = interaction.options.getUser('joueur');
+          const bet = interaction.options.getInteger('mise');
+          const userItem = interaction.options.getString('objet', true);
+
+          if (target.id === interaction.user.id || target.bot) {
+              await interaction.editReply("Tu ne peux pas défier toi-même ou un bot.");
+              break;
+          }
+
+          const res = await apiPost('/arena/create', { userId: interaction.user.id, targetId: target.id, amount: bet, userItemId: userItem });
+          if (!res || res.error) {
+            await interaction.editReply('❌ ' + (res?.error || 'Impossible de créer le défi.'));
+            break;
+          }
+
+          const embed = new EmbedBuilder()
+            .setTitle('⚔️ Défi d\'Arène Clandestine')
+            .setColor('#e74c3c')
+            .setDescription('<@' + target.id + '>, <@' + interaction.user.id + '> te défie dans l\'arène pour **' + bet + ' BordelCoins** avec son objet **' + userItem + '** !\n\nAcceptez-vous le défi en choisissant votre arme ?');
+
+          const row = new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+              .setCustomId('arena_accept_' + res.arenaId)
+              .setLabel('Accepter')
+              .setStyle(ButtonStyle.Success),
+            new ButtonBuilder()
+              .setCustomId('arena_decline_' + res.arenaId)
+              .setLabel('Refuser')
+              .setStyle(ButtonStyle.Danger)
+          );
+
+          await interaction.editReply({ content: '<@' + target.id + '>', embeds: [embed], components: [row] });
+        } else if (subCmd === 'accept') {
+          const arenaId = interaction.options.getString('id', true);
+          const targetItem = interaction.options.getString('objet', true);
+
+          const res = await apiPost('/arena/accept', { arenaId: arenaId, userId: interaction.user.id, targetItemId: targetItem });
+          if (!res || res.error) {
+            await interaction.editReply('❌ ' + (res?.error || 'Impossible d\'accepter le défi.'));
+            break;
+          }
+
+          const creatorItemName = res.creatorItemInfo ? res.creatorItemInfo.name : 'Arme secrète';
+          const targetItemName = res.targetItemInfo ? res.targetItemInfo.name : targetItem;
+
+          let desc = `Le combat fait rage entre <@${res.winner}> et <@${res.loser}> !\n\n`;
+          desc += `Vainqueur : <@${res.winner}> !\n`;
+          desc += `Gains : **${res.payout} BordelCoins** (Taxe: ${res.tax})\n`;
+
+          if (res.itemStolen) {
+             desc += `\n🚨 **INCROYABLE !** Le vainqueur a racketté l'objet du perdant !`;
+          }
+
+          const embed = new EmbedBuilder()
+            .setTitle('⚔️ Résultat de l\'Arène')
+            .setColor('#e74c3c')
+            .setDescription(desc);
+
+          await interaction.editReply({ embeds: [embed] });
+
+          const creatorRarity = res.creatorItemInfo ? res.creatorItemInfo.rarity : 'commun';
+          const targetRarity = res.targetItemInfo ? res.targetItemInfo.rarity : 'commun';
+          const highRarities = ['legendaire', 'mythique', 'transcendant'];
+
+          if (res.amount >= 100 || highRarities.includes(creatorRarity) || highRarities.includes(targetRarity)) {
+             const overlayText = `⚔️ ARÈNE:\n${creatorItemName} VS ${targetItemName}...\nLe vainqueur rafle tout !`;
+             await apiPost('/message', {
+                text: overlayText,
+                target: 'all',
+                senderName: 'L\'Arène',
+                userId: interaction.user.id,
+                color: '#e74c3c',
+                font: 'Impact',
+                animation: 'shake'
+             });
+          }
+        }
         break;
       }
 

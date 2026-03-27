@@ -668,6 +668,50 @@ const commands = [
              .setMinValue(1)),
 
   new SlashCommandBuilder()
+    .setName('roulette')
+    .setDescription('Lancer une partie de Roulette Russe avec d\'autres joueurs (Taxe de 5%)')
+    .addIntegerOption(option =>
+       option.setName('mise')
+             .setDescription('La mise en BordelCoins')
+             .setRequired(true)
+             .setMinValue(1)),
+
+  new SlashCommandBuilder()
+    .setName('arena')
+    .setDescription('Défier un joueur dans l\'arène clandestine')
+    .addSubcommand(subcommand =>
+      subcommand
+        .setName('challenge')
+        .setDescription('Défier un autre joueur')
+        .addUserOption(option =>
+           option.setName('joueur')
+                 .setDescription('Le joueur à défier')
+                 .setRequired(true))
+        .addIntegerOption(option =>
+           option.setName('mise')
+                 .setDescription('Mise en BordelCoins')
+                 .setRequired(true)
+                 .setMinValue(1))
+        .addStringOption(option =>
+           option.setName('objet')
+                 .setDescription('Objet que vous mettez en jeu')
+                 .setRequired(true)
+                 .setAutocomplete(true)))
+    .addSubcommand(subcommand =>
+      subcommand
+        .setName('accept')
+        .setDescription('Accepter un défi')
+        .addStringOption(option =>
+           option.setName('id')
+                 .setDescription('ID du défi')
+                 .setRequired(true))
+        .addStringOption(option =>
+           option.setName('objet')
+                 .setDescription('Objet que vous mettez en jeu')
+                 .setRequired(true)
+                 .setAutocomplete(true))),
+
+  new SlashCommandBuilder()
     .setName('coinflip')
     .setDescription('Lancer un pari (pile ou face) avec un autre joueur (Taxe de 5%)')
     .addUserOption(option =>
