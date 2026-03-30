@@ -449,7 +449,8 @@ const commands = [
               { name: 'Pêche', value: 'fishing' },
               { name: 'Machine à sous (Slots)', value: 'slots' },
               { name: 'Marché', value: 'market' },
-              { name: 'Craft', value: 'craft' }
+              { name: 'Craft', value: 'craft' },
+              { name: 'Lootboxes (Probabilités)', value: 'lootbox' }
             )),
 
   new SlashCommandBuilder()
