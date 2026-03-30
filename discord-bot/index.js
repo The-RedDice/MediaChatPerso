@@ -2528,11 +2528,15 @@ client.on(Events.InteractionCreate, async (interaction) => {
             break;
           case 'fishing':
             embed.setTitle('🎣 Guide de la Pêche')
-                 .setDescription('Utilise `/fish <appât>` pour pêcher.\n\n- Les **appâts** (Ver, Crevette, Calamar) coûtent des BordelCoins mais augmentent tes chances d\'attraper des objets rares.\n- Tu peux attraper des déchets (0 💰), des poissons variés, ou même des **Lootboxes** (1% de chance) !\n- Les poissons pêchés vont dans ton `/inventory` et peuvent être vendus.\n- Tu peux réduire le temps d\'attente entre 2 pêches en fabriquant une meilleure canne avec `/craft`.');
+                 .setDescription('Utilise `/fish <appât>` pour pêcher.\n\n- Les **appâts** (Ver, Crevette, Calamar) coûtent des BordelCoins mais augmentent tes chances d\'attraper des objets rares.\n- Tu peux attraper des déchets (0 💰), des poissons variés, ou même des **Lootboxes** (1% de chance) !\n- Les poissons pêchés vont dans ton `/inventory` et peuvent être vendus.\n- Tu peux réduire le temps d\'attente entre 2 pêches en fabriquant une meilleure canne avec `/craft`.\n\n**Probabilités par appât :**\n- **Ver (Base) :** 🗑️ 40%, 🐟 Morue 30%, 🍣 Saumon 15%, 🐠 Thon 10%, 🦈 Requin 4%, 🐙 Kraken 0.9%, 🎁 Lootbox 0.1%\n- **Crevette :** Réduit un peu les déchets, augmente les chances pour le Thon (x1.5), le Requin, le Kraken et la Lootbox (x2).\n- **Calamar :** Réduit drastiquement les déchets (x0.2), boost énorme sur les poissons rares et la Lootbox (x3 à x5).');
             break;
           case 'slots':
             embed.setTitle('🎰 Machine à Sous')
-                 .setDescription('Utilise `/slots <mise>` pour parier tes BordelCoins.\n\n- **2 symboles identiques** = x1.5 ta mise.\n- **3 symboles identiques** = x5 à x25 ta mise selon le symbole (💎 = x25, 🔔 = x15).\n- Aligner 3 💎 déclenche un **JACKPOT**.\n- Gagner plusieurs jackpots de suite débloque des succès secrets et des titres uniques (`/achievements`) !');
+                 .setDescription('Utilise `/slots <mise>` pour parier tes BordelCoins.\n\n- **2 symboles identiques** (41.6% de chance) = x1.5 ta mise.\n- **3 symboles identiques** (2.7% de chance) = x5 à x25 ta mise selon le symbole (💎 = x25, 🔔 = x15).\n- Aligner 3 💎 déclenche un **JACKPOT**.\n- Gagner plusieurs jackpots de suite débloque des succès secrets et des titres uniques (`/achievements`) !');
+            break;
+          case 'lootbox':
+            embed.setTitle('🎁 Probabilités des Lootboxes')
+                 .setDescription('Voici les probabilités exactes pour les objets obtenus en ouvrant des Lootboxes (`/lootbox open`) :\n\n- ⬜ **Commun :** 60%\n- 🟦 **Rare :** 25%\n- 🟪 **Épique :** 10%\n- 🟨 **Légendaire :** 4%\n- 🟥 **Mythique :** 0.7%\n- 🌟 **Transcendant :** 0.3% (Génère un objet procédural unique avec un numéro de série !)\n\n*(Note: un jackpot en pièces ou un titre unique peut tomber sous ces probabilités de rareté).*');
             break;
           case 'market':
             embed.setTitle('🛒 Le Marché Communautaire')
