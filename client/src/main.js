@@ -37,6 +37,9 @@ const audioPlayer     = document.getElementById('audio-player');
 const muteBadge       = document.getElementById('mute-badge');
 const audioVisualizer = document.getElementById('audio-visualizer');
 
+const drawCanvas      = document.getElementById('draw-canvas');
+const drawCtx         = drawCanvas ? drawCanvas.getContext('2d') : null;
+
 const mediaProgressContainer = document.getElementById('media-progress-container');
 const mediaProgressFill      = document.getElementById('media-progress-fill');
 const mediaProgressText      = document.getElementById('media-progress-text');
@@ -942,6 +945,126 @@ window.hideAll = function hideAll() {
   if (eventContainer) {
     eventContainer.classList.remove('visible');
   }
+
+  // Interrompre aussi la session de dessin si elle est active
+  if (drawCanvas && drawCanvas.style.opacity === '1') {
+    drawCanvas.style.opacity = '0';
+    isDrawSessionActive = false;
+    setTimeout(() => {
+      if (drawCtx) drawCtx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
+    }, 300);
+    // Optionnel : avertir le serveur que la session a été interrompue par le streamer
+  }
+}
+
+// ─── Drawing Logic ───
+let isDrawSessionActive = false;
+let imagesCache = {}; // Cache pour les images dessinées sur le canvas
+
+function startDrawSession() {
+  if (!drawCanvas || !drawCtx) return;
+
+  // Mettre le canvas à la bonne taille
+  drawCanvas.width = window.innerWidth;
+  drawCanvas.height = window.innerHeight;
+
+  drawCtx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
+  drawCanvas.style.opacity = '1';
+  isDrawSessionActive = true;
+
+  console.log('[Draw] Mode dessin activé');
+}
+
+function stopDrawSession(emitScreenshot = true) {
+  if (!drawCanvas || !isDrawSessionActive) return;
+
+  isDrawSessionActive = false;
+
+  if (emitScreenshot && socket) {
+    // Capturer le screenshot du canvas
+    const base64Image = drawCanvas.toDataURL('image/png');
+    socket.emit('draw_screenshot', { target: CONFIG.pseudo, base64Image });
+  }
+
+  // Effacer l'écran après un petit délai
+  drawCanvas.style.opacity = '0';
+  setTimeout(() => {
+    if (drawCtx) drawCtx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
+    imagesCache = {}; // Vider le cache
+  }, 300);
+
+  console.log('[Draw] Mode dessin désactivé');
+}
+
+function handleDrawEvent(event) {
+  if (!isDrawSessionActive || !drawCanvas || !drawCtx || !overlayEnabled) return;
+
+  const { type, data } = event;
+
+  // Ajustement en fonction de la taille de la fenêtre (le dashboard envoie des pourcentages ou des coords relatives 1920x1080)
+  // On assume que le dashboard envoie des coordonnées normalisées de 0 à 1 (x: 0.5 = 50% de la largeur)
+
+  const w = drawCanvas.width;
+  const h = drawCanvas.height;
+
+  if (type === 'line') {
+    const { x0, y0, x1, y1, color, width } = data;
+    drawCtx.beginPath();
+    drawCtx.moveTo(x0 * w, y0 * h);
+    drawCtx.lineTo(x1 * w, y1 * h);
+    drawCtx.strokeStyle = color || '#ff3c6e';
+    drawCtx.lineWidth = width || 5;
+    drawCtx.lineCap = 'round';
+    drawCtx.lineJoin = 'round';
+    drawCtx.stroke();
+  } else if (type === 'text') {
+    const { text, x, y, color, font, size } = data;
+    const pxSize = (size || 30) * (w / 1920); // Échelle basique par rapport au 1080p
+    drawCtx.font = `bold ${pxSize}px ${font || 'Arial'}`;
+    drawCtx.fillStyle = color || '#fff';
+    drawCtx.textAlign = 'center';
+    drawCtx.textBaseline = 'middle';
+
+    // Ajout d'une ombre
+    drawCtx.shadowColor = 'black';
+    drawCtx.shadowBlur = 4;
+    drawCtx.shadowOffsetX = 2;
+    drawCtx.shadowOffsetY = 2;
+
+    drawCtx.fillText(text, x * w, y * h);
+
+    // Reset de l'ombre
+    drawCtx.shadowColor = 'transparent';
+    drawCtx.shadowBlur = 0;
+    drawCtx.shadowOffsetX = 0;
+    drawCtx.shadowOffsetY = 0;
+  } else if (type === 'image') {
+    const { url, x, y, width, height } = data;
+
+    if (imagesCache[url]) {
+      drawImageObject(imagesCache[url], x, y, width, height, w, h);
+    } else {
+      const img = new Image();
+      img.crossOrigin = 'Anonymous';
+      img.onload = () => {
+        imagesCache[url] = img;
+        drawImageObject(img, x, y, width, height, w, h);
+      };
+      img.src = getPlayableUrl(url); // Au cas où
+    }
+  } else if (type === 'clear') {
+    drawCtx.clearRect(0, 0, w, h);
+  }
+}
+
+function drawImageObject(img, x, y, width, height, w, h) {
+  // width/height sont en % (ex: 0.2 = 20% de la largeur de l'écran)
+  const drawW = width * w;
+  const ratio = img.height / img.width;
+  const drawH = height ? (height * h) : (drawW * ratio);
+
+  // Centré sur x, y
+  drawCtx.drawImage(img, (x * w) - (drawW / 2), (y * h) - (drawH / 2), drawW, drawH);
 }
 
 window.updateOverlayBadge = function updateOverlayBadge() {
@@ -1085,6 +1208,28 @@ function connectSocket() {
   socket.on('force_skip', () => {
     hideAll();
     socket.emit('media_ended');
+  });
+
+  socket.on('start_draw_session', (data) => {
+    if (data.target === CONFIG.pseudo || data.target === 'all') {
+      startDrawSession();
+    }
+  });
+
+  socket.on('end_draw_session', (data) => {
+    if (data.target === CONFIG.pseudo || data.target === 'all') {
+      stopDrawSession(data.target === CONFIG.pseudo); // Seulement le PC cible renvoie l'image
+    }
+  });
+
+  socket.on('draw_event', (eventData) => {
+    handleDrawEvent(eventData);
+  });
+
+  socket.on('draw_clear', () => {
+    if (drawCanvas && drawCtx) {
+      drawCtx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
+    }
   });
 
   // ─── Événements Interactifs ───
