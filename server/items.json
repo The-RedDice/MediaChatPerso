@@ -4,140 +4,162 @@
       "name": "Le Novice",
       "rarity": "commun",
       "description": "Vous commencez tout juste l'aventure.",
-      "howToObtain": "Palier de collection 10% (ou Lootbox Commun)"
+      "howToObtain": "Palier de collection 10% (ou Lootbox Commun)",
+      "passiveIncome": 0
     },
     "T_SAGE": {
       "name": "L'Érudit",
       "rarity": "commun",
       "description": "La connaissance s'accumule.",
-      "howToObtain": "Lootbox Commun"
+      "howToObtain": "Lootbox Commun",
+      "passiveIncome": 0
     },
     "T_MERCENAIRE": {
       "name": "Le Mercenaire",
       "rarity": "commun",
       "description": "Prêt à tout pour des BordelCoins.",
-      "howToObtain": "Lootbox Commun"
+      "howToObtain": "Lootbox Commun",
+      "passiveIncome": 1
     },
     "T_PRO": {
       "name": "Le Pro",
       "rarity": "rare",
       "description": "Vous maîtrisez les bases.",
-      "howToObtain": "Palier de collection 25% (ou Lootbox Rare)"
+      "howToObtain": "Palier de collection 25% (ou Lootbox Rare)",
+      "passiveIncome": 1
     },
     "T_VETERAN": {
       "name": "Le Vétéran",
       "rarity": "rare",
       "description": "Un habitué de la BordelBox.",
-      "howToObtain": "Lootbox Rare"
+      "howToObtain": "Lootbox Rare",
+      "passiveIncome": 1
     },
     "T_MAITRE": {
       "name": "Le Maître",
       "rarity": "rare",
       "description": "Personne ne vous égale.",
-      "howToObtain": "Lootbox Rare"
+      "howToObtain": "Lootbox Rare",
+      "passiveIncome": 1
     },
     "T_TUEUR_BOSS": {
       "name": "Tueur de Boss",
       "rarity": "epique",
       "description": "Vaincre l'invaincu.",
-      "howToObtain": "Tuer un Event Boss"
+      "howToObtain": "Tuer un Event Boss",
+      "passiveIncome": 2
     },
     "T_CHAMPION": {
       "name": "Le Champion",
       "rarity": "epique",
       "description": "Le meilleur parmi les siens.",
-      "howToObtain": "Palier de collection 50% (ou Lootbox Epique)"
+      "howToObtain": "Palier de collection 50% (ou Lootbox Epique)",
+      "passiveIncome": 2
     },
     "T_EXILE": {
       "name": "L'Exilé",
       "rarity": "epique",
       "description": "Banni, mais puissant.",
-      "howToObtain": "Lootbox Epique"
+      "howToObtain": "Lootbox Epique",
+      "passiveIncome": 2
     },
     "T_ROI_BORDEL": {
       "name": "Roi du Bordel",
       "rarity": "legendaire",
       "description": "Gouverner la BordelBox.",
-      "howToObtain": "Palier de collection 75% (ou Lootbox Légendaire)"
+      "howToObtain": "Palier de collection 75% (ou Lootbox Légendaire)",
+      "passiveIncome": 3
     },
     "T_HEROS": {
       "name": "Héros Légendaire",
       "rarity": "legendaire",
       "description": "Une légende vivante.",
-      "howToObtain": "Lootbox Légendaire"
+      "howToObtain": "Lootbox Légendaire",
+      "passiveIncome": 3
     },
     "T_ARCHIMAGE": {
       "name": "L'Archimage",
       "rarity": "legendaire",
       "description": "Maîtrise absolue.",
-      "howToObtain": "Lootbox Légendaire"
+      "howToObtain": "Lootbox Légendaire",
+      "passiveIncome": 3
     },
     "T_DIEU": {
       "name": "Le Dieu",
       "rarity": "mythique",
       "description": "Il est au-dessus de tout.",
-      "howToObtain": "Lootbox Mythique (0.5% chance)"
+      "howToObtain": "Lootbox Mythique (0.5% chance)",
+      "passiveIncome": 5
     },
     "T_ANOMALIE": {
       "name": "L'Anomalie",
       "rarity": "mythique",
       "description": "Une erreur dans le système.",
-      "howToObtain": "Lootbox Mythique (0.5% chance)"
+      "howToObtain": "Lootbox Mythique (0.5% chance)",
+      "passiveIncome": 5
     },
     "T_CREATEUR": {
       "name": "Le Créateur",
       "rarity": "mythique",
       "description": "À l'origine de l'univers BordelBox.",
-      "howToObtain": "Lootbox Mythique (0.5% chance)"
+      "howToObtain": "Lootbox Mythique (0.5% chance)",
+      "passiveIncome": 5
     },
     "T_DAILY_14": {
       "name": "L'Assidu",
       "rarity": "legendaire",
       "untradeable": true,
       "description": "Vous ne ratez aucun jour.",
-      "howToObtain": "Se connecter 14 jours de suite (/daily)"
+      "howToObtain": "Se connecter 14 jours de suite (/daily)",
+      "passiveIncome": 3
     },
     "T_COLL_25": {
       "name": "Collectionneur Débutant",
       "rarity": "rare",
       "untradeable": true,
       "description": "Un bon début.",
-      "howToObtain": "Atteindre 25% de complétion de la Collection"
+      "howToObtain": "Atteindre 25% de complétion de la Collection",
+      "passiveIncome": 1
     },
     "T_COLL_50": {
       "name": "Amateur d'Art",
       "rarity": "epique",
       "untradeable": true,
       "description": "La moitié du chemin est faite.",
-      "howToObtain": "Atteindre 50% de complétion de la Collection"
+      "howToObtain": "Atteindre 50% de complétion de la Collection",
+      "passiveIncome": 2
     },
     "T_COLL_75": {
       "name": "Conservateur",
       "rarity": "legendaire",
       "untradeable": true,
       "description": "Presque tout attrapé.",
-      "howToObtain": "Atteindre 75% de complétion de la Collection"
+      "howToObtain": "Atteindre 75% de complétion de la Collection",
+      "passiveIncome": 3
     },
     "T_COLL_100": {
       "name": "Maitre de l'Univers",
       "rarity": "mythique",
       "untradeable": true,
       "description": "Vous avez vaincu le jeu.",
-      "howToObtain": "Atteindre 100% de complétion de la Collection"
+      "howToObtain": "Atteindre 100% de complétion de la Collection",
+      "passiveIncome": 5
     },
     "T_LUCKY": {
       "name": "Le Chanceux",
       "rarity": "epique",
       "untradeable": true,
       "description": "Béni par les dieux de la RNG.",
-      "howToObtain": "Gagner un Jackpot à la machine à sous"
+      "howToObtain": "Gagner un Jackpot à la machine à sous",
+      "passiveIncome": 2
     },
     "T_MASTER_FISHER": {
       "name": "Maitre Pêcheur",
       "rarity": "legendaire",
       "untradeable": true,
       "description": "Maître incontesté des mers.",
-      "howToObtain": "Pêcher un poisson de rareté Légendaire ou Mythique"
+      "howToObtain": "Pêcher un poisson de rareté Légendaire ou Mythique",
+      "passiveIncome": 3
     },
     "T_JACKPOT": {
       "name": "L'Homme aux 777",
@@ -145,7 +167,8 @@
       "description": "A fait sauter la banque de la machine à sous.",
       "howToObtain": "Gagner 3 Jackpots de suite à la Machine à sous (/slots).",
       "secret": true,
-      "untradeable": true
+      "untradeable": true,
+      "passiveIncome": 5
     }
   },
   "colors": {
@@ -371,6 +394,12 @@
       "rarity": "commun",
       "value": 0
     },
+    "F_SARDINE": {
+      "name": "Sardine",
+      "rarity": "commun",
+      "value": 3,
+      "emoji": "🐟"
+    },
     "F_COD": {
       "name": "Morue",
       "rarity": "commun",
@@ -381,20 +410,44 @@
       "rarity": "rare",
       "value": 12
     },
+    "F_PUFFERFISH": {
+      "name": "Poisson-globe",
+      "rarity": "rare",
+      "value": 15,
+      "emoji": "🐡"
+    },
     "F_TUNA": {
       "name": "Thon",
       "rarity": "epique",
       "value": 35
+    },
+    "F_SWORDFISH": {
+      "name": "Espadon",
+      "rarity": "epique",
+      "value": 45,
+      "emoji": "🐟"
     },
     "F_SHARK": {
       "name": "Requin",
       "rarity": "legendaire",
       "value": 120
     },
+    "F_WHALE": {
+      "name": "Baleine",
+      "rarity": "legendaire",
+      "value": 150,
+      "emoji": "🐋"
+    },
     "F_KRAKEN": {
       "name": "Tentacule du Kraken",
       "rarity": "mythique",
       "value": 400
+    },
+    "F_LEVIATHAN": {
+      "name": "Léviathan",
+      "rarity": "mythique",
+      "value": 500,
+      "emoji": "🐉"
     }
   },
   "baits": {

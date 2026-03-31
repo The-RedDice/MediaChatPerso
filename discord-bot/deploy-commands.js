@@ -121,7 +121,13 @@ const commands = [
          { name: 'Pluie', value: 'pluie' },
          { name: 'Bulles', value: 'bulles' },
          { name: 'Éclairs', value: 'eclairs' }
-       )),
+       ))
+    .addIntegerOption(o =>
+      o.setName('duree')
+       .setDescription('Durée à l\'écran en secondes (Max: 15s)')
+       .setRequired(false)
+       .setMaxValue(15)
+       .setMinValue(1)),
 
   new SlashCommandBuilder()
     .setName('sendfile')
@@ -221,7 +227,13 @@ const commands = [
          { name: 'Pluie', value: 'pluie' },
          { name: 'Bulles', value: 'bulles' },
          { name: 'Éclairs', value: 'eclairs' }
-       )),
+       ))
+    .addIntegerOption(o =>
+      o.setName('duree')
+       .setDescription('Durée à l\'écran en secondes (Max: 15s)')
+       .setRequired(false)
+       .setMaxValue(15)
+       .setMinValue(1)),
 
   new SlashCommandBuilder()
     .setName('event')
@@ -345,7 +357,13 @@ const commands = [
          { name: 'Pluie', value: 'pluie' },
          { name: 'Bulles', value: 'bulles' },
          { name: 'Éclairs', value: 'eclairs' }
-       )),
+       ))
+    .addIntegerOption(o =>
+      o.setName('duree')
+       .setDescription('Durée à l\'écran en secondes (Max: 15s)')
+       .setRequired(false)
+       .setMaxValue(15)
+       .setMinValue(1)),
 
   new SlashCommandBuilder()
     .setName('message')
@@ -427,7 +445,13 @@ const commands = [
          { name: 'Pluie', value: 'pluie' },
          { name: 'Bulles', value: 'bulles' },
          { name: 'Éclairs', value: 'eclairs' }
-       )),
+       ))
+    .addIntegerOption(o =>
+      o.setName('duree')
+       .setDescription('Durée à l\'écran en secondes (Max: 15s)')
+       .setRequired(false)
+       .setMaxValue(15)
+       .setMinValue(1)),
 
   new SlashCommandBuilder()
     .setName('online')

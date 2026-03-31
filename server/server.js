@@ -75,6 +75,44 @@ function cleanupOldMedia() {
 cleanupOldMedia();
 setInterval(cleanupOldMedia, 60 * 60 * 1000);
 
+// ─── Argent Passif / AFK ─────────────────────────────────────────────────────
+
+function distributePassiveIncome() {
+  const { getInventory, getItemsDb, addCoins } = require('./stats');
+  const connectedIds = getConnectedDiscordIds();
+  const itemsDb = getItemsDb();
+
+  for (const discordId of connectedIds) {
+    let income = 1; // Base income for being connected: 1 coin per minute
+
+    // Check equipped titles for passive income bonus
+    const inv = getInventory(discordId);
+    if (inv && inv.equipped && inv.equipped.title) {
+        const equippedTitle = inv.equipped.title;
+        let titleInfo = null;
+        if (itemsDb.titles && itemsDb.titles[equippedTitle]) {
+           titleInfo = itemsDb.titles[equippedTitle];
+        } else {
+           for (const cat in itemsDb) {
+              if (itemsDb[cat][equippedTitle]) {
+                 titleInfo = itemsDb[cat][equippedTitle];
+                 break;
+              }
+           }
+        }
+
+        if (titleInfo && titleInfo.passiveIncome) {
+           income += titleInfo.passiveIncome;
+        }
+    }
+
+    addCoins(discordId, income);
+  }
+}
+
+// Distribuer l'argent passif toutes les minutes
+setInterval(distributePassiveIncome, 60 * 1000);
+
 // ─── App ─────────────────────────────────────────────────────────────────────
 
 const app    = express();
@@ -1142,7 +1180,7 @@ router.post('/style/:userId', requireAuth, (req, res) => {
 
 // POST /api/sendurl
 router.post('/sendurl', requireAuth, async (req, res) => {
-  const { url, target = 'all', caption, senderName, avatarUrl, ttsVoice, greenscreen, filter, userId, color, font, animation, effect } = req.body;
+  const { url, target = 'all', caption, senderName, avatarUrl, ttsVoice, greenscreen, filter, userId, color, font, animation, effect, duration } = req.body;
   if (!url) return res.status(400).json({ error: 'url requis' });
 
   let ttsUrl = '';
@@ -1203,7 +1241,7 @@ router.post('/sendurl', requireAuth, async (req, res) => {
   if (isDirectFile) {
     const result = enqueue(target, {
       type: 'file',
-      payload: { url, fileType, caption: caption || '', senderName: senderName || '', avatarUrl: avatarUrl || '', ttsUrl, greenscreen: !!greenscreen, filter, style: payloadStyle, userId, isRankOne },
+      payload: { url, fileType, caption: caption || '', senderName: senderName || '', avatarUrl: avatarUrl || '', ttsUrl, greenscreen: !!greenscreen, filter, style: payloadStyle, userId, isRankOne, duration },
     });
     if (result?.error) return res.status(404).json(result);
     if (userId) recordAction(userId, senderName, 'file');
@@ -1216,7 +1254,7 @@ router.post('/sendurl', requireAuth, async (req, res) => {
 
     const result = enqueue(target, {
       type: 'media',
-      payload: { ...media, caption: caption || '', senderName: senderName || '', avatarUrl: avatarUrl || '', ttsUrl, greenscreen: !!greenscreen, filter, style: payloadStyle, userId, isRankOne },
+      payload: { ...media, caption: caption || '', senderName: senderName || '', avatarUrl: avatarUrl || '', ttsUrl, greenscreen: !!greenscreen, filter, style: payloadStyle, userId, isRankOne, duration },
     });
     if (result?.error) return res.status(404).json(result);
     if (userId) recordAction(userId, senderName, 'media');
@@ -1231,7 +1269,7 @@ router.post('/sendurl', requireAuth, async (req, res) => {
 
 // POST /api/sendfile  (URL CDN Discord ou autre URL directe)
 router.post('/sendfile', requireAuth, async (req, res) => {
-  const { fileUrl, target = 'all', fileType = 'image', caption, senderName, avatarUrl, ttsVoice, greenscreen, filter, userId, color, font, animation, effect } = req.body;
+  const { fileUrl, target = 'all', fileType = 'image', caption, senderName, avatarUrl, ttsVoice, greenscreen, filter, userId, color, font, animation, effect, duration } = req.body;
   if (!fileUrl) return res.status(400).json({ error: 'fileUrl requis' });
 
   try {
@@ -1260,7 +1298,7 @@ router.post('/sendfile', requireAuth, async (req, res) => {
 
   const result = enqueue(target, {
     type: 'file',
-    payload: { url: fileUrl, fileType, caption: caption || '', senderName: senderName || '', avatarUrl: avatarUrl || '', ttsUrl, greenscreen: !!greenscreen, filter, style: payloadStyle, userId, isRankOne },
+    payload: { url: fileUrl, fileType, caption: caption || '', senderName: senderName || '', avatarUrl: avatarUrl || '', ttsUrl, greenscreen: !!greenscreen, filter, style: payloadStyle, userId, isRankOne, duration },
   });
   if (result?.error) return res.status(404).json(result);
   if (userId) recordAction(userId, senderName, 'file');
@@ -1339,7 +1377,7 @@ router.post('/voteskip', (req, res) => {
 
 // POST /api/ai
 router.post('/ai', requireAuth, async (req, res) => {
-  const { prompt, target = 'all', senderName, avatarUrl, ttsVoice, greenscreen, modele3d, userId, color, font, animation, effect } = req.body;
+  const { prompt, target = 'all', senderName, avatarUrl, ttsVoice, greenscreen, modele3d, userId, color, font, animation, effect, duration } = req.body;
 
   if (!prompt) return res.status(400).json({ error: 'prompt requis' });
 
@@ -1359,7 +1397,7 @@ router.post('/ai', requireAuth, async (req, res) => {
 
     const result = enqueue(target, {
       type: 'message',
-      payload: { text, prompt, senderName: senderName || '', avatarUrl: avatarUrl || '', ttsUrl, greenscreen: !!greenscreen, modele3d: modele3d !== false, style: payloadStyle, userId, isRankOne, isAi: true },
+      payload: { text, prompt, senderName: senderName || '', avatarUrl: avatarUrl || '', ttsUrl, greenscreen: !!greenscreen, modele3d: modele3d !== false, style: payloadStyle, userId, isRankOne, isAi: true, duration },
     });
 
     if (result?.error) return res.status(404).json(result);
@@ -1478,7 +1516,7 @@ router.get('/event/:eventId', (req, res) => {
 
 // POST /api/message
 router.post('/message', requireAuth, async (req, res) => {
-  const { text, target = 'all', senderName, avatarUrl, ttsVoice, greenscreen, userId, color, font, animation, effect } = req.body;
+  const { text, target = 'all', senderName, avatarUrl, ttsVoice, greenscreen, userId, color, font, animation, effect, duration } = req.body;
   if (!text) return res.status(400).json({ error: 'text requis' });
 
   let ttsUrl = '';
@@ -1495,7 +1533,7 @@ router.post('/message', requireAuth, async (req, res) => {
 
   const result = enqueue(target, {
     type: 'message',
-    payload: { text, senderName: senderName || '', avatarUrl: avatarUrl || '', ttsUrl, greenscreen: !!greenscreen, style: payloadStyle, userId, isRankOne },
+    payload: { text, senderName: senderName || '', avatarUrl: avatarUrl || '', ttsUrl, greenscreen: !!greenscreen, style: payloadStyle, userId, isRankOne, duration },
   });
   if (result?.error) return res.status(404).json(result);
   if (userId) recordAction(userId, senderName, 'message');

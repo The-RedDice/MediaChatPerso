@@ -308,13 +308,37 @@ client.on(Events.InteractionCreate, async (interaction) => {
           if (res.error) {
             await interaction.reply({ content: `❌ Erreur : ${res.error}`, ephemeral: true });
           } else {
-             const newEmbed = EmbedBuilder.from(interaction.message.embeds[0]).setColor(0x00FF00).setTitle('✅ Échange accepté et terminé');
+             const newEmbed = EmbedBuilder.from(interaction.message.embeds[0]).setColor(0x00FF00).setTitle('✅ Échange accepté et terminé').setDescription('Les objets ont été transférés.');
              await interaction.update({ embeds: [newEmbed], components: [] });
           }
-        } else {
+        } else if (action === 'decline') {
            await apiPost('/trade/decline', { tradeId, userId: interaction.user.id });
            const newEmbed = EmbedBuilder.from(interaction.message.embeds[0]).setColor(0xFF0000).setTitle('❌ Échange refusé / annulé');
            await interaction.update({ embeds: [newEmbed], components: [] });
+        } else if (action === 'propose') {
+           // Show modal to propose items and coins
+           const modal = new ModalBuilder()
+             .setCustomId(`trade_modal_${tradeId}`)
+             .setTitle('Proposer des objets');
+
+           const itemInput = new TextInputBuilder()
+             .setCustomId('trade_item_input')
+             .setLabel("ID de l'objet (un seul pour l'instant)")
+             .setStyle(TextInputStyle.Short)
+             .setRequired(false);
+
+           const coinInput = new TextInputBuilder()
+             .setCustomId('trade_coin_input')
+             .setLabel("Montant en pièces")
+             .setStyle(TextInputStyle.Short)
+             .setRequired(false);
+
+           modal.addComponents(
+             new ActionRowBuilder().addComponents(itemInput),
+             new ActionRowBuilder().addComponents(coinInput)
+           );
+
+           await interaction.showModal(modal);
         }
       } catch(err) {
          await interaction.reply({ content: `❌ Erreur lors de l'échange.`, ephemeral: true });
@@ -519,10 +543,11 @@ client.on(Events.InteractionCreate, async (interaction) => {
       await interaction.reply({ content: vote ? '✅ Tu as voté pour l\'égalité.' : '🔫 Tu as refusé l\'égalité. Que le bain de sang reprenne !', ephemeral: false });
 
       if (res.drawAccepted === true) {
+         const survivorsStr = res.players.map(id => `<@${id}>`).join(' et ');
          const drawEmbed = new EmbedBuilder()
            .setTitle('🤝 Égalité Acceptée')
            .setColor('#3498db')
-           .setDescription(`Les survivants se sont mis d'accord.\n\nChacun repart avec **${res.payout} BordelCoins** !`);
+           .setDescription(`Les survivants se sont mis d'accord.\n\n${survivorsStr} remportent chacun **${res.payout} BordelCoins** !`);
          await interaction.followUp({ embeds: [drawEmbed], components: [] });
       } else if (res.drawAccepted === false) {
          // One player declined. Resume game.
@@ -790,6 +815,63 @@ client.on(Events.InteractionCreate, async (interaction) => {
     } else if (interaction.isModalSubmit() && customId === 'modal_color') {
       let colorValue = interaction.fields.getTextInputValue('color_input').trim();
       payload.color = colorValue || null;
+    } else if (interaction.isModalSubmit() && customId.startsWith('trade_modal_')) {
+      const tradeId = customId.replace('trade_modal_', '');
+      const itemInput = interaction.fields.getTextInputValue('trade_item_input').trim();
+      const coinInput = interaction.fields.getTextInputValue('trade_coin_input').trim();
+
+      const items = itemInput ? [itemInput] : [];
+      const coins = parseInt(coinInput) || 0;
+
+      const res = await apiPost('/trade/update', { tradeId, userId, offerItems: items, offerCoins: coins });
+
+      if (res.error) {
+         await interaction.reply({ content: `❌ Erreur : ${res.error}`, ephemeral: true });
+      } else {
+         const trade = res.trade;
+
+         // Fetch item names
+         const itemsDbRes = await apiGet(`/items_db?userId=${userId}`).catch(() => null);
+         const getItemName = (id) => {
+            if (itemsDbRes) {
+               for (const cat in itemsDbRes) {
+                  if (itemsDbRes[cat][id]) return itemsDbRes[cat][id].name;
+               }
+            }
+            return id;
+         };
+
+         const senderOfferItems = trade.senderOffer.items.map(getItemName).join(', ') || 'Rien';
+         const receiverOfferItems = trade.receiverOffer.items.map(getItemName).join(', ') || 'Rien';
+
+         let desc = `**Offre de <@${trade.senderId}> :**\n`;
+         desc += `Objets : ${senderOfferItems}\n`;
+         desc += `Pièces : ${trade.senderOffer.coins} 💰\n\n`;
+         desc += `**Offre de <@${trade.receiverId}> :**\n`;
+         desc += `Objets : ${receiverOfferItems}\n`;
+         desc += `Pièces : ${trade.receiverOffer.coins} 💰\n`;
+
+         const newEmbed = EmbedBuilder.from(interaction.message.embeds[0])
+            .setDescription(desc);
+
+         const row = new ActionRowBuilder().addComponents(
+             new ButtonBuilder()
+              .setCustomId(`trade_propose_${tradeId}`)
+              .setLabel('Modifier mon offre')
+              .setStyle(ButtonStyle.Primary),
+             new ButtonBuilder()
+              .setCustomId(`trade_accept_${tradeId}`)
+              .setLabel('Accepter')
+              .setStyle(ButtonStyle.Success),
+             new ButtonBuilder()
+              .setCustomId(`trade_decline_${tradeId}`)
+              .setLabel('Annuler')
+              .setStyle(ButtonStyle.Danger)
+          );
+
+         await interaction.update({ embeds: [newEmbed], components: [row] });
+      }
+      return;
     } else if (interaction.isModalSubmit() && customId.startsWith('modal_meme_')) {
       const messageId = customId.replace('modal_meme_', '');
       const memeName = interaction.fields.getTextInputValue('meme_name_input').trim();
@@ -965,6 +1047,9 @@ client.on(Events.InteractionCreate, async (interaction) => {
         const greenscreen = interaction.options.getBoolean('greenscreen') || false;
         const modele3d = interaction.options.getBoolean('modele3d') !== false; // True by default
         const filter = interaction.options.getString('filtre') || '';
+        let duration = interaction.options.getInteger('duree');
+        if (duration && duration > 15) duration = 15;
+        if (duration) duration *= 1000;
 
         const senderName = interaction.user.displayName || interaction.user.username;
         const avatarUrl  = interaction.user.displayAvatarURL({ size: 64, extension: 'png' });
@@ -982,7 +1067,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
           content: `⏳ Traitement de \`${url}\` en cours…`,
         });
 
-        const data = await apiPost('/sendurl', { url, target, caption, senderName, avatarUrl, ttsVoice, greenscreen, filter, userId, color, font, animation, effect });
+        const data = await apiPost('/sendurl', { url, target, caption, senderName, avatarUrl, ttsVoice, greenscreen, filter, userId, color, font, animation, effect, duration });
 
         if (data.error) {
           await interaction.editReply(`❌ Erreur : ${data.error}`);
@@ -1026,6 +1111,9 @@ client.on(Events.InteractionCreate, async (interaction) => {
         const greenscreen = interaction.options.getBoolean('greenscreen') || false;
         const modele3d = interaction.options.getBoolean('modele3d') !== false; // True by default
         const filter = interaction.options.getString('filtre') || '';
+        let duration = interaction.options.getInteger('duree');
+        if (duration && duration > 15) duration = 15;
+        if (duration) duration *= 1000;
 
         if (attachment.size > 250 * 1024 * 1024) {
           await interaction.editReply(`❌ Erreur : Le fichier dépasse la limite de 250 Mo.`);
@@ -1057,7 +1145,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
           return;
         }
 
-        const data = await apiPost('/sendfile', { fileUrl, fileType, target, caption, senderName, avatarUrl, ttsVoice, greenscreen, filter, userId, color, font, animation, effect });
+        const data = await apiPost('/sendfile', { fileUrl, fileType, target, caption, senderName, avatarUrl, ttsVoice, greenscreen, filter, userId, color, font, animation, effect, duration });
 
         if (data.error) {
           await interaction.editReply(`❌ Erreur : ${data.error}`);
@@ -1391,7 +1479,11 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
            let desc = '';
            for (const l of res.listings.slice(0, 20)) {
-              const itemName = l.itemInfo ? l.itemInfo.name : l.itemId;
+              let itemName = l.itemInfo ? l.itemInfo.name : l.itemId;
+              if (l.itemInfo && l.itemInfo.rarity) {
+                 const rarityStr = l.itemInfo.rarity.charAt(0).toUpperCase() + l.itemInfo.rarity.slice(1);
+                 itemName += ` (${rarityStr})`;
+              }
               desc += `\`${l.id}\` | **${itemName}** vendu par *${l.sellerName}* pour 💰 **${l.price}**\n`;
            }
            embed.setDescription(desc || '*Aucune offre.*');
@@ -1439,6 +1531,11 @@ client.on(Events.InteractionCreate, async (interaction) => {
         const targetId = targetUser.id;
         const senderId = interaction.user.id;
 
+        if (targetId === senderId) {
+            await interaction.editReply("❌ Tu ne peux pas échanger avec toi-même.");
+            break;
+        }
+
         const res = await apiPost('/trade/request', {
            senderId,
            senderName: interaction.user.displayName || interaction.user.username,
@@ -1454,16 +1551,20 @@ client.on(Events.InteractionCreate, async (interaction) => {
         const embed = new EmbedBuilder()
           .setColor(0x3498DB)
           .setTitle('🤝 Proposition d\'échange')
-          .setDescription(`<@${targetId}>, <@${senderId}> te propose un échange ! Malheureusement la fonctionnalité de trading sur Discord n'est pas encore terminée. Cette commande sera implémentée dans la version web (dashboard).`);
+          .setDescription(`<@${targetId}>, <@${senderId}> te propose un échange ! Cliquez sur "Proposer" pour ajouter vos objets et/ou vos pièces à l'échange.`);
 
         const row = new ActionRowBuilder().addComponents(
            new ButtonBuilder()
+            .setCustomId(`trade_propose_${res.tradeId}`)
+            .setLabel('Proposer des objets/pièces')
+            .setStyle(ButtonStyle.Primary),
+           new ButtonBuilder()
             .setCustomId(`trade_decline_${res.tradeId}`)
-            .setLabel('Fermer')
+            .setLabel('Annuler')
             .setStyle(ButtonStyle.Danger)
         );
 
-        await interaction.editReply({ content: `<@${targetId}>`, embeds: [embed], components: [row] });
+        await interaction.editReply({ content: `<@${targetId}> <@${senderId}>`, embeds: [embed], components: [row] });
         break;
       }
 
@@ -1951,6 +2052,9 @@ client.on(Events.InteractionCreate, async (interaction) => {
         const ttsVoice = interaction.options.getString('tts') || '';
         const greenscreen = interaction.options.getBoolean('greenscreen') || false;
         const modele3d = interaction.options.getBoolean('modele3d') !== false; // True by default
+        let duration = interaction.options.getInteger('duree');
+        if (duration && duration > 15) duration = 15;
+        if (duration) duration *= 1000;
 
         const senderName = interaction.user.displayName || interaction.user.username;
         const avatarUrl  = interaction.user.displayAvatarURL({ size: 64, extension: 'png' });
@@ -1966,7 +2070,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
         await interaction.editReply(`🤖 Génération de la réponse IA pour "${prompt}"...`);
 
-        const data = await apiPost('/ai', { prompt, target, senderName, avatarUrl, ttsVoice, greenscreen, modele3d, userId, color, font, animation, effect });
+        const data = await apiPost('/ai', { prompt, target, senderName, avatarUrl, ttsVoice, greenscreen, modele3d, userId, color, font, animation, effect, duration });
 
         if (data.error) {
           await interaction.editReply(`❌ Erreur IA : ${data.error}`);
@@ -1988,6 +2092,9 @@ client.on(Events.InteractionCreate, async (interaction) => {
         const ttsVoice = interaction.options.getString('tts') || '';
         const greenscreen = interaction.options.getBoolean('greenscreen') || false;
         const modele3d = interaction.options.getBoolean('modele3d') !== false; // True by default
+        let duration = interaction.options.getInteger('duree');
+        if (duration && duration > 15) duration = 15;
+        if (duration) duration *= 1000;
 
         const senderName = interaction.user.displayName || interaction.user.username;
         const avatarUrl  = interaction.user.displayAvatarURL({ size: 64, extension: 'png' });
@@ -2001,7 +2108,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
         const animation = interaction.options.getString('animation') || profile.animation;
         const effect = interaction.options.getString('effet') || profile.effect;
 
-        const data = await apiPost('/message', { text, target, senderName, avatarUrl, ttsVoice, greenscreen, userId, color, font, animation, effect });
+        const data = await apiPost('/message', { text, target, senderName, avatarUrl, ttsVoice, greenscreen, userId, color, font, animation, effect, duration });
 
         if (data.error) {
           await interaction.editReply(`❌ Erreur : ${data.error}`);

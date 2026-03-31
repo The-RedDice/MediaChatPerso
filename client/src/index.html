@@ -37,11 +37,13 @@
     #media-video, #media-image {
       border-radius: 12px;
       box-shadow: 0 0 80px rgba(0,0,0,0.8);
-      pointer-events: none;
+      pointer-events: auto;
       max-width: calc(var(--media-size, 80) * 1vw);
       max-height: calc(var(--media-size, 80) * 1vh);
       object-fit: contain;
+      transition: opacity 0.2s ease;
     }
+    #media-video:hover, #media-image:hover { opacity: 0.15 !important; }
     #media-video { display: block; }
     #media-image { display: none; }
 
@@ -263,6 +265,8 @@
     #message-container.visible { opacity: var(--overlay-opacity, 1); }
 
     #message-text {
+      pointer-events: auto;
+      transition: opacity 0.2s ease;
       font-family: 'Arial Black', Impact, sans-serif;
       font-size: clamp(3rem, var(--message-size, 8vw), 25rem);
       font-weight: 900;
@@ -280,6 +284,7 @@
       position: relative;
       z-index: 2;
     }
+    #message-text:hover { opacity: 0.15 !important; }
 
     .effects-wrapper {
       position: absolute;

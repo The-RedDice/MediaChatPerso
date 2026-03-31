@@ -528,7 +528,7 @@ function handleFile(payload) {
       mediaCaption.classList.add('visible');
     }
 
-    let waitTime = 5000;
+    let waitTime = payload.duration || 5000;
     let endedEmitted = false;
 
     const endFile = () => {
@@ -721,7 +721,7 @@ function handleMessage(payload) {
   }
   messageContainer.classList.add('visible');
 
-  let duration = Math.min(20000, Math.max(6000, payload.text.length * 100));
+  let duration = payload.duration || Math.min(20000, Math.max(6000, payload.text.length * 100));
   let endedEmitted = false;
 
   const endMsg = () => {
@@ -970,6 +970,7 @@ function startDrawSession() {
 
   drawCtx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
   drawCanvas.style.opacity = '1';
+  drawCanvas.style.pointerEvents = 'auto'; // allow hover transparency
   isDrawSessionActive = true;
 
   console.log('[Draw] Mode dessin activé');
@@ -988,6 +989,7 @@ function stopDrawSession(emitScreenshot = true) {
 
   // Effacer l'écran après un petit délai
   drawCanvas.style.opacity = '0';
+  drawCanvas.style.pointerEvents = 'none';
   setTimeout(() => {
     if (drawCtx) drawCtx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
     imagesCache = {}; // Vider le cache

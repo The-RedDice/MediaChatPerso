@@ -56,8 +56,9 @@ mod win_clickthrough {
             let ex = GetWindowLongPtrW(hwnd, GWL_EXSTYLE);
             // On ajoute aussi WS_EX_TOOLWINDOW pour cacher de l'Alt-Tab et s'assurer
             // que c'est bien une fenêtre "overlay", ce qui aide avec certains jeux en plein écran.
+            // On RETIRE WS_EX_TRANSPARENT pour que les événements hover CSS fonctionnent sur l'overlay.
             SetWindowLongPtrW(hwnd, GWL_EXSTYLE,
-                ex | WS_EX_LAYERED.0 as isize | WS_EX_TRANSPARENT.0 as isize | WS_EX_TOOLWINDOW.0 as isize);
+                (ex | WS_EX_LAYERED.0 as isize | WS_EX_TOOLWINDOW.0 as isize) & !(WS_EX_TRANSPARENT.0 as isize));
 
             // Force l'affichage en TOPMOST par-dessus le reste (fait aussi par le thread)
             let _ = SetWindowPos(

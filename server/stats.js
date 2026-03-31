@@ -1026,11 +1026,16 @@ function getCollectionProgress(userId) {
 // Fishing
 const FISHING_LOOT_TABLE = [
   { id: 'F_TRASH', weight: 4000 },
+  { id: 'F_SARDINE', weight: 3500 },
   { id: 'F_COD', weight: 3000 },
   { id: 'F_SALMON', weight: 1500 },
+  { id: 'F_PUFFERFISH', weight: 1200 },
   { id: 'F_TUNA', weight: 1000 },
+  { id: 'F_SWORDFISH', weight: 800 },
   { id: 'F_SHARK', weight: 400 },
+  { id: 'F_WHALE', weight: 200 },
   { id: 'F_KRAKEN', weight: 90 },
+  { id: 'F_LEVIATHAN', weight: 40 },
   { id: 'LOOTBOX', weight: 10 }
 ];
 
@@ -1424,6 +1429,17 @@ function startRoulette(rouletteId) {
 
   const magStats = loadMagazine(roulette);
 
+  const totalPot = roulette.players.length * roulette.amount;
+  if (totalPot >= 100) {
+      const server = require('./server.js');
+      // On affiche aussi qui doit tirer (les pseudos ne sont pas garantis en base de la même façon, on va juste utiliser les IDs bruts ou "Le prochain")
+      const text = `🚨 BUCKSHOT ROULETTE 🚨\n💰 Cagnotte: ${totalPot} pièces\n🔫 C'est au tour de quelqu'un de tirer !\n🔴 ${magStats.liveCount} | ⚪ ${magStats.blankCount}`;
+      server.enqueue('all', {
+         type: 'message',
+         payload: { text, senderName: 'Système', isAi: false, duration: 10000, style: { animation: 'pulse', color: '#ff0000' } }
+      });
+  }
+
   return {
      ok: true,
      players: roulette.alivePlayers,
@@ -1481,12 +1497,20 @@ function shootRoulette(rouletteId, shooterId, targetId) {
   // Check win condition
   if (roulette.alivePlayers.length === 1) {
       const winner = roulette.alivePlayers[0];
-      const totalPot = roulette.players.length * roulette.amount;
-      const tax = Math.floor(totalPot * 0.05);
-      const payout = totalPot - tax;
+      const totalPotVal = roulette.players.length * roulette.amount;
+      const tax = Math.floor(totalPotVal * 0.05);
+      const payout = totalPotVal - tax;
       addCoins(winner, payout);
       activeRoulettes.delete(rouletteId);
       saveStats();
+      if (totalPotVal >= 100) {
+          const server = require('./server.js');
+          server.enqueue('all', {
+             type: 'message',
+             payload: { text: `🎉 La roulette est terminée, le gagnant remporte ${payout} pièces !`, senderName: 'Système', isAi: false, duration: 10000, style: { animation: 'bounce', color: '#ff0000' } }
+          });
+      }
+
       return {
          ok: true,
          state: 'finished',
@@ -1507,6 +1531,17 @@ function shootRoulette(rouletteId, shooterId, targetId) {
       // Reset turn to the other guy, but wait, let's keep turn index 0 for the remaining 2,
       // they will resume randomly or the next guy. We'll set it to next guy.
       roulette.currentTurnIndex = (roulette.currentTurnIndex + 1) % roulette.alivePlayers.length;
+
+      const totalPot = roulette.players.length * roulette.amount;
+      if (totalPot >= 100) {
+          const server = require('./server.js');
+          const text = `💥 ${isLive ? 'BOOM (Vraie balle)' : '*Clic* (Balle à blanc)'}\n🔫 La cible a ${victimDied ? 'péri' : 'survécu'}.\n🤝 Proposition d'égalité en cours...`;
+          server.enqueue('all', {
+             type: 'message',
+             payload: { text, senderName: 'Système', isAi: false, duration: 10000, style: { animation: 'pulse', color: '#ff0000' } }
+          });
+      }
+
       return {
          ok: true,
          state: 'draw_proposed',
@@ -1536,6 +1571,25 @@ function shootRoulette(rouletteId, shooterId, targetId) {
   } else {
       liveCount = roulette.magazine.filter(b => b).length;
       blankCount = roulette.magazine.filter(b => !b).length;
+  }
+
+  const totalPot = roulette.players.length * roulette.amount;
+  if (totalPot >= 100) {
+      const server = require('./server.js');
+      let text = `💥 ${isLive ? 'BOOM (Vraie balle)' : '*Clic* (Balle à blanc)'}\n`;
+      if (victimDied) {
+          text += `💀 Un joueur est éliminé.\n`;
+      } else {
+          text += `🩷 Il lui reste ${victimLivesRemaining} vies.\n`;
+      }
+
+      text += `\n🔴 ${liveCount} | ⚪ ${blankCount}`;
+      if (reloaded) text += `\n🔄 Fusil rechargé !`;
+
+      server.enqueue('all', {
+         type: 'message',
+         payload: { text, senderName: 'Système', isAi: false, duration: 10000, style: { animation: 'shake', color: '#ff0000' } }
+      });
   }
 
   return {
@@ -1577,6 +1631,15 @@ function voteDrawRoulette(rouletteId, userId, vote) {
      } else {
          liveCount = roulette.magazine.filter(b => b).length;
          blankCount = roulette.magazine.filter(b => !b).length;
+     }
+
+     const totalPot = roulette.players.length * roulette.amount;
+     if (totalPot >= 100) {
+         const server = require('./server.js');
+         server.enqueue('all', {
+            type: 'message',
+            payload: { text: `🔫 Un joueur a refusé l'égalité ! Le massacre reprend.`, senderName: 'Système', isAi: false, duration: 10000, style: { animation: 'bounce', color: '#ff0000' } }
+         });
      }
 
      return { ok: true, drawAccepted: false, message: 'Un joueur a refusé l\'égalité ! La partie reprend.', nextPlayer, reloaded, liveCount, blankCount };
