@@ -226,15 +226,16 @@
                 <label>Outil:</label>
                 <select id="draw-tool" style="padding: 5px; background: #333; color: white; border: none; border-radius: 4px;">
                    <option value="brush">Pinceau</option>
+                   <option value="eraser">Gomme</option>
                    <option value="text">Texte</option>
                    <option value="image">Image/GIF</option>
                 </select>
              </div>
 
-             <!-- Brush Options -->
+             <!-- Brush / Eraser Options -->
              <div id="tool-opt-brush" style="display: flex; align-items: center; gap: 10px;">
                 <input type="color" id="draw-color" value="#ff3c6e" style="cursor: pointer; width: 30px; height: 30px; border: none; border-radius: 4px; padding: 0;">
-                <input type="range" id="draw-size" min="1" max="50" value="5" style="width: 100px;">
+                <input type="range" id="draw-size" min="1" max="50" value="5" style="width: 100px;" title="Taille (Pinceau/Gomme)">
              </div>
 
              <!-- Text Options -->

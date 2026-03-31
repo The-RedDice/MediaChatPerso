@@ -1009,6 +1009,7 @@ function handleDrawEvent(event) {
 
   if (type === 'line') {
     const { x0, y0, x1, y1, color, width } = data;
+    drawCtx.globalCompositeOperation = 'source-over';
     drawCtx.beginPath();
     drawCtx.moveTo(x0 * w, y0 * h);
     drawCtx.lineTo(x1 * w, y1 * h);
@@ -1017,7 +1018,20 @@ function handleDrawEvent(event) {
     drawCtx.lineCap = 'round';
     drawCtx.lineJoin = 'round';
     drawCtx.stroke();
+  } else if (type === 'erase') {
+    const { x0, y0, x1, y1, width } = data;
+    drawCtx.globalCompositeOperation = 'destination-out';
+    drawCtx.beginPath();
+    drawCtx.moveTo(x0 * w, y0 * h);
+    drawCtx.lineTo(x1 * w, y1 * h);
+    drawCtx.strokeStyle = 'rgba(0,0,0,1)';
+    drawCtx.lineWidth = width || 5;
+    drawCtx.lineCap = 'round';
+    drawCtx.lineJoin = 'round';
+    drawCtx.stroke();
+    drawCtx.globalCompositeOperation = 'source-over'; // restore immediately
   } else if (type === 'text') {
+    drawCtx.globalCompositeOperation = 'source-over';
     const { text, x, y, color, font, size } = data;
     const pxSize = (size || 30) * (w / 1920); // Échelle basique par rapport au 1080p
     drawCtx.font = `bold ${pxSize}px ${font || 'Arial'}`;
@@ -1039,6 +1053,7 @@ function handleDrawEvent(event) {
     drawCtx.shadowOffsetX = 0;
     drawCtx.shadowOffsetY = 0;
   } else if (type === 'image') {
+    drawCtx.globalCompositeOperation = 'source-over';
     const { url, x, y, width, height } = data;
 
     if (imagesCache[url]) {

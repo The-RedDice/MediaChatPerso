@@ -688,9 +688,12 @@ function setupDrawCanvas() {
 
   select.addEventListener('change', (e) => {
     currentTool = e.target.value;
-    document.getElementById('tool-opt-brush').style.display = currentTool === 'brush' ? 'flex' : 'none';
+    document.getElementById('tool-opt-brush').style.display = (currentTool === 'brush' || currentTool === 'eraser') ? 'flex' : 'none';
     document.getElementById('tool-opt-text').style.display = currentTool === 'text' ? 'flex' : 'none';
     document.getElementById('tool-opt-image').style.display = currentTool === 'image' ? 'flex' : 'none';
+
+    // Hide color picker for eraser but keep size slider
+    document.getElementById('draw-color').style.display = currentTool === 'eraser' ? 'none' : 'block';
 
     // Reset ghost
     document.getElementById('draw-preview-ghost').style.display = 'none';
@@ -758,7 +761,7 @@ function setupDrawCanvas() {
     const normX = x / rect.width;
     const normY = y / rect.height;
 
-    if (currentTool === 'brush') {
+    if (currentTool === 'brush' || currentTool === 'eraser') {
       isDrawing = true;
       lastX = normX;
       lastY = normY;
@@ -770,7 +773,7 @@ function setupDrawCanvas() {
   };
 
   const draw = (e) => {
-    if (!isDrawing || currentTool !== 'brush') return;
+    if (!isDrawing || (currentTool !== 'brush' && currentTool !== 'eraser')) return;
     e.preventDefault(); // prevent scrolling on touch
 
     const rect = canvas.getBoundingClientRect();
@@ -785,22 +788,31 @@ function setupDrawCanvas() {
     const color = document.getElementById('draw-color').value;
     const size = parseInt(document.getElementById('draw-size').value, 10);
 
-    // Draw locally for immediate feedback
+    // Local Draw
     drawCanvasCtx.beginPath();
     drawCanvasCtx.moveTo(lastX * rect.width, lastY * rect.height);
     drawCanvasCtx.lineTo(normX * rect.width, normY * rect.height);
-    drawCanvasCtx.strokeStyle = color;
     drawCanvasCtx.lineWidth = size * (rect.width / 1920); // rough scale
     drawCanvasCtx.lineCap = 'round';
-    drawCanvasCtx.stroke();
+
+    if (currentTool === 'eraser') {
+      drawCanvasCtx.globalCompositeOperation = 'destination-out';
+      drawCanvasCtx.strokeStyle = "rgba(0,0,0,1)";
+      drawCanvasCtx.stroke();
+      drawCanvasCtx.globalCompositeOperation = 'source-over'; // restore
+    } else {
+      drawCanvasCtx.globalCompositeOperation = 'source-over';
+      drawCanvasCtx.strokeStyle = color;
+      drawCanvasCtx.stroke();
+    }
 
     // Emit to server
     if (socket) {
       socket.emit('draw_event', {
         target: getTargetStr(),
         event: {
-          type: 'line',
-          data: { x0: lastX, y0: lastY, x1: normX, y1: normY, color, width: size }
+          type: currentTool === 'eraser' ? 'erase' : 'line',
+          data: { x0: lastX, y0: lastY, x1: normX, y1: normY, color: currentTool === 'eraser' ? null : color, width: size }
         }
       });
     }
