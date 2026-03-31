@@ -26,6 +26,7 @@ const { getInventory, addLootbox, openLootbox, equipItem, getItemsDb, claimDaily
 const { getListings, createListing, buyListing, cancelListing } = require('./market');
 const { createTradeRequest, updateTradeOffer, acceptTrade, declineTrade, getTrade, getPendingTrades } = require('./trade');
 const { startEvent, interactEvent, getActiveEvent, getEventById } = require('./events');
+const { canStartSession, startSession, getSessionState, endSession } = require('./draw');
 
 // Initialiser l'API IA
 initAI();
@@ -353,6 +354,50 @@ io.on('connection', (socket) => {
       console.log(`[-] ${myPseudo} déconnecté`);
       io.emit('clients_update', getClientList());
     }
+  });
+
+  // ─── Draw Session Events ───
+  socket.on('draw_event', (data) => {
+    // Relay drawing events to the target overlay
+    const { target, event } = data;
+    const client = clients.get(target);
+    if (client) {
+      io.to(client.socketId).emit('draw_event', event);
+    }
+  });
+
+  socket.on('draw_clear', (data) => {
+    const { target } = data;
+    const client = clients.get(target);
+    if (client) {
+      io.to(client.socketId).emit('draw_clear');
+    }
+  });
+
+  // Received from the Tauri client at the end of a session
+  socket.on('draw_screenshot', async (data) => {
+    const { target, base64Image } = data;
+    if (!base64Image) return;
+
+    // We send this buffer to Discord via the bot or directly via webhook/API
+    // But since the bot has its own file, we can either emit an event the bot listens to,
+    // or post it to an internal route, or save it and let the bot pick it up.
+    // The cleanest way is emitting a server event the discord bot can listen to or using an API route.
+
+    // Convert base64 to Buffer
+    const base64Data = base64Image.replace(/^data:image\/png;base64,/, "");
+    const buffer = Buffer.from(base64Data, 'base64');
+
+    // Save locally
+    const filename = `draw_${target}_${Date.now()}.png`;
+    const filepath = path.join(MEDIA_DIR, filename);
+    fs.writeFile(filepath, buffer, (err) => {
+      if (err) console.error('[Draw] Erreur sauvegarde screenshot:', err);
+      else console.log(`[Draw] Screenshot sauvegardé: ${filename}`);
+
+      // Let Discord bot know
+      io.emit('discord_draw_result', { target, fileUrl: `${SERVER_URL}/media/${filename}` });
+    });
   });
 });
 
@@ -1381,6 +1426,36 @@ router.post('/event/interact', (req, res) => {
 // GET /api/event/active
 router.get('/event/active', (_req, res) => {
   res.json({ event: getActiveEvent() });
+});
+
+// ─── API Draw Sessions ───────────────────────────────────────────────────────
+
+router.get('/draw/state/:target', (req, res) => {
+  const { target } = req.params;
+  const state = getSessionState(target);
+  res.json(state);
+});
+
+router.post('/draw/start', requireAuth, (req, res) => {
+  const { target } = req.body;
+
+  if (!target || target === 'all') {
+    return res.status(400).json({ error: 'Une cible spécifique est requise.' });
+  }
+
+  const client = clients.get(target);
+  if (!client) {
+    return res.status(404).json({ error: 'Cible introuvable ou hors ligne.' });
+  }
+
+  const success = startSession(io, target);
+
+  if (!success) {
+    return res.status(400).json({ error: 'Impossible de démarrer la session (déjà en cours ou en cooldown).' });
+  }
+
+  const state = getSessionState(target);
+  res.json({ ok: true, state });
 });
 
 // GET /api/event/:eventId

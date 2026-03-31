@@ -117,6 +117,7 @@
           <div class="tab" id="tab-upload" onclick="switchTab('upload')">📎 Upload Fichier</div>
           <div class="tab" id="tab-trade" onclick="switchTab('trade')">🤝 Échanges</div>
           <div class="tab" id="tab-inventory" onclick="switchTab('inventory')">🎒 Inventaire</div>
+          <div class="tab" id="tab-draw" onclick="switchTab('draw')">🖌️ Dessin en Direct</div>
         </div>
 
         <!-- Inventory Tab -->
@@ -201,6 +202,67 @@
           </div>
         </div>
 
+      <!-- Draw Tab -->
+      <div class="card" id="content-draw" style="display: none;">
+        <h3 style="margin-bottom: 15px;">🖌️ Dessin en Direct</h3>
+
+        <div id="draw-info" style="color: #ccc; margin-bottom: 15px;">
+          Sélectionnez une cible pour voir si une session de dessin est disponible.
+        </div>
+
+        <div id="draw-actions" style="display: none; margin-bottom: 20px;">
+           <button class="btn btn-primary" id="btn-start-draw" onclick="startDrawSession()" style="width: 100%; padding: 15px; font-size: 1.1rem; font-weight: bold; text-transform: uppercase; letter-spacing: 1px;">Lancer une Session de Dessin (1min30)</button>
+        </div>
+
+        <div id="draw-workspace" style="display: none;">
+           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+              <div style="color: #ff3c6e; font-weight: bold; font-size: 1.2rem;" id="draw-timer">⏳ 01:30</div>
+              <button class="btn btn-danger" onclick="clearDrawCanvas()" style="padding: 5px 15px; font-size: 0.9rem;">Tout Effacer</button>
+           </div>
+
+           <div style="display: flex; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; background: rgba(0,0,0,0.3); padding: 10px; border-radius: 8px;">
+             <!-- Tools -->
+             <div style="display: flex; align-items: center; gap: 5px;">
+                <label>Outil:</label>
+                <select id="draw-tool" style="padding: 5px; background: #333; color: white; border: none; border-radius: 4px;">
+                   <option value="brush">Pinceau</option>
+                   <option value="text">Texte</option>
+                   <option value="image">Image/GIF</option>
+                </select>
+             </div>
+
+             <!-- Brush Options -->
+             <div id="tool-opt-brush" style="display: flex; align-items: center; gap: 10px;">
+                <input type="color" id="draw-color" value="#ff3c6e" style="cursor: pointer; width: 30px; height: 30px; border: none; border-radius: 4px; padding: 0;">
+                <input type="range" id="draw-size" min="1" max="50" value="5" style="width: 100px;">
+             </div>
+
+             <!-- Text Options -->
+             <div id="tool-opt-text" style="display: none; align-items: center; gap: 10px;">
+                <input type="text" id="draw-text-input" placeholder="Tapez un texte..." style="padding: 5px; border-radius: 4px; border: none;">
+                <input type="color" id="draw-text-color" value="#ffffff" style="cursor: pointer; width: 30px; height: 30px; border: none; border-radius: 4px; padding: 0;">
+                <input type="number" id="draw-text-size" value="40" min="10" max="200" style="width: 60px; padding: 5px; border-radius: 4px; border: none;">
+                <button class="btn btn-primary" onclick="setDrawTextCursor()" style="padding: 5px 10px;">Placer</button>
+             </div>
+
+             <!-- Image Options -->
+             <div id="tool-opt-image" style="display: none; align-items: center; gap: 10px; flex-wrap: wrap;">
+                <input type="file" id="draw-image-input" accept="image/*" style="width: 150px;">
+                <span style="font-size: 0.8rem; color: #888;">Taille:</span>
+                <input type="range" id="draw-image-size" min="5" max="100" value="20" style="width: 80px;" title="% de l'écran">
+                <button class="btn btn-primary" onclick="setDrawImageCursor()" style="padding: 5px 10px;">Placer</button>
+             </div>
+           </div>
+
+           <!-- The Canvas Area (16:9 aspect ratio relative) -->
+           <div id="draw-canvas-container" style="position: relative; width: 100%; aspect-ratio: 16/9; background: #000; border: 2px solid #555; border-radius: 8px; overflow: hidden; cursor: crosshair; touch-action: none;">
+              <canvas id="dashboard-draw-canvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"></canvas>
+              <!-- Ghost element for placement preview -->
+              <div id="draw-preview-ghost" style="position: absolute; pointer-events: none; opacity: 0.5; display: none; transform: translate(-50%, -50%); border: 1px dashed white;"></div>
+           </div>
+        </div>
+      </div>
+
       </div>
     </section>
   </main>
@@ -213,14 +275,20 @@
       document.getElementById('tab-upload').classList.remove('active');
       document.getElementById('tab-trade').classList.remove('active');
       document.getElementById('tab-inventory').classList.remove('active');
+      document.getElementById('tab-draw').classList.remove('active');
 
       document.getElementById('content-soundboard').style.display = 'none';
       document.getElementById('content-upload').style.display = 'none';
       document.getElementById('content-trade').style.display = 'none';
       document.getElementById('content-inventory').style.display = 'none';
+      document.getElementById('content-draw').style.display = 'none';
 
       document.getElementById('tab-' + tabName).classList.add('active');
       document.getElementById('content-' + tabName).style.display = 'block';
+
+      if (tabName === 'draw') {
+        checkDrawState();
+      }
     }
   </script>
 </body>

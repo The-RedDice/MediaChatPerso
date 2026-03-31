@@ -7,7 +7,8 @@
 
 require('dotenv').config({ path: '../.env' });
 
-const { Client, GatewayIntentBits, Events, ActivityType, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, EmbedBuilder } = require('discord.js');
+const { Client, GatewayIntentBits, Events, ActivityType, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, EmbedBuilder, AttachmentBuilder } = require('discord.js');
+const io = require('socket.io-client');
 // fetch est natif depuis Node.js 18 — pas besoin de node-fetch
 
 // ─── Config ──────────────────────────────────────────────
@@ -161,6 +162,35 @@ client.once(Events.ClientReady, async (c) => {
   await updatePresence();
   // Rafraîchit la présence toutes les 30 secondes
   setInterval(updatePresence, 30_000);
+
+  // Connect to the Socket.io server to listen for draw results
+  const socket = io(SERVER_URL);
+
+  socket.on('connect', () => {
+    console.log('[Bot] Connecté au serveur Socket.io pour les événements.');
+  });
+
+  socket.on('discord_draw_result', async (data) => {
+    const { target, fileUrl } = data;
+    if (!REPUTATION_CHANNEL_ID) return;
+
+    try {
+      const channel = await client.channels.fetch(REPUTATION_CHANNEL_ID);
+      if (!channel || !channel.isTextBased()) return;
+
+      const embed = new EmbedBuilder()
+        .setColor(0xED4245)
+        .setTitle('🖌️ Fin de session de dessin !')
+        .setDescription(`Le dessin en direct sur l'écran de **${target}** est terminé. Voici l'œuvre :`)
+        .setImage('attachment://draw.png');
+
+      const attachment = new AttachmentBuilder(fileUrl, { name: 'draw.png' });
+
+      await channel.send({ embeds: [embed], files: [attachment] });
+    } catch (err) {
+      console.error('[Bot Draw Result] Erreur envoi channel:', err);
+    }
+  });
 });
 
 // ─── Gestion des interactions ────────────────────────────

@@ -10,6 +10,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Vérifier l'état de l'authentification
   await checkAuthStatus();
 
+  // Initialize the drawing canvas logic
+  setupDrawCanvas();
+
   // Afficher un message d'erreur si on revient de l'auth avec une erreur
   const urlParams = new URLSearchParams(window.location.search);
   const error = urlParams.get('error');
@@ -507,6 +510,38 @@ function initSocket() {
   socket.on('clients_update', (clients) => {
     updateTargetPills(clients);
   });
+
+  // Real-time draw session notifications
+  socket.on('draw_session_state', (data) => {
+    // Si l'utilisateur est sur l'onglet dessin et a sélectionné la cible concernée
+    if (document.getElementById('tab-draw').classList.contains('active') && getTargetStr() === data.target) {
+      checkDrawState();
+    } else if (data.active) {
+      // Sinon, on peut afficher une petite notification globale
+      showToast(`🖌️ Une session de dessin vient de commencer sur l'écran de ${data.target} !`);
+    }
+  });
+}
+
+function showToast(message) {
+  const notif = document.createElement('div');
+  notif.style.position = 'fixed';
+  notif.style.bottom = '20px';
+  notif.style.right = '20px';
+  notif.style.background = '#5865F2';
+  notif.style.color = 'white';
+  notif.style.padding = '10px 20px';
+  notif.style.borderRadius = '8px';
+  notif.style.zIndex = '9999';
+  notif.style.boxShadow = '0 4px 12px rgba(0,0,0,0.5)';
+  notif.style.transition = 'opacity 0.3s ease';
+  notif.textContent = message;
+  document.body.appendChild(notif);
+
+  setTimeout(() => {
+    notif.style.opacity = '0';
+    setTimeout(() => notif.remove(), 300);
+  }, 4000);
 }
 
 function updateTargetPills(clients) {
@@ -523,12 +558,29 @@ function updateTargetPills(clients) {
     const label = document.createElement('label');
     label.className = 'radio-pill';
     label.innerHTML = `<input type="radio" name="target" value="${c}"> ${c}`;
+
+    // Add change listener to update draw state if draw tab is active
+    label.querySelector('input').addEventListener('change', () => {
+       if (document.getElementById('tab-draw').classList.contains('active')) {
+          checkDrawState();
+       }
+    });
+
     container.appendChild(label);
   });
 
+  // Add listener for "all" too
+  const allRadio = document.querySelector('input[name="target"][value="all"]');
+  if (allRadio) {
+     allRadio.addEventListener('change', () => {
+        if (document.getElementById('tab-draw').classList.contains('active')) {
+           checkDrawState();
+        }
+     });
+  }
+
   // Si l'ancienne cible a disparu, forcer à 'all'
   if (!targetExists) {
-    const allRadio = document.querySelector('input[name="target"][value="all"]');
     if (allRadio) allRadio.checked = true;
   }
 }
@@ -618,4 +670,346 @@ async function uploadFile() {
     progressStatus.textContent = '❌ Erreur inattendue.';
     progressBar.style.background = 'var(--color-danger)';
   }
+}
+
+// ─── DESSIN EN DIRECT ────────────────────────────────────────────────────────
+let drawInterval;
+let isDrawing = false;
+let lastX = 0, lastY = 0;
+let drawCanvasCtx = null;
+let currentTool = 'brush'; // brush, text, image
+let drawImageUrl = null; // Stored URL of uploaded image/gif
+let drawImageReady = false;
+let drawTarget = 'all';
+
+function setupDrawCanvas() {
+  const select = document.getElementById('draw-tool');
+  if (!select) return;
+
+  select.addEventListener('change', (e) => {
+    currentTool = e.target.value;
+    document.getElementById('tool-opt-brush').style.display = currentTool === 'brush' ? 'flex' : 'none';
+    document.getElementById('tool-opt-text').style.display = currentTool === 'text' ? 'flex' : 'none';
+    document.getElementById('tool-opt-image').style.display = currentTool === 'image' ? 'flex' : 'none';
+
+    // Reset ghost
+    document.getElementById('draw-preview-ghost').style.display = 'none';
+  });
+
+  // Image Upload handler for drawing
+  const imageInput = document.getElementById('draw-image-input');
+  if (imageInput) {
+    imageInput.addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const formData = new FormData();
+      formData.append('file', file);
+
+      // Upload silently to get a URL
+      try {
+        const res = await fetch('/upload', { // Same route used for general uploads (multer)
+          method: 'POST',
+          body: formData
+        });
+        const data = await res.json();
+        if (data.ok && data.fileUrl) {
+          drawImageUrl = data.fileUrl;
+          drawImageReady = true;
+          alert('Image prête à être placée ! Cliquez sur le bouton Placer puis cliquez sur le canvas.');
+        } else {
+          alert("Erreur upload: " + (data.error || "Inconnue"));
+        }
+      } catch(err) {
+        alert("Erreur réseau");
+      }
+    });
+  }
+
+  // Setup canvas drawing logic
+  const canvas = document.getElementById('dashboard-draw-canvas');
+  if (!canvas) return;
+
+  drawCanvasCtx = canvas.getContext('2d');
+
+  // Resize canvas to match container exactly
+  const resizeCanvas = () => {
+    const container = document.getElementById('draw-canvas-container');
+    canvas.width = container.clientWidth;
+    canvas.height = container.clientHeight;
+  };
+  window.addEventListener('resize', resizeCanvas);
+  resizeCanvas(); // initial
+
+  // Mouse / Touch events
+  const startDraw = (e) => {
+    if (!document.getElementById('draw-workspace').style.display || document.getElementById('draw-workspace').style.display === 'none') return;
+
+    const rect = canvas.getBoundingClientRect();
+    const x = (e.clientX || (e.touches && e.touches[0].clientX)) - rect.left;
+    const y = (e.clientY || (e.touches && e.touches[0].clientY)) - rect.top;
+
+    const normX = x / canvas.width;
+    const normY = y / canvas.height;
+
+    if (currentTool === 'brush') {
+      isDrawing = true;
+      lastX = normX;
+      lastY = normY;
+    } else if (currentTool === 'text') {
+      placeText(normX, normY);
+    } else if (currentTool === 'image') {
+      placeImage(normX, normY);
+    }
+  };
+
+  const draw = (e) => {
+    if (!isDrawing || currentTool !== 'brush') return;
+    e.preventDefault(); // prevent scrolling on touch
+
+    const rect = canvas.getBoundingClientRect();
+    const x = (e.clientX || (e.touches && e.touches[0].clientX)) - rect.left;
+    const y = (e.clientY || (e.touches && e.touches[0].clientY)) - rect.top;
+
+    const normX = x / canvas.width;
+    const normY = y / canvas.height;
+
+    const color = document.getElementById('draw-color').value;
+    const size = parseInt(document.getElementById('draw-size').value, 10);
+
+    // Draw locally for immediate feedback
+    drawCanvasCtx.beginPath();
+    drawCanvasCtx.moveTo(lastX * canvas.width, lastY * canvas.height);
+    drawCanvasCtx.lineTo(normX * canvas.width, normY * canvas.height);
+    drawCanvasCtx.strokeStyle = color;
+    drawCanvasCtx.lineWidth = size * (canvas.width / 1920); // rough scale
+    drawCanvasCtx.lineCap = 'round';
+    drawCanvasCtx.stroke();
+
+    // Emit to server
+    if (socket) {
+      socket.emit('draw_event', {
+        target: getTargetStr(),
+        event: {
+          type: 'line',
+          data: { x0: lastX, y0: lastY, x1: normX, y1: normY, color, width: size }
+        }
+      });
+    }
+
+    lastX = normX;
+    lastY = normY;
+  };
+
+  const endDraw = () => {
+    isDrawing = false;
+  };
+
+  canvas.addEventListener('mousedown', startDraw);
+  canvas.addEventListener('mousemove', draw);
+  canvas.addEventListener('mouseup', endDraw);
+  canvas.addEventListener('mouseout', endDraw);
+
+  canvas.addEventListener('touchstart', startDraw, {passive: false});
+  canvas.addEventListener('touchmove', draw, {passive: false});
+  canvas.addEventListener('touchend', endDraw);
+}
+
+function getTargetStr() {
+  const radio = document.querySelector('input[name="target"]:checked');
+  if (radio) return radio.value;
+  return 'all';
+}
+
+async function checkDrawState() {
+  const infoEl = document.getElementById('draw-info');
+  const actionEl = document.getElementById('draw-actions');
+  const workspaceEl = document.getElementById('draw-workspace');
+
+  const target = getTargetStr();
+
+  if (target === 'all') {
+    infoEl.textContent = "Sélectionnez une cible spécifique pour utiliser le dessin en direct (le mode 'Tous' n'est pas supporté pour le dessin).";
+    actionEl.style.display = 'none';
+    workspaceEl.style.display = 'none';
+    return;
+  }
+
+  try {
+    const res = await fetch(`/api/draw/state/${encodeURIComponent(target)}`);
+    if (!res.ok) throw new Error("Cible invalide");
+
+    const state = await res.json();
+
+    if (state.active) {
+      infoEl.textContent = `Session de dessin en cours sur ${target} !`;
+      actionEl.style.display = 'none';
+      workspaceEl.style.display = 'block';
+
+      const timeLeft = Math.max(0, Math.floor((state.endTime - Date.now()) / 1000));
+      updateDrawTimer(timeLeft);
+
+      // Also reset our local canvas just to be clean if it wasn't already
+      // but we shouldn't wipe it constantly if we're just checking state
+
+    } else {
+      const now = Date.now();
+      if (now < state.cooldownEndTime) {
+        const cdLeft = Math.max(0, Math.floor((state.cooldownEndTime - now) / 1000));
+        infoEl.textContent = `Cible en récupération. Réessayez dans ${formatTime(cdLeft)}.`;
+        actionEl.style.display = 'none';
+        workspaceEl.style.display = 'none';
+      } else {
+        infoEl.textContent = `La cible ${target} est prête pour un dessin.`;
+        actionEl.style.display = 'block';
+        workspaceEl.style.display = 'none';
+      }
+    }
+
+  } catch (err) {
+    infoEl.textContent = "Impossible de vérifier l'état de cette cible. Vérifiez qu'elle est en ligne.";
+    actionEl.style.display = 'none';
+    workspaceEl.style.display = 'none';
+  }
+}
+
+async function startDrawSession() {
+  const target = getTargetStr();
+  if (target === 'all') return;
+
+  try {
+    const res = await fetch('/api/draw/start', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ target })
+    });
+
+    const data = await res.json();
+    if (data.ok) {
+      // Clear our local canvas for a fresh start
+      const cvs = document.getElementById('dashboard-draw-canvas');
+      if (cvs && drawCanvasCtx) drawCanvasCtx.clearRect(0,0,cvs.width,cvs.height);
+
+      checkDrawState(); // Re-eval to show workspace
+    } else {
+      alert(data.error || "Erreur lors du démarrage de la session.");
+    }
+  } catch(err) {
+    alert("Erreur de connexion.");
+  }
+}
+
+function updateDrawTimer(seconds) {
+  if (drawInterval) clearInterval(drawInterval);
+
+  let left = seconds;
+  const timerEl = document.getElementById('draw-timer');
+
+  const tick = () => {
+    if (left <= 0) {
+      clearInterval(drawInterval);
+      timerEl.textContent = "Session terminée";
+      setTimeout(checkDrawState, 2000); // Check again after 2s
+      return;
+    }
+    timerEl.textContent = `⏳ ${formatTime(left)}`;
+    left--;
+  };
+
+  tick();
+  drawInterval = setInterval(tick, 1000);
+}
+
+function clearDrawCanvas() {
+  const canvas = document.getElementById('dashboard-draw-canvas');
+  if (canvas && drawCanvasCtx) {
+    drawCanvasCtx.clearRect(0, 0, canvas.width, canvas.height);
+  }
+
+  if (socket) {
+    socket.emit('draw_clear', { target: getTargetStr() });
+  }
+}
+
+function placeText(normX, normY) {
+  const text = document.getElementById('draw-text-input').value.trim();
+  if (!text) return;
+
+  const color = document.getElementById('draw-text-color').value;
+  const size = parseInt(document.getElementById('draw-text-size').value, 10);
+
+  // Draw locally
+  const canvas = document.getElementById('dashboard-draw-canvas');
+  const pxSize = size * (canvas.width / 1920);
+  drawCanvasCtx.font = `bold ${pxSize}px Arial`;
+  drawCanvasCtx.fillStyle = color;
+  drawCanvasCtx.textAlign = 'center';
+  drawCanvasCtx.textBaseline = 'middle';
+  drawCanvasCtx.fillText(text, normX * canvas.width, normY * canvas.height);
+
+  // Emit to server
+  if (socket) {
+    socket.emit('draw_event', {
+      target: getTargetStr(),
+      event: {
+        type: 'text',
+        data: { text, x: normX, y: normY, color, size }
+      }
+    });
+  }
+
+  // Reset input
+  document.getElementById('draw-text-input').value = '';
+  document.getElementById('dashboard-draw-canvas').style.cursor = 'crosshair';
+}
+
+function placeImage(normX, normY) {
+  if (!drawImageReady || !drawImageUrl) {
+    alert("Sélectionnez et chargez d'abord une image.");
+    return;
+  }
+
+  const sizePct = parseInt(document.getElementById('draw-image-size').value, 10) / 100;
+
+  // Local preview draw
+  const canvas = document.getElementById('dashboard-draw-canvas');
+  const img = new Image();
+  img.onload = () => {
+    const drawW = sizePct * canvas.width;
+    const ratio = img.height / img.width;
+    const drawH = drawW * ratio;
+    drawCanvasCtx.drawImage(img, (normX * canvas.width) - (drawW / 2), (normY * canvas.height) - (drawH / 2), drawW, drawH);
+  };
+  img.src = drawImageUrl;
+
+  // Emit
+  if (socket) {
+    socket.emit('draw_event', {
+      target: getTargetStr(),
+      event: {
+        type: 'image',
+        data: { url: drawImageUrl, x: normX, y: normY, width: sizePct }
+      }
+    });
+  }
+
+  // Reset
+  drawImageReady = false;
+  drawImageUrl = null;
+  document.getElementById('draw-image-input').value = '';
+  document.getElementById('dashboard-draw-canvas').style.cursor = 'crosshair';
+}
+
+function setDrawTextCursor() {
+  document.getElementById('dashboard-draw-canvas').style.cursor = 'text';
+}
+
+function setDrawImageCursor() {
+  document.getElementById('dashboard-draw-canvas').style.cursor = 'crosshair';
+}
+
+function formatTime(s) {
+  const min = Math.floor(s / 60);
+  const sec = s % 60;
+  return `${min}:${sec < 10 ? '0' : ''}${sec}`;
 }
