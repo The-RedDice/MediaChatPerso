@@ -959,7 +959,7 @@ window.hideAll = function hideAll() {
 
 // ─── Drawing Logic ───
 let isDrawSessionActive = false;
-let imagesCache = {}; // Cache pour les images dessinées sur le canvas
+let placedImages = []; // Cache pour les éléments <img> (GIFs/Images) ajoutés au DOM
 
 function startDrawSession() {
   if (!drawCanvas || !drawCtx) return;
@@ -971,6 +971,14 @@ function startDrawSession() {
   drawCtx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
   drawCanvas.style.opacity = '1';
   drawCanvas.style.pointerEvents = 'auto'; // allow hover transparency
+
+  const drawImagesContainer = document.getElementById('draw-images-container');
+  if (drawImagesContainer) {
+      drawImagesContainer.innerHTML = '';
+      drawImagesContainer.style.opacity = '1';
+  }
+  placedImages = [];
+
   isDrawSessionActive = true;
 
   console.log('[Draw] Mode dessin activé');
@@ -982,17 +990,41 @@ function stopDrawSession(emitScreenshot = true) {
   isDrawSessionActive = false;
 
   if (emitScreenshot && socket) {
-    // Capturer le screenshot du canvas
-    const base64Image = drawCanvas.toDataURL('image/png');
+    // We need to composite the DOM images (GIFs) and the canvas strokes together
+    const finalCanvas = document.createElement('canvas');
+    finalCanvas.width = drawCanvas.width;
+    finalCanvas.height = drawCanvas.height;
+    const finalCtx = finalCanvas.getContext('2d');
+
+    // Draw all DOM images onto the composite canvas first
+    placedImages.forEach(imgObj => {
+        // Only works for first frame of GIF in screenshot, but that's standard for DataURL exports.
+        // The live overlay will still show the animated GIF.
+        try {
+            finalCtx.drawImage(imgObj.el, imgObj.x, imgObj.y, imgObj.w, imgObj.h);
+        } catch(e) {
+            console.warn("[Draw] Failed to composite image to screenshot", e);
+        }
+    });
+
+    // Draw the actual strokes on top
+    finalCtx.drawImage(drawCanvas, 0, 0);
+
+    // Capturer le screenshot du canvas combiné
+    const base64Image = finalCanvas.toDataURL('image/png');
     socket.emit('draw_screenshot', { target: CONFIG.pseudo, base64Image });
   }
 
   // Effacer l'écran après un petit délai
   drawCanvas.style.opacity = '0';
   drawCanvas.style.pointerEvents = 'none';
+  const drawImagesContainer = document.getElementById('draw-images-container');
+  if (drawImagesContainer) drawImagesContainer.style.opacity = '0';
+
   setTimeout(() => {
     if (drawCtx) drawCtx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
-    imagesCache = {}; // Vider le cache
+    if (drawImagesContainer) drawImagesContainer.innerHTML = '';
+    placedImages = []; // Vider le cache
   }, 300);
 
   console.log('[Draw] Mode dessin désactivé');
@@ -1055,33 +1087,42 @@ function handleDrawEvent(event) {
     drawCtx.shadowOffsetX = 0;
     drawCtx.shadowOffsetY = 0;
   } else if (type === 'image') {
-    drawCtx.globalCompositeOperation = 'source-over';
     const { url, x, y, width, height } = data;
+    const drawImagesContainer = document.getElementById('draw-images-container');
+    if (!drawImagesContainer) return;
 
-    if (imagesCache[url]) {
-      drawImageObject(imagesCache[url], x, y, width, height, w, h);
-    } else {
-      const img = new Image();
-      img.crossOrigin = 'Anonymous';
-      img.onload = () => {
-        imagesCache[url] = img;
-        drawImageObject(img, x, y, width, height, w, h);
-      };
-      img.src = getPlayableUrl(url); // Au cas où
-    }
+    const img = new Image();
+    img.crossOrigin = 'Anonymous';
+    img.style.position = 'absolute';
+    // Pointer events none is already on the container, but just in case
+    img.style.pointerEvents = 'none';
+
+    img.onload = () => {
+        // Calculate dimensions
+        const drawW = width * w;
+        const ratio = img.naturalHeight / img.naturalWidth;
+        const drawH = height ? (height * h) : (drawW * ratio);
+
+        // Centered on x, y
+        const left = (x * w) - (drawW / 2);
+        const top = (y * h) - (drawH / 2);
+
+        img.style.width = `${drawW}px`;
+        img.style.height = `${drawH}px`;
+        img.style.left = `${left}px`;
+        img.style.top = `${top}px`;
+
+        drawImagesContainer.appendChild(img);
+        placedImages.push({ el: img, x: left, y: top, w: drawW, h: drawH });
+    };
+    img.src = getPlayableUrl(url);
+
   } else if (type === 'clear') {
     drawCtx.clearRect(0, 0, w, h);
+    const drawImagesContainer = document.getElementById('draw-images-container');
+    if (drawImagesContainer) drawImagesContainer.innerHTML = '';
+    placedImages = [];
   }
-}
-
-function drawImageObject(img, x, y, width, height, w, h) {
-  // width/height sont en % (ex: 0.2 = 20% de la largeur de l'écran)
-  const drawW = width * w;
-  const ratio = img.height / img.width;
-  const drawH = height ? (height * h) : (drawW * ratio);
-
-  // Centré sur x, y
-  drawCtx.drawImage(img, (x * w) - (drawW / 2), (y * h) - (drawH / 2), drawW, drawH);
 }
 
 window.updateOverlayBadge = function updateOverlayBadge() {

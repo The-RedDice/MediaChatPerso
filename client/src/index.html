@@ -734,7 +734,12 @@
   <div id="top-notification"></div>
 
   <!-- ─── Canvas de Dessin en temps réel ─── -->
+  <div id="draw-images-container" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 99; opacity: 0; transition: opacity 0.3s;"></div>
   <canvas id="draw-canvas" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 100; opacity: 0; transition: opacity 0.3s;"></canvas>
+
+  <style>
+    #draw-canvas:hover + #draw-images-container, #draw-canvas:hover { opacity: 0.15 !important; }
+  </style>
 
   <!-- ─── Conteneur des Événements Interactifs ─── -->
 
