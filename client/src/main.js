@@ -499,10 +499,22 @@ function handleFile(payload) {
       mediaCaption.classList.add('visible');
     }
 
-    mediaVideo.play().then(() => startVisualizer()).catch(e => console.error("Erreur lecture vidéo :", e));
+    // Fallback global de sécurité si la vidéo reste bloquée en lecture
+    let videoTimeout = setTimeout(() => {
+      console.warn("Vidéo bloquée ou trop longue, passage forcé.");
+      hideAll();
+      socket.emit('media_ended');
+    }, 60000); // 60 secondes max pour éviter le soft-lock de la file
 
-    mediaVideo.onended = () => { hideAll(); socket.emit('media_ended'); };
-    mediaVideo.onerror = () => { hideAll(); socket.emit('media_ended'); };
+    mediaVideo.play().then(() => startVisualizer()).catch(e => {
+      console.error("Erreur lecture vidéo (autoplay bloqué?) :", e);
+      clearTimeout(videoTimeout);
+      hideAll();
+      socket.emit('media_ended');
+    });
+
+    mediaVideo.onended = () => { clearTimeout(videoTimeout); hideAll(); socket.emit('media_ended'); };
+    mediaVideo.onerror = () => { clearTimeout(videoTimeout); hideAll(); socket.emit('media_ended'); };
   } else {
     mediaImage.style.display = 'block';
     mediaVideo.style.display = 'none';
@@ -781,11 +793,23 @@ function handleMedia(payload) {
     mediaCaption.classList.add('visible');
   }
 
-  // Lancer la lecture explicitement après avoir configuré la source
-  mediaVideo.play().then(() => startVisualizer()).catch(e => console.error("Erreur lecture vidéo :", e));
+  // Fallback global de sécurité
+  let videoTimeout = setTimeout(() => {
+    console.warn("Média bloqué ou trop long, passage forcé.");
+    hideAll();
+    socket.emit('media_ended');
+  }, 180000); // 3 minutes max pour les vidéos yt-dlp
 
-  mediaVideo.onended = () => { hideAll(); socket.emit('media_ended'); };
-  mediaVideo.onerror = () => { hideAll(); socket.emit('media_ended'); };
+  // Lancer la lecture explicitement après avoir configuré la source
+  mediaVideo.play().then(() => startVisualizer()).catch(e => {
+    console.error("Erreur lecture vidéo (autoplay bloqué?) :", e);
+    clearTimeout(videoTimeout);
+    hideAll();
+    socket.emit('media_ended');
+  });
+
+  mediaVideo.onended = () => { clearTimeout(videoTimeout); hideAll(); socket.emit('media_ended'); };
+  mediaVideo.onerror = () => { clearTimeout(videoTimeout); hideAll(); socket.emit('media_ended'); };
 }
 
 window.showItem = function showItem(item) {
