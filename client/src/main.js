@@ -499,22 +499,25 @@ function handleFile(payload) {
       mediaCaption.classList.add('visible');
     }
 
-    // Fallback global de sécurité si la vidéo reste bloquée en lecture
+    // Fallback global de sécurité si la vidéo reste bloquée sans démarrer sa lecture
     let videoTimeout = setTimeout(() => {
-      console.warn("Vidéo bloquée ou trop longue, passage forcé.");
+      console.warn("Vidéo bloquée ou impossible à lancer, passage forcé.");
       hideAll();
       socket.emit('media_ended');
-    }, 60000); // 60 secondes max pour éviter le soft-lock de la file
+    }, 5000); // 5 secondes pour attendre le début de la lecture
 
-    mediaVideo.play().then(() => startVisualizer()).catch(e => {
+    mediaVideo.play().then(() => {
+      clearTimeout(videoTimeout);
+      startVisualizer();
+    }).catch(e => {
       console.error("Erreur lecture vidéo (autoplay bloqué?) :", e);
       clearTimeout(videoTimeout);
       hideAll();
       socket.emit('media_ended');
     });
 
-    mediaVideo.onended = () => { clearTimeout(videoTimeout); hideAll(); socket.emit('media_ended'); };
-    mediaVideo.onerror = () => { clearTimeout(videoTimeout); hideAll(); socket.emit('media_ended'); };
+    mediaVideo.onended = () => { hideAll(); socket.emit('media_ended'); };
+    mediaVideo.onerror = () => { hideAll(); socket.emit('media_ended'); };
   } else {
     mediaImage.style.display = 'block';
     mediaVideo.style.display = 'none';
@@ -793,23 +796,26 @@ function handleMedia(payload) {
     mediaCaption.classList.add('visible');
   }
 
-  // Fallback global de sécurité
+  // Fallback global de sécurité si la vidéo refuse de se lancer (ex. bug ou blocage)
   let videoTimeout = setTimeout(() => {
-    console.warn("Média bloqué ou trop long, passage forcé.");
+    console.warn("Média vidéo impossible à lancer, passage forcé.");
     hideAll();
     socket.emit('media_ended');
-  }, 180000); // 3 minutes max pour les vidéos yt-dlp
+  }, 5000);
 
   // Lancer la lecture explicitement après avoir configuré la source
-  mediaVideo.play().then(() => startVisualizer()).catch(e => {
+  mediaVideo.play().then(() => {
+    clearTimeout(videoTimeout);
+    startVisualizer();
+  }).catch(e => {
     console.error("Erreur lecture vidéo (autoplay bloqué?) :", e);
     clearTimeout(videoTimeout);
     hideAll();
     socket.emit('media_ended');
   });
 
-  mediaVideo.onended = () => { clearTimeout(videoTimeout); hideAll(); socket.emit('media_ended'); };
-  mediaVideo.onerror = () => { clearTimeout(videoTimeout); hideAll(); socket.emit('media_ended'); };
+  mediaVideo.onended = () => { hideAll(); socket.emit('media_ended'); };
+  mediaVideo.onerror = () => { hideAll(); socket.emit('media_ended'); };
 }
 
 window.showItem = function showItem(item) {
