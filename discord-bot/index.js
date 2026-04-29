@@ -7,14 +7,14 @@
 
 require('dotenv').config({ path: '../.env' });
 
-const { Client, GatewayIntentBits, Events, ActivityType, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, EmbedBuilder, AttachmentBuilder } = require('discord.js');
+const { Client, GatewayIntentBits, Events, ActivityType, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, EmbedBuilder, AttachmentBuilder, MessageFlags } = require('discord.js');
 const io = require('socket.io-client');
 // fetch est natif depuis Node.js 18 — pas besoin de node-fetch
 
 // ─── Config ──────────────────────────────────────────────
 
 const PORT       = process.env.PORT || 3000;
-const SERVER_URL = process.env.SERVER_URL || `http://localhost:${PORT}`;
+const SERVER_URL = (process.env.SERVER_URL || `http://localhost:${PORT}`).replace(/\/$/, '');
 const TOKEN      = process.env.DISCORD_TOKEN;
 const REPUTATION_CHANNEL_ID = process.env.REPUTATION_CHANNEL_ID;
 
@@ -70,8 +70,12 @@ async function apiDelete(endpoint) {
 
 async function updatePresence() {
   try {
-    const { clients } = await apiGet('/clients');
-    const count = Array.isArray(clients) ? clients.length : 0;
+    const res = await apiGet('/clients');
+    if (res.error) {
+       console.error(`[Presence] Erreur API : ${res.error}`);
+       throw new Error(res.error);
+    }
+    const count = Array.isArray(res.clients) ? res.clients.length : 0;
 
     client.user.setPresence({
       activities: [{
@@ -82,7 +86,8 @@ async function updatePresence() {
       }],
       status: count === 0 ? 'idle' : 'online',
     });
-  } catch {
+  } catch (err) {
+    console.error(`[Presence] Serveur inaccessible à ${SERVER_URL}/api/clients :`, err.message);
     client.user.setPresence({
       activities: [{ name: 'Serveur inaccessible ⚠️', type: ActivityType.Watching }],
       status: 'dnd',
@@ -214,7 +219,7 @@ async function checkUserNotifications(interaction, userId) {
 
       msg += `**Total gagné :** ${totalCoins} 💰` + (totalLootboxes > 0 ? ` et ${totalLootboxes} 🎁` : "");
 
-      await interaction.followUp({ content: msg, ephemeral: true });
+      await interaction.followUp({ content: msg, flags: [MessageFlags.Ephemeral] });
     }
   } catch (err) {
     console.error("[Notifications] Erreur de récupération :", err);
@@ -253,7 +258,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
       const messageId = parts[3];
 
       if (interaction.user.id === authorId) {
-        await interaction.reply({ content: '❌ Tu ne peux pas voter pour ton propre média !', ephemeral: true });
+        await interaction.reply({ content: '❌ Tu ne peux pas voter pour ton propre média !', flags: [MessageFlags.Ephemeral] });
         return;
       }
 
@@ -284,16 +289,16 @@ client.on(Events.InteractionCreate, async (interaction) => {
             const newEmbed = EmbedBuilder.from(embed).setFooter({ text: `BordelCoins: ${res.newScore > 0 ? '+' : ''}${res.newScore}` });
             await interaction.update({ embeds: [newEmbed] });
           } else {
-            await interaction.reply({ content: `✅ Vote enregistré ! (${res.newScore > 0 ? '+' : ''}${res.newScore})`, ephemeral: true });
+            await interaction.reply({ content: `✅ Vote enregistré ! (${res.newScore > 0 ? '+' : ''}${res.newScore})`, flags: [MessageFlags.Ephemeral] });
           }
           await checkUserNotifications(interaction, voterId);
         } else {
-          await interaction.reply({ content: `❌ Erreur : ${res.error}`, ephemeral: true });
+          await interaction.reply({ content: `❌ Erreur : ${res.error}`, flags: [MessageFlags.Ephemeral] });
         }
       } catch (err) {
         let errMsg = 'Erreur serveur.';
         if (err.message && err.message.includes('déjà voté')) errMsg = 'Tu as déjà voté pour ce message.';
-        await interaction.reply({ content: `❌ ${errMsg}`, ephemeral: true });
+        await interaction.reply({ content: `❌ ${errMsg}`, flags: [MessageFlags.Ephemeral] });
       }
       return;
     }
@@ -307,7 +312,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
         if (action === 'accept') {
           const res = await apiPost('/trade/accept', { tradeId, userId: interaction.user.id });
           if (res.error) {
-            await interaction.reply({ content: `❌ Erreur : ${res.error}`, ephemeral: true });
+            await interaction.reply({ content: `❌ Erreur : ${res.error}`, flags: [MessageFlags.Ephemeral] });
           } else {
              const newEmbed = EmbedBuilder.from(interaction.message.embeds[0]).setColor(0x00FF00).setTitle('✅ Échange accepté et terminé').setDescription('Les objets ont été transférés.');
              await interaction.update({ embeds: [newEmbed], components: [] });
@@ -342,7 +347,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
            await interaction.showModal(modal);
         }
       } catch(err) {
-         await interaction.reply({ content: `❌ Erreur lors de l'échange.`, ephemeral: true });
+         await interaction.reply({ content: `❌ Erreur lors de l'échange.`, flags: [MessageFlags.Ephemeral] });
       }
       return;
     }
@@ -353,7 +358,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
       const memeData = memeDataCache.get(messageId);
 
       if (!memeData) {
-        await interaction.reply({ content: '❌ Impossible de retrouver les données de ce mème. Veuillez renvoyer le média.', ephemeral: true });
+        await interaction.reply({ content: '❌ Impossible de retrouver les données de ce mème. Veuillez renvoyer le média.', flags: [MessageFlags.Ephemeral] });
         return;
       }
 
@@ -384,7 +389,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
         const username = interaction.member?.displayName || interaction.user.username;
         const res = await apiPost('/event/interact', { eventId, userId: interaction.user.id, username });
         if (res.error) {
-          await interaction.reply({ content: `❌ ${res.error}`, ephemeral: true });
+          await interaction.reply({ content: `❌ ${res.error}`, flags: [MessageFlags.Ephemeral] });
         } else {
           // Silent acknowledgment to prevent spam
           await interaction.deferUpdate();
@@ -403,7 +408,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
                 userRewardMsg += `\n🎁 **ET UNE LOOTBOX OBTENUE !** 🎉 Utilise \`/lootbox open\` !`;
               }
               // Send the personal reward notification as an ephemeral follow-up
-              await interaction.followUp({ content: `🎉 **LE BOSS EST VAINCU !**\n${userRewardMsg}`, ephemeral: true });
+              await interaction.followUp({ content: `🎉 **LE BOSS EST VAINCU !**\n${userRewardMsg}`, flags: [MessageFlags.Ephemeral] });
             }
 
             // Broadcast the public notification in the channel
@@ -454,7 +459,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
         }
       } catch (err) {
         if (!interaction.deferred && !interaction.replied) {
-          await interaction.reply({ content: `❌ Erreur de connexion au serveur.`, ephemeral: true });
+          await interaction.reply({ content: `❌ Erreur de connexion au serveur.`, flags: [MessageFlags.Ephemeral] });
         }
       }
       return;
@@ -469,12 +474,12 @@ client.on(Events.InteractionCreate, async (interaction) => {
       try {
         const res = await apiPost('/event/interact', { eventId, userId: interaction.user.id, choiceIndex });
         if (res.error) {
-          await interaction.reply({ content: `❌ ${res.error}`, ephemeral: true });
+          await interaction.reply({ content: `❌ ${res.error}`, flags: [MessageFlags.Ephemeral] });
         } else {
-          await interaction.reply({ content: `✅ Ton vote a été enregistré !`, ephemeral: true });
+          await interaction.reply({ content: `✅ Ton vote a été enregistré !`, flags: [MessageFlags.Ephemeral] });
         }
       } catch (err) {
-        await interaction.reply({ content: `❌ Erreur de connexion au serveur.`, ephemeral: true });
+        await interaction.reply({ content: `❌ Erreur de connexion au serveur.`, flags: [MessageFlags.Ephemeral] });
       }
       return;
     }
@@ -486,7 +491,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
         await apiDelete(`/queue/${encodeURIComponent(target)}`);
         await interaction.reply({ content: `🗑️ La file d'attente de **${target}** a été entièrement vidée.`, ephemeral: false });
       } catch (err) {
-        await interaction.reply({ content: `❌ Erreur lors du vidage de la file.`, ephemeral: true });
+        await interaction.reply({ content: `❌ Erreur lors du vidage de la file.`, flags: [MessageFlags.Ephemeral] });
       }
     } else
     // --- Coinflip Buttons ---
@@ -502,7 +507,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
       const res = await apiPost('/coinflip/accept', { flipId, userId: interaction.user.id });
       if (!res || res.error) {
-        await interaction.reply({ content: '❌ ' + (res?.error || 'Erreur lors de l\'acceptation.'), ephemeral: true });
+        await interaction.reply({ content: '❌ ' + (res?.error || 'Erreur lors de l\'acceptation.'), flags: [MessageFlags.Ephemeral] });
         return;
       }
 
@@ -524,9 +529,9 @@ client.on(Events.InteractionCreate, async (interaction) => {
       const rouletteId = customId.replace('roulette_join_', '');
       const res = await apiPost('/roulette/join', { rouletteId, userId: interaction.user.id });
       if (res.error) {
-         await interaction.reply({ content: '❌ ' + res.error, ephemeral: true });
+         await interaction.reply({ content: '❌ ' + res.error, flags: [MessageFlags.Ephemeral] });
       } else {
-         await interaction.reply({ content: `✅ Tu as rejoint la partie de Roulette (${res.playersCount} joueurs inscrits) !`, ephemeral: true });
+         await interaction.reply({ content: `✅ Tu as rejoint la partie de Roulette (${res.playersCount} joueurs inscrits) !`, flags: [MessageFlags.Ephemeral] });
       }
       return;
     }
@@ -537,7 +542,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
       const res = await apiPost('/roulette/vote', { rouletteId, userId: interaction.user.id, vote });
 
       if (res.error) {
-         await interaction.reply({ content: '❌ ' + res.error, ephemeral: true });
+         await interaction.reply({ content: '❌ ' + res.error, flags: [MessageFlags.Ephemeral] });
          return;
       }
 
@@ -620,7 +625,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
         return;
       }
 
-      await interaction.reply({ content: `Pour accepter le combat, tu dois choisir ton arme avec la commande : \`/arena accept \${arenaId} <ton_objet>\``, ephemeral: true });
+      await interaction.reply({ content: `Pour accepter le combat, tu dois choisir ton arme avec la commande : \`/arena accept \${arenaId} <ton_objet>\``, flags: [MessageFlags.Ephemeral] });
       return;
     }
 
@@ -634,7 +639,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
           await interaction.reply({ content: `🗳️ Vote pour skip enregistré (${res.currentVotes}/${res.requiredVotes}).`, ephemeral: false });
         }
       } catch (err) {
-        await interaction.reply({ content: `❌ Erreur lors du skip.`, ephemeral: true });
+        await interaction.reply({ content: `❌ Erreur lors du skip.`, flags: [MessageFlags.Ephemeral] });
       }
     }
     return;
@@ -652,7 +657,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
         const shootRes = await apiPost('/roulette/shoot', { rouletteId, shooterId: userId, targetId });
 
         if (shootRes.error) {
-            await interaction.reply({ content: '❌ ' + shootRes.error, ephemeral: true });
+            await interaction.reply({ content: '❌ ' + shootRes.error, flags: [MessageFlags.Ephemeral] });
             return;
         }
 
@@ -804,12 +809,12 @@ client.on(Events.InteractionCreate, async (interaction) => {
         try {
           const res = await apiPost('/shop/buy', { userId, type, itemValue: selectedValue, price });
           if (res.error) {
-            await interaction.reply({ content: `❌ ${res.error}`, ephemeral: true });
+            await interaction.reply({ content: `❌ ${res.error}`, flags: [MessageFlags.Ephemeral] });
           } else {
-            await interaction.reply({ content: `✅ Achat réussi ! Vous avez débloqué un nouvel élément. Utilisez \`/style\` pour l'équiper.`, ephemeral: true });
+            await interaction.reply({ content: `✅ Achat réussi ! Vous avez débloqué un nouvel élément. Utilisez \`/style\` pour l'équiper.`, flags: [MessageFlags.Ephemeral] });
           }
         } catch (err) {
-          await interaction.reply({ content: `❌ Erreur lors de l'achat.`, ephemeral: true });
+          await interaction.reply({ content: `❌ Erreur lors de l'achat.`, flags: [MessageFlags.Ephemeral] });
         }
         return;
       }
@@ -827,7 +832,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
       const res = await apiPost('/trade/update', { tradeId, userId, offerItems: items, offerCoins: coins });
 
       if (res.error) {
-         await interaction.reply({ content: `❌ Erreur : ${res.error}`, ephemeral: true });
+         await interaction.reply({ content: `❌ Erreur : ${res.error}`, flags: [MessageFlags.Ephemeral] });
       } else {
          const trade = res.trade;
 
@@ -879,7 +884,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
       const memeData = memeDataCache.get(messageId);
 
       if (!memeData) {
-        await interaction.reply({ content: '❌ Données du mème expirées.', ephemeral: true });
+        await interaction.reply({ content: '❌ Données du mème expirées.', flags: [MessageFlags.Ephemeral] });
         return;
       }
 
@@ -891,12 +896,12 @@ client.on(Events.InteractionCreate, async (interaction) => {
         });
 
         if (res.error) {
-          await interaction.reply({ content: `❌ Erreur : ${res.error}`, ephemeral: true });
+          await interaction.reply({ content: `❌ Erreur : ${res.error}`, flags: [MessageFlags.Ephemeral] });
         } else {
-          await interaction.reply({ content: `✅ Mème **${memeName}** enregistré avec succès dans votre collection ! Utilisez \`/meme play ${memeName}\` pour le lancer.`, ephemeral: true });
+          await interaction.reply({ content: `✅ Mème **${memeName}** enregistré avec succès dans votre collection ! Utilisez \`/meme play ${memeName}\` pour le lancer.`, flags: [MessageFlags.Ephemeral] });
         }
       } catch (err) {
-        await interaction.reply({ content: `❌ Erreur serveur lors de la sauvegarde du mème.`, ephemeral: true });
+        await interaction.reply({ content: `❌ Erreur serveur lors de la sauvegarde du mème.`, flags: [MessageFlags.Ephemeral] });
       }
       return;
     }
@@ -924,7 +929,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
       if (interaction.deferred || interaction.replied) {
         await interaction.editReply({ content: `❌ Erreur : Impossible de sauvegarder le style.` });
       } else {
-        await interaction.reply({ content: `❌ Erreur : Impossible de sauvegarder le style.`, ephemeral: true });
+        await interaction.reply({ content: `❌ Erreur : Impossible de sauvegarder le style.`, flags: [MessageFlags.Ephemeral] });
       }
     }
     return;
@@ -1028,11 +1033,11 @@ client.on(Events.InteractionCreate, async (interaction) => {
   if (commandName === 'sendurl' || commandName === 'sendfile' || commandName === 'message' || commandName === 'ai' || commandName === 'online' || commandName === 'profile' || commandName === 'leaderboard' || commandName === 'queue' || commandName === 'download' || commandName === 'meme' || commandName === 'event') {
     await interaction.deferReply();
   } else if (commandName === 'tuto' || commandName === 'info' || commandName === 'style' || commandName === 'dashboard') {
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
   } else if (commandName === 'trade' || commandName === 'market' || commandName === 'lootbox' || commandName === 'inventory' || commandName === 'collection' || commandName === 'daily' || commandName === 'fish' || commandName === 'slots' || commandName === 'coinflip' || commandName === 'achievements' || commandName === 'craft' || commandName === 'arena' || commandName === 'roulette') {
         await interaction.deferReply({ ephemeral: false });
   } else {
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
   }
 
   try {
@@ -2785,7 +2790,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
     if (interaction.deferred) {
       await interaction.editReply(msg).catch(() => {});
     } else {
-      await interaction.reply({ content: msg, ephemeral: true }).catch(() => {});
+      await interaction.reply({ content: msg, flags: [MessageFlags.Ephemeral] }).catch(() => {});
     }
   }
 });

@@ -19,6 +19,26 @@ const session        = require('express-session');
 const passport       = require('passport');
 const DiscordStrategy = require('passport-discord').Strategy;
 const { getAvailableModels, generateTTS } = require('./tts');
+// ─── Config ──────────────────────────────────────────────────────────────────
+
+const PORT      = process.env.PORT      || 3000;
+const SERVER_URL = process.env.SERVER_URL || `http://localhost:${PORT}`;
+const MEDIA_DIR  = path.resolve(process.env.MEDIA_DIR || './public/media');
+const MEMES_MEDIA_DIR = path.resolve('./public/memes_media');
+
+// S'assurer que le dossier media existe
+if (!fs.existsSync(MEDIA_DIR)) fs.mkdirSync(MEDIA_DIR, { recursive: true });
+if (!fs.existsSync(MEMES_MEDIA_DIR)) fs.mkdirSync(MEMES_MEDIA_DIR, { recursive: true });
+
+const app    = express();
+const server = http.createServer(app);
+const io     = new Server(server, {
+  cors: { origin: '*' },
+  maxHttpBufferSize: 50 * 1024 * 1024, // 50 MB
+});
+
+module.exports = { enqueue, getClientList, getConnectedDiscordIds, downloadMedia, io };
+
 const { recordAction, recordSkip, getUserStats, getLeaderboard, getUserProfile, saveUserProfile, updateReputation, spendCoins, unlockStyleItem, getUnlockedStyles, getNotifications } = require('./stats');
 const { addMeme, getUserMemes, removeMeme } = require('./memes');
 const { initAI, generateResponse } = require('./ai');
@@ -30,17 +50,6 @@ const { canStartSession, startSession, getSessionState, endSession } = require('
 
 // Initialiser l'API IA
 initAI();
-
-// ─── Config ──────────────────────────────────────────────────────────────────
-
-const PORT      = process.env.PORT      || 3000;
-const SERVER_URL = process.env.SERVER_URL || `http://localhost:${PORT}`;
-const MEDIA_DIR  = path.resolve(process.env.MEDIA_DIR || './public/media');
-const MEMES_MEDIA_DIR = path.resolve('./public/memes_media');
-
-// S'assurer que le dossier media existe
-if (!fs.existsSync(MEDIA_DIR)) fs.mkdirSync(MEDIA_DIR, { recursive: true });
-if (!fs.existsSync(MEMES_MEDIA_DIR)) fs.mkdirSync(MEMES_MEDIA_DIR, { recursive: true });
 
 // ─── Nettoyage Auto ──────────────────────────────────────────────────────────
 
@@ -78,7 +87,7 @@ setInterval(cleanupOldMedia, 60 * 60 * 1000);
 // ─── Argent Passif / AFK ─────────────────────────────────────────────────────
 
 function distributePassiveIncome() {
-  const { getInventory, getItemsDb, addCoins } = require('./stats');
+
   const connectedIds = getConnectedDiscordIds();
   const itemsDb = getItemsDb();
 
@@ -114,13 +123,6 @@ function distributePassiveIncome() {
 setInterval(distributePassiveIncome, 60 * 1000);
 
 // ─── App ─────────────────────────────────────────────────────────────────────
-
-const app    = express();
-const server = http.createServer(app);
-const io     = new Server(server, {
-  cors: { origin: '*' },
-  maxHttpBufferSize: 50 * 1024 * 1024, // 50 MB
-});
 
 // Middleware CORS pour les requêtes HTTP et Media (nécessaire pour l'API Web Audio 'crossorigin="anonymous"')
 app.use((req, res, next) => {
@@ -684,7 +686,6 @@ router.post('/upload', requireAuth, uploadMiddleware.single('file'), async (req,
   res.json({ ok: true, fileUrl, ttsUrl });
 });
 
-
 // ─── API Stats ───────────────────────────────────────────────────────────────
 
 router.get('/notifications/:userId', requireAuth, (req, res) => {
@@ -835,7 +836,6 @@ router.get('/trades/me', requireAuth, (req, res) => {
 
 // ─── API Marketplace ─────────────────────────────────────────────────────────
 
-
 // ─── COLLECTION & ACHIEVEMENTS ─────────────────────────────────────
 router.get('/collection', requireAuth, (req, res) => {
   const userId = req.query.userId;
@@ -882,7 +882,6 @@ router.post('/daily', requireAuth, (req, res) => {
   res.json(result);
 });
 
-
 // ─── CRAFTING ──────────────────────────────────────────────────────
 router.post('/craft', requireAuth, (req, res) => {
   const { userId, targetItemId } = req.body;
@@ -890,7 +889,6 @@ router.post('/craft', requireAuth, (req, res) => {
   const result = craftItem(userId, targetItemId);
   res.json(result);
 });
-
 
 // ─── FISHING ───────────────────────────────────────────────────────
 router.post('/fish', requireAuth, (req, res) => {
@@ -952,7 +950,6 @@ router.post('/coinflip/cancel', requireAuth, (req, res) => {
   cancelCoinflip(flipId);
   res.json({ ok: true });
 });
-
 
 // ─── ROULETTE ──────────────────────────────────────────────────────
 router.post('/roulette/create', requireAuth, (req, res) => {
@@ -1160,7 +1157,6 @@ router.delete('/memes/:userId/:memeName', requireAuth, (req, res) => {
     res.status(404).json({ error: result.message });
   }
 });
-
 
 router.post('/style/:userId', requireAuth, (req, res) => {
   const { username, color, font, animation, effect } = req.body;
@@ -1600,4 +1596,3 @@ server.listen(PORT, () => {
 });
 
 // Exporter pour que le bot puisse accéder aux helpers
-module.exports = { enqueue, getClientList, getConnectedDiscordIds, downloadMedia, io };
