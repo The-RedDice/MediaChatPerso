@@ -19,6 +19,7 @@ const session        = require('express-session');
 const passport       = require('passport');
 const DiscordStrategy = require('passport-discord').Strategy;
 const { getAvailableModels, generateTTS } = require('./tts');
+
 // ─── Config ──────────────────────────────────────────────────────────────────
 
 const PORT      = process.env.PORT      || 3000;
@@ -26,9 +27,10 @@ const SERVER_URL = process.env.SERVER_URL || `http://localhost:${PORT}`;
 const MEDIA_DIR  = path.resolve(process.env.MEDIA_DIR || './public/media');
 const MEMES_MEDIA_DIR = path.resolve('./public/memes_media');
 
-// S'assurer que le dossier media existe
 if (!fs.existsSync(MEDIA_DIR)) fs.mkdirSync(MEDIA_DIR, { recursive: true });
 if (!fs.existsSync(MEMES_MEDIA_DIR)) fs.mkdirSync(MEMES_MEDIA_DIR, { recursive: true });
+
+// ─── App Setup & Exports ─────────────────────────────────────────────────────
 
 const app    = express();
 const server = http.createServer(app);
@@ -37,7 +39,16 @@ const io     = new Server(server, {
   maxHttpBufferSize: 50 * 1024 * 1024, // 50 MB
 });
 
-module.exports = { enqueue, getClientList, getConnectedDiscordIds, downloadMedia, io };
+// Export functions early to avoid circular dependency issues
+module.exports = {
+  enqueue: (target, item) => enqueue(target, item),
+  getClientList: () => getClientList(),
+  getConnectedDiscordIds: () => getConnectedDiscordIds(),
+  downloadMedia: (url) => downloadMedia(url),
+  io
+};
+
+// ─── Local Imports ───────────────────────────────────────────────────────────
 
 const { recordAction, recordSkip, getUserStats, getLeaderboard, getUserProfile, saveUserProfile, updateReputation, spendCoins, unlockStyleItem, getUnlockedStyles, getNotifications } = require('./stats');
 const { addMeme, getUserMemes, removeMeme } = require('./memes');
@@ -48,10 +59,7 @@ const { createTradeRequest, updateTradeOffer, acceptTrade, declineTrade, getTrad
 const { startEvent, interactEvent, getActiveEvent, getEventById } = require('./events');
 const { canStartSession, startSession, getSessionState, endSession } = require('./draw');
 
-// Initialiser l'API IA
 initAI();
-
-// ─── Nettoyage Auto ──────────────────────────────────────────────────────────
 
 function cleanupOldMedia() {
   const maxAgeMs = 24 * 60 * 60 * 1000; // 24 heures
